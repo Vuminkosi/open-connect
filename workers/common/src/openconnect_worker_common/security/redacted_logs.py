@@ -1,4 +1,4 @@
-"""Redacted logging: PII and secrets are scrubbed before they reach log output."""
+"""Pattern-based redaction for opted-in Python loggers and handlers."""
 
 import logging
 import re
@@ -14,6 +14,7 @@ _CARD_RE = re.compile(r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b")
 _REDACTED_EMAIL = "[REDACTED_EMAIL]"
 _REDACTED_SECRET = "[REDACTED]"
 _REDACTED_PHONE = "[REDACTED_PHONE]"
+_EXCEPTION_FORMATTER = logging.Formatter()
 
 
 def redact_text(text: str) -> str:
@@ -27,21 +28,31 @@ def redact_text(text: str) -> str:
 
 
 class RedactingFilter(logging.Filter):
-    """Logging filter that redacts PII/secrets from the formatted message and args."""
+    """Redact recognized patterns in a record's formatted message and exception text."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
-            message = record.getMessage()
+            record.msg = redact_text(record.getMessage())
         except Exception:
-            return True
-        redacted = redact_text(message)
-        record.msg = redacted
+            record.msg = "[LOG_MESSAGE_UNAVAILABLE]"
         record.args = ()
+
+        if record.exc_info or record.exc_text is not None:
+            try:
+                text = record.exc_text
+                if text is None and record.exc_info:
+                    text = _EXCEPTION_FORMATTER.formatException(record.exc_info)
+                record.exc_text = redact_text(text) if text is not None else None
+            except Exception:
+                record.exc_text = "[EXCEPTION_TEXT_UNAVAILABLE]"
+            finally:
+                # Keep only the sanitized traceback so formatters cannot render the original again.
+                record.exc_info = None
         return True
 
 
 def get_redacted_logger(name: str, level: int = logging.INFO) -> logging.Logger:
-    """Return a logger with redaction applied. Safe to use with untrusted text."""
+    """Return a named logger with pattern-based message and exception redaction."""
     logger = logging.getLogger(name)
     logger.setLevel(level)
     if not any(isinstance(f, RedactingFilter) for f in logger.filters):
