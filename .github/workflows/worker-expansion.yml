@@ -87,3 +87,28 @@ jobs:
           tests/unit/test_extraction_runtime.py tests/unit/test_extraction_real_acceptance.py
       - name: State integration boundary
         run: echo 'Real models and live worker integration are not verified by this offline job.' >> "$GITHUB_STEP_SUMMARY"
+
+  worker-common:
+    name: Offline worker-common redaction checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: workers/common
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install uv
+        run: python -m pip install uv==0.13.6
+      - name: Install locked worker-common dependencies
+        run: uv sync --locked --no-cache
+      - name: Check redaction code and test formatting
+        run: |
+          uv run --offline --no-sync ruff check src/openconnect_worker_common/security/redacted_logs.py tests/test_redacted_logs.py
+          uv run --offline --no-sync ruff format --check src/openconnect_worker_common/security/redacted_logs.py tests/test_redacted_logs.py
+      - name: Test redaction offline
+        run: uv run --offline --no-sync pytest -q --tb=no --show-capture=no tests/test_redacted_logs.py
