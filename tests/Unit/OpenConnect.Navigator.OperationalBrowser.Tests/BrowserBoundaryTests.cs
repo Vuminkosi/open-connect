@@ -14,6 +14,11 @@ public sealed class BrowserBoundaryTests
         public Task<IPAddress[]> ResolveAsync(string host, CancellationToken cancellationToken) => Task.FromResult(new[] { address });
     }
 
+    private sealed class MultiResolver(params IPAddress[] addresses) : IHostAddressResolver
+    {
+        public Task<IPAddress[]> ResolveAsync(string host, CancellationToken cancellationToken) => Task.FromResult(addresses);
+    }
+
     private sealed class SequenceResolver(params IPAddress[] addresses) : IHostAddressResolver
     {
         private int _index;
@@ -41,6 +46,64 @@ public sealed class BrowserBoundaryTests
     public async Task Denies_metadata_and_private_addresses(string ip)
     {
         var guard = new EgressGuard(new Resolver(IPAddress.Parse(ip)));
+        Assert.False(await guard.IsAllowedAsync(Origin, new[] { Origin }));
+    }
+
+    [Theory]
+    [InlineData("192.0.0.1")]
+    [InlineData("192.0.2.1")]
+    [InlineData("198.18.0.1")]
+    [InlineData("198.19.255.254")]
+    [InlineData("198.51.100.7")]
+    [InlineData("203.0.113.9")]
+    [InlineData("240.0.0.1")]
+    [InlineData("255.255.255.255")]
+    [InlineData("::")]
+    [InlineData("::1")]
+    [InlineData("::10.0.0.1")]
+    [InlineData("::8.8.8.8")]
+    [InlineData("::ffff:10.0.0.1")]
+    [InlineData("::ffff:169.254.169.254")]
+    [InlineData("64:ff9b::a00:1")]
+    [InlineData("64:ff9b::a9fe:a9fe")]
+    [InlineData("64:ff9b::7f00:1")]
+    [InlineData("64:ff9b:1::1")]
+    [InlineData("64:ff9b:1:0:0:0:808:808")]
+    [InlineData("2002:a00:1::")]
+    [InlineData("2002:7f00:1::1")]
+    [InlineData("2002:a9fe:a9fe::1")]
+    [InlineData("2001:0:4136:e378:8000:63bf:3fff:fdd2")]
+    [InlineData("2001:db8::1")]
+    [InlineData("2001:1::1")]
+    [InlineData("3fff::1")]
+    [InlineData("100::1")]
+    [InlineData("fec0::1")]
+    [InlineData("fc00::1")]
+    [InlineData("fe80::1")]
+    [InlineData("ff02::1")]
+    public async Task Denies_special_use_and_embedded_private_addresses(string ip)
+    {
+        var guard = new EgressGuard(new Resolver(IPAddress.Parse(ip)));
+        Assert.False(await guard.IsAllowedAsync(Origin, new[] { Origin }));
+    }
+
+    [Theory]
+    [InlineData("93.184.216.34")]
+    [InlineData("198.20.0.1")]
+    [InlineData("2606:4700:4700::1111")]
+    [InlineData("::ffff:93.184.216.34")]
+    [InlineData("64:ff9b::5db8:d822")]
+    [InlineData("2002:5db8:d822::1")]
+    public async Task Allows_public_and_embedded_public_addresses(string ip)
+    {
+        var guard = new EgressGuard(new Resolver(IPAddress.Parse(ip)));
+        Assert.True(await guard.IsAllowedAsync(Origin, new[] { Origin }));
+    }
+
+    [Fact]
+    public async Task Denies_mixed_public_and_special_use_records()
+    {
+        var guard = new EgressGuard(new MultiResolver(IPAddress.Parse("93.184.216.34"), IPAddress.Parse("64:ff9b::a00:1")));
         Assert.False(await guard.IsAllowedAsync(Origin, new[] { Origin }));
     }
 

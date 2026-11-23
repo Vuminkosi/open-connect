@@ -32,6 +32,12 @@ the Playwright tool allowlist; `EgressGuard.IsAllowedAsync` (`EgressGuard.cs:22`
 revalidates each HTTPS destination against the allowed origins. Pair with
 `OpenConnect.Navigator.Operational` for durable scheduling.
 
+The guard denies every resolved address that is not globally routable: private, loopback,
+link-local, shared, documentation, benchmarking, reserved and multicast IPv4 ranges, and the
+IPv6 equivalents plus Teredo, local-use NAT64 and IPv4-compatible forms. IPv4 embedded in
+IPv4-mapped, NAT64 (`64:ff9b::/96`) and 6to4 (`2002::/16`) addresses is checked with the IPv4
+rules. All records returned for a host must be public.
+
 ## License
 
 Same terms as the OpenConnect repository.

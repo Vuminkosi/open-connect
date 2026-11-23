@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed Navigator `EgressGuard` (#135): it now denies IPv4 192.0.0.0/24, 192.0.2.0/24, 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24 and 240.0.0.0/4, and IPv6 NAT64 local-use, Teredo, documentation and IPv4-compatible ranges. IPv4 embedded in NAT64 and 6to4 addresses is evaluated with the IPv4 rules. Public API is unchanged.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.
