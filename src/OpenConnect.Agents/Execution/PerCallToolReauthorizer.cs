@@ -6,10 +6,13 @@ namespace OpenConnect.Agents.Execution;
 /// <summary>
 /// Wraps an AIFunction to reauthorize every consequential invocation against current grants,
 /// task deadline, active revocation callback, and remaining tool budget.
+/// The wrapped function's declaration (name, description, schemas, additional properties,
+/// serializer options, and underlying method) is forwarded unchanged so the wrapper remains
+/// distinguishable by model-facing tool metadata. The impact value is informational and does not
+/// alter authorization or budget behavior.
 /// </summary>
-public sealed class ReauthorizingAIFunction : AIFunction
+public sealed class ReauthorizingAIFunction : DelegatingAIFunction
 {
-    private readonly AIFunction _inner;
     private readonly ToolId _toolId;
     private readonly ToolImpact _impact;
     private readonly Func<ToolId, bool> _isToolGranted;
@@ -26,8 +29,8 @@ public sealed class ReauthorizingAIFunction : AIFunction
         IsExecutionRevoked isRevoked,
         AgentExecutionContext context,
         RunBudgetLedger? ledger = null)
+        : base(inner ?? throw new ArgumentNullException(nameof(inner)))
     {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _toolId = toolId;
         _impact = impact;
         _isToolGranted = isToolGranted ?? throw new ArgumentNullException(nameof(isToolGranted));
@@ -60,7 +63,7 @@ public sealed class ReauthorizingAIFunction : AIFunction
             throw new UnauthorizedAccessException($"Tool '{_toolId.Value}' execution denied: tool call budget exhausted.");
 
         // Reauthorization succeeded: invoke underlying tool
-        return await _inner.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
+        return await InnerFunction.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
     }
 }
 
