@@ -1,5 +1,6 @@
 using System.Text;
 using OpenConnect.Abstractions;
+using OpenConnect.Privacy.Restoration;
 using OpenConnect.Privacy.Streaming;
 using OpenConnect.Privacy.Tokenization;
 using Xunit;
@@ -9,6 +10,81 @@ namespace OpenConnect.Privacy.Tests;
 public sealed class StreamingPlaceholderBufferTests
 {
     private static readonly PrivacyScope Scope = new(new(Ulid.NewUlid()), new(Ulid.NewUlid()), new(Ulid.NewUlid()), "stream");
+
+    private const string FixtureToken = "[OC_StreamFixture]";
+    private const string FixtureValue = "blue-square";
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task BracketAdjacentTokenMatchesFinalOutputAtEverySplit(int precedingBracketCount)
+    {
+        var literalBrackets = new string('[', precedingBracketCount);
+        var input = $"prefix {literalBrackets}{FixtureToken} suffix";
+        var vault = new FixtureTokenVault();
+        var restored = await new TokenRestorationService(vault)
+            .RestoreAsync(input, Scope, new(RestorationTarget.FinalUserOutput));
+        Assert.Equal($"prefix {literalBrackets}{FixtureValue} suffix", restored);
+
+        var tokenEnd = input.IndexOf(FixtureToken, StringComparison.Ordinal) + FixtureToken.Length;
+        for (var split = 0; split <= input.Length; split++)
+        {
+            var buffer = new StreamingPlaceholderBuffer(vault, Scope);
+            var first = await buffer.ProcessChunkAsync(input[..split]);
+            var second = await buffer.ProcessChunkAsync(input[split..]);
+            var remainder = await buffer.FlushAsync();
+
+            if (split < tokenEnd)
+            {
+                Assert.DoesNotContain(FixtureToken[..4], first);
+                Assert.DoesNotContain(FixtureValue, first);
+            }
+
+            Assert.Equal(restored, first + second + remainder);
+        }
+    }
+
+    [Theory]
+    [InlineData("[x")]
+    [InlineData("[OC_literal")]
+    public async Task StrayBracketTextIsPreserved(string input)
+    {
+        var buffer = new StreamingPlaceholderBuffer(
+            _ => throw new InvalidOperationException("Literal text must not be resolved."));
+
+        var first = await buffer.ProcessChunkAsync(input[..1]);
+        var second = await buffer.ProcessChunkAsync(input[1..]);
+        var remainder = await buffer.FlushAsync();
+
+        Assert.Equal(input, first + second + remainder);
+        Assert.Equal(string.Empty, await buffer.FlushAsync());
+    }
+
+    [Fact]
+    public async Task ReachingLengthBoundAndFlushingStillPreserveLiteralText()
+    {
+        var buffer = new StreamingPlaceholderBuffer(
+            _ => throw new InvalidOperationException("Incomplete text must not be resolved."));
+        var atBound = "[OC_" + new string('a', 60);
+
+        Assert.Equal(string.Empty, await buffer.ProcessChunkAsync(atBound));
+        Assert.Equal(atBound + "x", await buffer.ProcessChunkAsync("x"));
+        Assert.Equal(string.Empty, await buffer.FlushAsync());
+
+        Assert.Equal(string.Empty, await buffer.ProcessChunkAsync("[OC_literal"));
+        Assert.Equal("[OC_literal", await buffer.FlushAsync());
+        Assert.Equal(string.Empty, await buffer.FlushAsync());
+    }
+
+    private sealed class FixtureTokenVault : ITokenVault
+    {
+        public ValueTask<string> StoreAsync(string value, string entityType, PrivacyScope scope, TimeSpan ttl,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public ValueTask<string?> ResolveAsync(string token, PrivacyScope scope, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult<string?>(token == FixtureToken && scope == Scope ? FixtureValue : null);
+    }
 
     [Fact]
     public async Task RestoresTokenWhenSplitAcrossChunks()
