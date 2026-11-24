@@ -228,6 +228,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<DocumentationContentStore>();
 builder.Services.AddSingleton<DocumentationSearchService>();
 builder.Services.AddSingleton<GeneratedApiStore>();
+builder.Services.AddSingleton<OpenConnect.Docs.Services.Voice.LiveVoiceBenchmarkService>();
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
 builder.Services.AddOpenConnectComponents();
 

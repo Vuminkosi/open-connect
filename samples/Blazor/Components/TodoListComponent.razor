@@ -58,6 +58,14 @@
                 <option value="@priority">@priority</option>
             }
         </select>
+        <label for="todo-due-filter">Due date filter</label>
+        <select id="todo-due-filter" @bind="_dueDateFilter" @bind:after="ResetPage">
+            <option value="all">All due dates</option>
+            <option value="today">Due today</option>
+            <option value="tomorrow">Due tomorrow</option>
+            <option value="this-week">Due this week</option>
+            <option value="overdue">Overdue</option>
+        </select>
         <label for="todo-overdue-filter">
             <input id="todo-overdue-filter" type="checkbox" @bind="_overdueOnly" @bind:after="ResetPage" />
             Overdue incomplete only
@@ -87,7 +95,7 @@
                 {
                     <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
                 }
-                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _activeTab != 0)
+                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _dueDateFilter != "all" || _activeTab != 0)
                 {
                     <span>No tasks match the selected filters. Change the filters to see other tasks.</span>
                 }
@@ -219,6 +227,7 @@
     private int _page = 1;
     private string _sort = "priority";
     private string _priorityFilter = "all";
+    private string _dueDateFilter = "all";
     private bool _overdueOnly;
     private bool _oldCompletedOnly;
     private Guid? _editingId;
@@ -261,6 +270,18 @@
 
             if (Enum.TryParse<TodoPriority>(_priorityFilter, out var priority))
                 query = query.Where(i => i.Priority == priority);
+            if (_dueDateFilter != "all")
+            {
+                var today = DateTime.Today;
+                query = _dueDateFilter switch
+                {
+                    "today" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today),
+                    "tomorrow" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today.AddDays(1)),
+                    "this-week" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date >= today && due.ToLocalTime().Date <= today.AddDays(7)),
+                    "overdue" => query.Where(i => !i.IsCompleted && i.DueDateUtc is { } due && due.ToLocalTime().Date < today),
+                    _ => query
+                };
+            }
             if (_overdueOnly)
             {
                 var today = DateTime.Today;

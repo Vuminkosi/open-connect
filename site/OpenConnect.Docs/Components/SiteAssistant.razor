@@ -6,6 +6,7 @@
 @using OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
 @using OpenConnect.Docs.Services.Voice
+@using Microsoft.Extensions.Configuration
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject DocumentationAssistantAvailability Availability
@@ -31,6 +32,7 @@
                       VoiceConnectionTicket="IssueVoiceTicket"
                       VoiceInputAvailable="_voiceInputAvailable"
                       VoiceInputChecking="_voiceInputChecking"
+                      EnableContinuousVoice="_enableContinuousVoice"
                       CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
         <OpenConnectNavigatorProvider />
     </OpenConnectLiveUIProvider>
@@ -47,6 +49,7 @@
     private bool _dark;
     private bool? _voiceInputAvailable;
     private bool _voiceInputChecking;
+    private bool _enableContinuousVoice;
     private readonly CancellationTokenSource _lifetime = new();
     private long _subscription;
     private DotNetObjectReference<SiteAssistant>? _reference;
@@ -59,6 +62,8 @@
 
     protected override void OnInitialized()
     {
+        _enableContinuousVoice = Services.GetService<IConfiguration>()
+            ?.GetValue<bool>("OpenConnect:Assistant:EnableContinuousVoice") ?? false;
         if (Services.GetService<DocumentationVoiceAvailability>() is not null)
         {
             _voiceInputAvailable = false;

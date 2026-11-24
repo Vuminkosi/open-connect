@@ -1,0 +1,326 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+@using Microsoft.Extensions.Configuration
+@using Microsoft.JSInterop
+@using OpenConnect.Docs.Services
+@using OpenConnect.Docs.Services.Voice
+@inject IServiceProvider Services
+
+<section class="doc-card voice-benchmark" aria-labelledby="voice-benchmark-title" data-testid="live-voice-benchmark-dashboard">
+    <div class="voice-benchmark-header">
+        <div>
+            <span class="version-label">Observability &amp; Readiness</span>
+            <h2 id="voice-benchmark-title">Live Voice Benchmark &amp; Readiness Dashboard</h2>
+            <p>
+                Compares aspirational engineering targets against measured runtime telemetry for the
+                opt-in <code>openconnect.voice.v2</code> duplex pipeline. Engineering targets are never
+                presented as observed production results.
+            </p>
+        </div>
+        <div class="voice-benchmark-actions">
+            <button type="button"
+                    class="button primary"
+                    id="voice-benchmark-demo-trigger"
+                    @onclick="ToggleLiveVoiceDemoAsync"
+                    disabled="@(!_assistantConfigured)">
+                @(_demoActive ? "Stop Live Voice Demo" : "Start Live Voice Demo")
+            </button>
+            <button type="button"
+                    class="button"
+                    id="voice-benchmark-refresh"
+                    @onclick="RefreshReadinessAsync"
+                    disabled="@_voiceChecking">
+                @(_voiceChecking ? "Checking readiness…" : "Refresh readiness")
+            </button>
+        </div>
+    </div>
+
+    <div class="voice-benchmark-notice" role="status" aria-live="polite" data-testid="voice-benchmark-status">
+        @if (!string.IsNullOrWhiteSpace(_demoStatusMessage))
+        {
+            <p>@_demoStatusMessage</p>
+        }
+        else if (!_assistantConfigured)
+        {
+            <p>
+                Live Voice demo unavailable: the documentation assistant gateway is not configured.
+                Configure <code>OpenConnect:Assistant:Enabled</code> and a gateway endpoint to test through <code>MiniComposer</code>.
+            </p>
+        }
+        else if (_voiceChecking)
+        {
+            <p>Checking host voice model readiness through <code>DocumentationVoiceAvailability</code>…</p>
+        }
+        else if (_voiceReady == true)
+        {
+            <p>Host voice readiness probe succeeded. Use <strong>Start Live Voice Demo</strong> to open the site assistant's <code>MiniComposer</code>.</p>
+        }
+        else if (_voiceReady == false)
+        {
+            <p>Host voice readiness probe returned unavailable. Text input in <code>MiniComposer</code> remains active.</p>
+        }
+        else
+        {
+            <p>Assistant gateway is configured. Select <strong>Start Live Voice Demo</strong> to interact with the site's <code>MiniComposer</code>.</p>
+        }
+    </div>
+
+    <dl class="voice-benchmark-meta" aria-label="Benchmark run metadata">
+        <div>
+            <dt>Run classification</dt>
+            <dd data-testid="voice-benchmark-classification">
+                @if (Snapshot.IsSyntheticHarness)
+                {
+                    <strong class="voice-badge voice-badge-synthetic">Synthetic / Local Harness</strong>
+                }
+                else if (Snapshot.HasMeasuredRun)
+                {
+                    <strong class="voice-badge voice-badge-measured">Measured Run</strong>
+                }
+                else
+                {
+                    <strong class="voice-badge voice-badge-unmeasured">@Snapshot.RunClassificationLabel</strong>
+                }
+            </dd>
+        </div>
+        <div>
+            <dt>Sample count</dt>
+            <dd data-testid="voice-benchmark-samples">@Snapshot.SampleCount</dd>
+        </div>
+        <div>
+            <dt>Test date (UTC)</dt>
+            <dd data-testid="voice-benchmark-date">@(Snapshot.MeasuredAtUtc?.ToString("yyyy-MM-dd HH:mm 'UTC'") ?? "—")</dd>
+        </div>
+        <div>
+            <dt>Deployment mode</dt>
+            <dd data-testid="voice-benchmark-mode">@Snapshot.DeploymentMode</dd>
+        </div>
+        <div>
+            <dt>Playback underruns</dt>
+            <dd data-testid="voice-benchmark-underruns">@(Snapshot.UnderrunCount?.ToString() ?? LiveVoiceBenchmarkService.NotYetMeasured)</dd>
+        </div>
+        <div>
+            <dt>Queue pressure events</dt>
+            <dd data-testid="voice-benchmark-queue">@(Snapshot.QueuePressureCount?.ToString() ?? LiveVoiceBenchmarkService.NotYetMeasured)</dd>
+        </div>
+    </dl>
+
+    <section class="voice-benchmark-section" aria-labelledby="voice-readiness-heading">
+        <h3 id="voice-readiness-heading">Active Provider &amp; Model Readiness</h3>
+        <div class="voice-benchmark-table-wrap">
+            <table class="voice-benchmark-table" data-testid="voice-readiness-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Component</th>
+                        <th scope="col">Provider / Model</th>
+                        <th scope="col">Mode</th>
+                        <th scope="col">Readiness</th>
+                        <th scope="col">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var provider in Snapshot.Providers)
+                    {
+                        <tr>
+                            <td><strong>@provider.Role</strong></td>
+                            <td>@provider.Provider</td>
+                            <td>@provider.Mode</td>
+                            <td><span class="voice-state">@provider.State</span></td>
+                            <td>@provider.Detail</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="voice-benchmark-section" aria-labelledby="voice-metrics-heading">
+        <h3 id="voice-metrics-heading">Target vs Measured Latency &amp; Correctness</h3>
+        <p class="voice-benchmark-caption">
+            Targets apply to a warm, single-session, non-tool baseline. Safety and privacy checks are never suppressed to meet latency targets.
+        </p>
+        <div class="voice-benchmark-table-wrap">
+            <table class="voice-benchmark-table" data-testid="voice-metrics-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Metric</th>
+                        <th scope="col">Target P50</th>
+                        <th scope="col">Target P95</th>
+                        <th scope="col">Measured P50</th>
+                        <th scope="col">Measured P95</th>
+                        <th scope="col">Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Snapshot.Metrics)
+                    {
+                        <tr>
+                            <td><strong>@row.MetricName</strong></td>
+                            <td>@row.TargetP50</td>
+                            <td>@row.TargetP95</td>
+                            <td class="voice-measured-cell">@row.MeasuredP50</td>
+                            <td class="voice-measured-cell">@row.MeasuredP95</td>
+                            <td>@row.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="voice-benchmark-section" aria-labelledby="voice-waterfall-heading">
+        <h3 id="voice-waterfall-heading">Stage Latency Waterfall</h3>
+        <p class="voice-benchmark-caption">
+            Illustrative 800 ms budget breakdown (not an observed benchmark) alongside measured stage timings.
+        </p>
+        <div class="voice-benchmark-table-wrap">
+            <table class="voice-benchmark-table" data-testid="voice-waterfall-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Pipeline Stage</th>
+                        <th scope="col">Illustrative Budget</th>
+                        <th scope="col">Measured</th>
+                        <th scope="col">Stage Responsibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stage in Snapshot.Stages)
+                    {
+                        <tr>
+                            <td><strong>@stage.StageName</strong></td>
+                            <td>@stage.IllustrativeBudget</td>
+                            <td class="voice-measured-cell">@stage.MeasuredLatency</td>
+                            <td>@stage.Detail</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <p class="voice-benchmark-privacy" data-testid="voice-benchmark-privacy-note">
+        <strong>Privacy &amp; tenant boundary:</strong> This dashboard reports sanitized stage durations,
+        counters, and provider readiness only. Raw transcripts, raw PCM audio, and cross-tenant telemetry
+        are never displayed or stored here.
+    </p>
+</section>
+
+@code {
+    [Parameter] public LiveVoiceBenchmarkSnapshot? SnapshotOverride { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _assistantConfigured;
+    private bool? _voiceReady;
+    private bool _voiceChecking;
+    private bool _demoActive;
+    private string? _demoStatusMessage;
+    private bool _disposed;
+
+    private LiveVoiceBenchmarkSnapshot Snapshot
+    {
+        get
+        {
+            if (SnapshotOverride is not null)
+                return SnapshotOverride;
+
+            var service = Services.GetService<LiveVoiceBenchmarkService>()
+                ?? new LiveVoiceBenchmarkService(Services.GetService<IConfiguration>());
+            return service.CreateBaselineSnapshot(_assistantConfigured, _voiceReady, _voiceChecking);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _assistantConfigured = Services.GetService<DocumentationAssistantAvailability>()?.Configured ?? false;
+        if (Services.GetService<DocumentationVoiceAvailability>() is not null)
+        {
+            _voiceChecking = true;
+            _voiceReady = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await RefreshReadinessAsync();
+    }
+
+    private async Task RefreshReadinessAsync()
+    {
+        var availability = Services.GetService<DocumentationVoiceAvailability>();
+        if (availability is null)
+        {
+            _voiceChecking = false;
+            return;
+        }
+
+        _voiceChecking = true;
+        StateHasChanged();
+        try
+        {
+            _voiceReady = await availability.IsAvailableAsync(_lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+        finally
+        {
+            if (!_disposed)
+            {
+                _voiceChecking = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task ToggleLiveVoiceDemoAsync()
+    {
+        if (!_assistantConfigured)
+        {
+            _demoStatusMessage = "Live Voice demo cannot start because the documentation assistant gateway is not configured.";
+            return;
+        }
+
+        var js = Services.GetService<IJSRuntime>();
+        if (!_demoActive)
+        {
+            _demoActive = true;
+            _demoStatusMessage = "Opened the site assistant MiniComposer. Use the composer microphone control to start an authenticated voice session.";
+            if (js is not null)
+            {
+                try
+                {
+                    await js.InvokeVoidAsync("ocVoiceBenchmarkDemo.openAssistant");
+                }
+                catch (Exception ex) when (ex is JSException or InvalidOperationException)
+                {
+                    // Composer remains accessible directly from the bottom-right launcher.
+                }
+            }
+        }
+        else
+        {
+            _demoActive = false;
+            _demoStatusMessage = "Stopped Live Voice demo request. Confirm the microphone indicator in MiniComposer is off to release audio capture.";
+            if (js is not null)
+            {
+                try
+                {
+                    await js.InvokeVoidAsync("ocVoiceBenchmarkDemo.stopAssistantVoice");
+                }
+                catch (Exception ex) when (ex is JSException or InvalidOperationException)
+                {
+                    // Safe no-op when browser voice script is not loaded.
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

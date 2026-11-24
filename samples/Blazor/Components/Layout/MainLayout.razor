@@ -3,7 +3,9 @@
 @using OpenConnect.Components.Blazor
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
+@using Microsoft.Extensions.Configuration
 @using Microsoft.JSInterop
+@inject IConfiguration Configuration
 @inject IJSRuntime JS
 
 <MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" ObserveSystemThemeChange="true" />
@@ -45,6 +47,7 @@
                           AssistantName="Ellai"
                           FabIcon="@Icons.Material.Filled.SmartToy"
                           Placeholder="Ask Ellai..."
+                          EnableContinuousVoice="@_enableContinuousVoice"
                           CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
             <OpenConnectNavigatorProvider />
           </OpenConnectLiveUIProvider>
@@ -56,6 +59,12 @@
     private MudThemeProvider _mudThemeProvider = null!;
     private bool _isDarkMode = false;
     private bool _userExplicitlySetTheme = false;
+    private bool _enableContinuousVoice;
+
+    protected override void OnInitialized()
+    {
+        _enableContinuousVoice = Configuration.GetValue<bool>("OpenConnect:Voice:EnableContinuousConversation");
+    }
 
     private readonly MudTheme _theme = new()
     {
