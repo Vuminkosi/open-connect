@@ -12,13 +12,20 @@ from pydantic import ValidationError
 from openconnect_realtime_voice import engine as engine_module
 from openconnect_realtime_voice import engine_mode
 from openconnect_realtime_voice.config import Settings
+from openconnect_realtime_voice.observations import (
+    EndpointEvaluator,
+    ObservationRegistry,
+    StaleObservationEpoch,
+)
 from openconnect_realtime_voice.schemas import (
     EXECUTE_KINDS,
+    EndpointEvaluateRequest,
     ExecuteRequest,
     SessionOpenRequest,
     TaskClaimRequest,
     TaskLeaseRequest,
     VoiceEventRequest,
+    VoiceObserveRequest,
 )
 from openconnect_realtime_voice.sessions import (
     InvalidTransition,
@@ -37,12 +44,19 @@ logger = logging.getLogger("openconnect_realtime_voice")
 app = FastAPI(title="OpenConnect Realtime Voice Worker", docs_url=None, redoc_url=None)
 settings = Settings.from_environment()
 sessions = SessionRegistry()
+endpoint_evaluator = EndpointEvaluator()
+observations = ObservationRegistry(endpoint_evaluator)
 tasks = TaskRegistry(frozenset(EXECUTE_KINDS))
 voice_engine = engine_module.FakeVoiceEngine(sessions)
 
 
 def _capabilities() -> list[str]:
-    capabilities = ["voice.session", "voice.barge-in"]
+    capabilities = [
+        "voice.session",
+        "voice.barge-in",
+        "voice.observe",
+        "voice.endpoint.evaluate",
+    ]
     if settings.fake_engine:
         # Deterministic fake chunks exist only when the fake engine is on.
         capabilities.append("voice.fake-chunks")
@@ -189,7 +203,134 @@ def execute(request: ExecuteRequest) -> dict[str, object]:
             "kind": request.kind,
             "result": result,
         }
+    if request.kind == "voice.observe":
+        try:
+            body = VoiceObserveRequest(**request.payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="invalid payload") from exc
+        if not body.sessionId:
+            raise HTTPException(status_code=422, detail="sessionId is required")
+        try:
+            snapshot, endpoint = observations.observe(
+                tenant_id=body.tenantId,
+                session_id=body.sessionId,
+                speech_epoch=body.speechEpoch,
+                capture_id=body.captureId,
+                connection_state=body.connectionState,
+                input_state=body.inputState,
+                reasoning_state=body.reasoningState,
+                output_state=body.outputState,
+                silence_ms=body.silenceMs,
+                speech_duration_ms=body.speechDurationMs,
+                transcript=body.transcript,
+                stable_text=body.stableText,
+                unstable_text=body.unstableText,
+                transcript_revision=body.transcriptRevision,
+                assistant_speaking=body.assistantSpeaking,
+                endpointing_mode=body.endpointingMode,
+                evaluate_endpoint=body.evaluateEndpoint,
+            )
+        except StaleObservationEpoch as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"stale speech epoch, expected >= {exc.expected}",
+            ) from exc
+        observe_result: dict[str, object] = {
+            "observation": snapshot.to_dict(),
+            "authoritative": False,
+        }
+        if endpoint is not None:
+            observe_result["endpointObservation"] = endpoint.to_dict()
+        return {
+            "schemaVersion": "openconnect.v1",
+            "taskId": request.taskId,
+            "kind": request.kind,
+            "result": observe_result,
+        }
+    if request.kind == "voice.endpoint.evaluate":
+        try:
+            eval_body = EndpointEvaluateRequest(**request.payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail="invalid payload") from exc
+        try:
+            snapshot, endpoint = observations.observe(
+                tenant_id=eval_body.tenantId,
+                session_id=eval_body.sessionId,
+                speech_epoch=eval_body.speechEpoch,
+                capture_id=eval_body.captureId,
+                output_state=eval_body.outputState,
+                silence_ms=eval_body.silenceMs,
+                speech_duration_ms=eval_body.speechDurationMs,
+                transcript=eval_body.transcript,
+                stable_text=eval_body.stableText,
+                unstable_text=eval_body.unstableText,
+                transcript_revision=eval_body.transcriptRevision,
+                assistant_speaking=eval_body.assistantSpeaking,
+                endpointing_mode=eval_body.endpointingMode,
+                evaluate_endpoint=True,
+            )
+        except StaleObservationEpoch as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"stale speech epoch, expected >= {exc.expected}",
+            ) from exc
+        assert endpoint is not None
+        return {
+            "schemaVersion": "openconnect.v1",
+            "taskId": request.taskId,
+            "kind": request.kind,
+            "result": {
+                "observation": snapshot.to_dict(),
+                "endpointObservation": endpoint.to_dict(),
+                "authoritative": False,
+            },
+        }
     raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown kind")
+
+
+@app.post("/internal/v2/sessions/{session_id}/observe", dependencies=[Depends(authenticate)])
+def observe_session_v2(session_id: str, request: VoiceObserveRequest) -> dict[str, object]:
+    _, status_code, code = engine_mode.rejection(settings.fake_engine, settings.model_device)
+    if code is not None:
+        raise HTTPException(status_code=status_code or 503, detail=code)
+    if request.sessionId is not None and request.sessionId != session_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="sessionId mismatch",
+        )
+    try:
+        snapshot, endpoint = observations.observe(
+            tenant_id=request.tenantId,
+            session_id=session_id,
+            speech_epoch=request.speechEpoch,
+            capture_id=request.captureId,
+            connection_state=request.connectionState,
+            input_state=request.inputState,
+            reasoning_state=request.reasoningState,
+            output_state=request.outputState,
+            silence_ms=request.silenceMs,
+            speech_duration_ms=request.speechDurationMs,
+            transcript=request.transcript,
+            stable_text=request.stableText,
+            unstable_text=request.unstableText,
+            transcript_revision=request.transcriptRevision,
+            assistant_speaking=request.assistantSpeaking,
+            endpointing_mode=request.endpointingMode,
+            evaluate_endpoint=request.evaluateEndpoint,
+        )
+    except StaleObservationEpoch as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"stale speech epoch, expected >= {exc.expected}",
+        ) from exc
+    response: dict[str, object] = {
+        "schemaVersion": "openconnect.v2",
+        "observation": snapshot.to_dict(),
+        "authoritative": False,
+    }
+    if endpoint is not None:
+        response["endpointObservation"] = endpoint.to_dict()
+    return response
 
 
 @app.get("/internal/v1/voice/sessions/{session_id}", dependencies=[Depends(authenticate)])
