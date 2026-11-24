@@ -129,6 +129,8 @@ class Settings:
     transcription_file_url: str = DEFAULT_TRANSCRIPTION_FILE_URL
     environment: str = "Production"
     model_offline: bool = False
+    streaming_partial_cadence_ms: int = 400
+    streaming_window_ms: int = 15_000
 
     @classmethod
     def from_environment(cls) -> "Settings":
@@ -227,6 +229,17 @@ class Settings:
             else DEFAULT_TRANSCRIPTION_FILE_URL,
             environment=resolve_environment(),
             model_offline=parse_offline(),
+            streaming_partial_cadence_ms=max(
+                50,
+                _as_int(os.environ.get("TRANSCRIPTION_STREAMING_CADENCE_MS"), 400),
+            ),
+            streaming_window_ms=max(
+                500,
+                min(
+                    120_000,
+                    _as_int(os.environ.get("TRANSCRIPTION_STREAMING_WINDOW_MS"), 15_000),
+                ),
+            ),
         )
 
     @property

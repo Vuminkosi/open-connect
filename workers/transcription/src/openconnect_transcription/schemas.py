@@ -67,6 +67,36 @@ class ExecuteResponse(BaseModel):
     segments: list[TranscriptSegment] = Field(max_length=256)
 
 
+class StreamingLocalCapability(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+    endpoint: str = "/internal/v2/realtime/local"
+    recognitionMode: Literal["rolling-window"] = "rolling-window"
+    nativeStreaming: Literal[False] = False
+    supportsPartials: bool
+    supportsFinalization: bool = True
+    supportsReset: bool = True
+    modelReady: bool
+    sampleRateHz: int = 24_000
+    channels: int = 1
+    cadenceMs: int = 400
+    defaultLocale: str = "en"
+
+
+class StreamingRealtimeCapability(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+    endpoint: str = "/internal/v2/realtime"
+    primaryProvider: Literal["cloud-muse", "local-whisper", "none"]
+    fallbackAvailable: bool
+    transcriptionMode: str
+    supportsPartials: bool
+    sampleRateHz: int = 24_000
+    channels: int = 1
+
+
 class CapabilityResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -83,6 +113,8 @@ class CapabilityResponse(BaseModel):
     supportsPartials: bool
     sampleRatesHz: list[int]
     maxDurationMs: int
+    streamingLocal: StreamingLocalCapability | None = None
+    streamingRealtime: StreamingRealtimeCapability | None = None
 
 
 class TaskClaimRequest(BaseModel):
