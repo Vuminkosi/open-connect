@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Worker capability descriptors registered by the `AddOpenConnect*Worker` helpers (#142) no longer expire one hour after startup. They use `DateTimeOffset.MaxValue` as a non-expiring registration, `WorkerCapabilityRegistry.UpdateReadiness` keeps non-expiring descriptors non-expiring and never shortens a finite expiry, and the mirrored `worker.*` entries in `ICapabilityRegistry` live as long as their descriptor and are marked stale when it lapses. `WorkerCapabilityRegistry` now uses the `TimeProvider` registered in DI. Hosts that relied on descriptors lapsing after one hour must register finite `ExpiresAt` values themselves.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.
