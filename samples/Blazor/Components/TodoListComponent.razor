@@ -51,7 +51,7 @@
             <option value="deadline">Earliest deadline</option>
         </select>
         <label for="todo-priority-filter">Priority filter</label>
-        <select id="todo-priority-filter" @bind="_priorityFilter" @bind:after="ResetPage">
+        <select id="todo-priority-filter" aria-label="Priority filter" @bind="_priorityFilter" @bind:after="ResetPage">
             <option value="all">All priorities</option>
             @foreach (var priority in Enum.GetValues<TodoPriority>())
             {
@@ -59,7 +59,7 @@
             }
         </select>
         <label for="todo-due-filter">Due date filter</label>
-        <select id="todo-due-filter" @bind="_dueDateFilter" @bind:after="ResetPage">
+        <select id="todo-due-filter" aria-label="Due date filter" @bind="_dueDateFilter" @bind:after="ResetPage">
             <option value="all">All due dates</option>
             <option value="today">Due today</option>
             <option value="tomorrow">Due tomorrow</option>
@@ -268,12 +268,13 @@
                     (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
             }
 
-            if (Enum.TryParse<TodoPriority>(_priorityFilter, out var priority))
+            if (Enum.TryParse<TodoPriority>(_priorityFilter, ignoreCase: true, out var priority))
                 query = query.Where(i => i.Priority == priority);
-            if (_dueDateFilter != "all")
+            var normalizedDueFilter = _dueDateFilter.Trim().ToLowerInvariant();
+            if (normalizedDueFilter != "all")
             {
                 var today = DateTime.Today;
-                query = _dueDateFilter switch
+                query = normalizedDueFilter switch
                 {
                     "today" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today),
                     "tomorrow" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today.AddDays(1)),

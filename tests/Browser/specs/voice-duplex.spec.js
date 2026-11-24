@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
 const COMPOSER_VOICE_PATH = path.resolve('../../src/OpenConnect.Components.Blazor/wwwroot/js/composer-voice.js');
+const PLAYBACK_WORKLET_PATH = path.resolve('../../src/OpenConnect.Components.Blazor/wwwroot/js/voice-playback-worklet.js');
 
 async function setupDuplexHarness(page) {
   await page.route('https://voice-duplex-test.invalid/', route =>
@@ -201,25 +202,26 @@ test('v2 32-byte binary frame encode/decode roundtrip and malformed header rejec
   expect(result.encodeOddRejected).toBeNull();
 });
 
-test('persistent mic across multiple utterances with endUtterance vs stopSession', async ({ page }) => {
+test('LV-02 & LV-28: persistent mic across 5 consecutive utterances with 1 getUserMedia call and clean stopSession disposal', async ({ page }) => {
   await setupDuplexHarness(page);
 
   const summary = await page.evaluate(async () => {
     const dotnet = { invokeMethodAsync: async (...args) => { window.__duplexTest.dotnetCalls.push(args); } };
     await window.ocComposerVoice.startDuplex(dotnet, 'sess-multi', 1, null, 'ticket-v2');
 
-    // Simulate 3 utterances separated by endUtterance() without tearing down mic/context/socket
+    // Simulate 5 consecutive utterances separated by endUtterance() without tearing down mic/context/socket
     const captureIds = [window.__ocVoiceDiagnostics.captureId];
-    await window.ocComposerVoice.endUtterance();
-    captureIds.push(window.__ocVoiceDiagnostics.captureId);
-    await window.ocComposerVoice.endUtterance();
-    captureIds.push(window.__ocVoiceDiagnostics.captureId);
+    for (let turn = 0; turn < 5; turn++) {
+      await window.ocComposerVoice.endUtterance();
+      captureIds.push(window.__ocVoiceDiagnostics.captureId);
+    }
 
     const midSession = {
       getUserMediaCalls: window.__duplexTest.getUserMediaCalls,
       tracksStopped: window.__duplexTest.tracksStopped,
       contextClosed: window.__duplexTest.contextClosed,
       socketClosed: window.__duplexTest.socketClosed,
+      utteranceCount: window.__ocVoiceDiagnostics.utteranceCount,
       speechEndedCount: window.__duplexTest.sentJson.filter(m => m.type === 'speech.ended').length,
       uniqueCaptureIds: new Set(captureIds).size
     };
@@ -244,8 +246,9 @@ test('persistent mic across multiple utterances with endUtterance vs stopSession
   expect(summary.midSession.tracksStopped).toBe(0);
   expect(summary.midSession.contextClosed).toBe(false);
   expect(summary.midSession.socketClosed).toBe(false);
-  expect(summary.midSession.speechEndedCount).toBe(2);
-  expect(summary.midSession.uniqueCaptureIds).toBe(3);
+  expect(summary.midSession.utteranceCount).toBe(5);
+  expect(summary.midSession.speechEndedCount).toBe(5);
+  expect(summary.midSession.uniqueCaptureIds).toBe(6);
 
   expect(summary.afterStop.tracksStopped).toBe(1);
   expect(summary.afterStop.contextClosed).toBe(true);
@@ -314,4 +317,277 @@ test('immediate local barge-in playback clear and stale-epoch frame rejection', 
   expect(summary.interruptMsg.speechEpoch).toBe(2);
   expect(summary.interruptMsg.playedSamples).toBe(480);
   expect(summary.interruptMsg.requestId).toBeTruthy();
+});
+
+test('LV-07: interrupt before first audio chunk suppresses late obsolete epoch frames', async ({ page }) => {
+  await setupDuplexHarness(page);
+
+  const summary = await page.evaluate(async () => {
+    const dotnet = { invokeMethodAsync: async (...args) => { window.__duplexTest.dotnetCalls.push(args); } };
+    await window.ocComposerVoice.startDuplex(dotnet, 'sess-lv07', 1, null, 'ticket-v2');
+    const ws = window.__duplexTest.socket;
+    const { encodeV2Frame } = window.__ocVoiceTestHooks;
+
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'session.ready', voiceConnectionId: 'vc-lv07', speechEpoch: 2 }) });
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'response.started', responseId: 'resp-early', speechEpoch: 2 }) });
+
+    // Interrupt BEFORE any TTS binary frame has arrived
+    const interrupt = await window.ocComposerVoice.interruptPlayback('barge_in');
+
+    // Late-arriving obsolete epoch 2 binary frames arrive after local suppression
+    const pcm = new Int16Array([900, -900, 450, -450]).buffer;
+    await ws.onmessage({ data: encodeV2Frame({ streamKind: 2, streamId: 1, speechEpoch: 2, sequence: 1, sampleOffset: 0 }, pcm) });
+    await ws.onmessage({ data: encodeV2Frame({ streamKind: 2, streamId: 1, speechEpoch: 2, sequence: 2, sampleOffset: 4 }, pcm) });
+
+    const beforeNextEpoch = {
+      receivedAudioFrames: window.__ocVoiceDiagnostics.receivedAudioFrames,
+      staleFramesRejected: window.__ocVoiceDiagnostics.staleFramesRejected,
+      pushedCount: window.__duplexTest.playbackMessages.filter(m => m.type === 'push').length,
+      isPlaying: window.__ocVoiceTestHooks.getDuplexState().isPlaying
+    };
+
+    // Server acknowledges cancellation and starts epoch 3
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'response.cancelled', responseId: 'resp-early', speechEpoch: 3, reason: 'barge_in' }) });
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'response.started', responseId: 'resp-next', speechEpoch: 3 }) });
+    await ws.onmessage({ data: encodeV2Frame({ streamKind: 2, streamId: 1, speechEpoch: 3, sequence: 1, sampleOffset: 0 }, pcm) });
+
+    const interruptMsgs = window.__duplexTest.sentJson.filter(m => m.type === 'response.interrupt');
+    const pushedEpochs = window.__duplexTest.playbackMessages.filter(m => m.type === 'push').map(m => m.speechEpoch);
+
+    await window.ocComposerVoice.stopSession(false, 'done');
+
+    return {
+      interrupt,
+      beforeNextEpoch,
+      pushedEpochs,
+      interruptMsg: interruptMsgs[0]
+    };
+  });
+
+  expect(summary.beforeNextEpoch.receivedAudioFrames).toBe(0);
+  expect(summary.beforeNextEpoch.pushedCount).toBe(0);
+  expect(summary.beforeNextEpoch.staleFramesRejected).toBe(2);
+  expect(summary.beforeNextEpoch.isPlaying).toBe(false);
+  expect(summary.pushedEpochs).toEqual([3]);
+  expect(summary.interruptMsg.responseId).toBe('resp-early');
+  expect(summary.interruptMsg.speechEpoch).toBe(2);
+  expect(summary.interruptMsg.playedSamples).toBe(0);
+});
+
+test('LV-10: playback echo debounce ignores transient spike and triggers immediate local stop on sustained speech', async ({ page }) => {
+  await setupDuplexHarness(page);
+
+  const summary = await page.evaluate(async () => {
+    window.__OC_VOICE_BARGE_IN_DEBOUNCE_MS = 120;
+    const dotnet = { invokeMethodAsync: async (...args) => { window.__duplexTest.dotnetCalls.push(args); } };
+    await window.ocComposerVoice.startDuplex(dotnet, 'sess-lv10', 1, null, 'ticket-v2');
+    const ws = window.__duplexTest.socket;
+    const capture = window.__duplexTest.captureNode;
+    const { encodeV2Frame } = window.__ocVoiceTestHooks;
+
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'session.ready', voiceConnectionId: 'vc-lv10', speechEpoch: 2 }) });
+    await ws.onmessage({ data: JSON.stringify({ version: 2, type: 'response.started', responseId: 'resp-echo', speechEpoch: 2 }) });
+
+    // Start playback so current.isPlaying === true
+    const pcm = new Int16Array([1200, -1200, 600, -600]).buffer;
+    await ws.onmessage({ data: encodeV2Frame({ streamKind: 2, streamId: 1, speechEpoch: 2, sequence: 1, sampleOffset: 0 }, pcm) });
+
+    const loudFrame = new Float32Array(256).fill(0.25);
+    const silentFrame = new Float32Array(256).fill(0.0);
+
+    // 1. Short transient echo spike below 120ms debounce window followed by silence
+    const originalNow = Date.now;
+    let fakeNow = 10000;
+    Date.now = () => fakeNow;
+    try {
+      capture.port.onmessage({ data: loudFrame });
+      fakeNow += 50; // 50ms < 120ms debounce
+      capture.port.onmessage({ data: loudFrame });
+      fakeNow += 20;
+      capture.port.onmessage({ data: silentFrame }); // echo dies out
+
+      const afterTransientEcho = {
+        isPlaying: window.__ocVoiceTestHooks.getDuplexState().isPlaying,
+        interruptCount: window.__duplexTest.sentJson.filter(m => m.type === 'response.interrupt').length,
+        speechStartedCount: window.__duplexTest.sentJson.filter(m => m.type === 'speech.started').length,
+        clearCount: window.__duplexTest.playbackMessages.filter(m => m.type === 'clear').length
+      };
+
+      // 2. Sustained user speech exceeding 120ms debounce window
+      fakeNow += 100;
+      capture.port.onmessage({ data: loudFrame });
+      fakeNow += 60;
+      capture.port.onmessage({ data: loudFrame });
+      fakeNow += 70; // 130ms >= 120ms debounce
+      capture.port.onmessage({ data: loudFrame });
+
+      const afterSustainedSpeech = {
+        isPlaying: window.__ocVoiceTestHooks.getDuplexState().isPlaying,
+        interruptMsgs: window.__duplexTest.sentJson.filter(m => m.type === 'response.interrupt'),
+        speechStartedCount: window.__duplexTest.sentJson.filter(m => m.type === 'speech.started').length,
+        clearCount: window.__duplexTest.playbackMessages.filter(m => m.type === 'clear').length
+      };
+
+      await window.ocComposerVoice.stopSession(false, 'done');
+      return { afterTransientEcho, afterSustainedSpeech };
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  expect(summary.afterTransientEcho.isPlaying).toBe(true);
+  expect(summary.afterTransientEcho.interruptCount).toBe(0);
+  expect(summary.afterTransientEcho.speechStartedCount).toBe(0);
+  expect(summary.afterTransientEcho.clearCount).toBe(0);
+
+  expect(summary.afterSustainedSpeech.isPlaying).toBe(false);
+  expect(summary.afterSustainedSpeech.clearCount).toBeGreaterThanOrEqual(1);
+  expect(summary.afterSustainedSpeech.speechStartedCount).toBe(1);
+  expect(summary.afterSustainedSpeech.interruptMsgs).toHaveLength(1);
+  expect(summary.afterSustainedSpeech.interruptMsgs[0].reason).toBe('barge_in');
+  expect(summary.afterSustainedSpeech.interruptMsgs[0].responseId).toBe('resp-echo');
+});
+
+test('LV-26: playback worklet bounded ring buffer drops overflow safely and accounts for underruns', async ({ page }) => {
+  await page.route('https://worklet-test.invalid/', route =>
+    route.fulfill({ status: 200, body: '<html><body></body></html>' })
+  );
+  await page.goto('https://worklet-test.invalid/');
+
+  await page.evaluate(() => {
+    window.sampleRate = 24000;
+    window.__workletRegistry = {};
+    window.AudioWorkletProcessor = class {
+      constructor() {
+        this._messages = [];
+        this.port = {
+          onmessage: null,
+          postMessage: (msg) => { this._messages.push(msg); }
+        };
+      }
+    };
+    window.registerProcessor = (name, ctor) => {
+      window.__workletRegistry[name] = ctor;
+    };
+  });
+
+  await page.addScriptTag({ path: PLAYBACK_WORKLET_PATH });
+
+  const result = await page.evaluate(() => {
+    const Processor = window.__workletRegistry['openconnect-pcm-playback'];
+    const proc = new Processor({
+      processorOptions: {
+        sourceSampleRate: 24000,
+        maxBufferMs: 100, // 2400 samples capacity at 24 kHz
+        initialBufferMs: 10, // 240 samples
+        receiptIntervalMs: 40,
+        fadeOutMs: 5
+      }
+    });
+
+    proc.port.onmessage({ data: { type: 'reset', speechEpoch: 4, responseId: 'resp-lv26' } });
+
+    // Push 3600 samples into a 2400-sample bounded ring buffer -> 1200 overflow samples must be dropped safely
+    const overflowPcm = new Int16Array(3600);
+    overflowPcm.fill(8192);
+    proc.port.onmessage({ data: { type: 'push', pcm16: overflowPcm.buffer, sampleRate: 24000, speechEpoch: 4 } });
+
+    proc.port.onmessage({ data: { type: 'stats' } });
+    const afterPushStats = proc._messages.filter(m => m.type === 'receipt').at(-1);
+
+    // Render 22 blocks of 128 samples (2816 samples > 2400 buffered) without calling drain -> triggers underruns
+    const out = [new Float32Array(128)];
+    for (let i = 0; i < 22; i++) {
+      proc.process([], [out]);
+    }
+    const lastBlockAllZero = out[0].every(sample => sample === 0);
+
+    proc.port.onmessage({ data: { type: 'stats' } });
+    const afterUnderrunStats = proc._messages.filter(m => m.type === 'receipt').at(-1);
+
+    return {
+      readyMsg: proc._messages[0],
+      afterPushStats,
+      afterUnderrunStats,
+      lastBlockAllZero
+    };
+  });
+
+  expect(result.readyMsg).toMatchObject({ type: 'ready', sampleRate: 24000, capacity: 2400 });
+  expect(result.afterPushStats.bufferedSamples).toBe(2400);
+  expect(result.afterPushStats.droppedSamples).toBe(1200);
+  expect(result.afterUnderrunStats.bufferedSamples).toBe(0);
+  expect(result.afterUnderrunStats.playedSamples).toBe(2400);
+  expect(result.afterUnderrunStats.underruns).toBeGreaterThanOrEqual(3);
+  expect(result.afterUnderrunStats.droppedSamples).toBe(1200);
+  expect(result.lastBlockAllZero).toBe(true);
+});
+
+test('LV-28: stopSession cleanly stops all mic tracks, closes WebSocket, and closes AudioContext', async ({ page }) => {
+  await setupDuplexHarness(page);
+
+  const summary = await page.evaluate(async () => {
+    let extraTrackStopped = false;
+    let captureDisconnected = false;
+    let playbackDisconnected = false;
+    let sourceDisconnected = false;
+
+    const origGetUserMedia = navigator.mediaDevices.getUserMedia;
+    navigator.mediaDevices.getUserMedia = async () => {
+      const base = await origGetUserMedia();
+      const baseTracks = base.getTracks();
+      const extraTrack = {
+        enabled: true,
+        readyState: 'live',
+        stop() {
+          this.readyState = 'ended';
+          extraTrackStopped = true;
+          window.__duplexTest.tracksStopped++;
+        }
+      };
+      const allTracks = [...baseTracks, extraTrack];
+      return {
+        id: 'duplex-multi-track-stream',
+        getAudioTracks: () => allTracks,
+        getTracks: () => allTracks
+      };
+    };
+
+    const dotnet = { invokeMethodAsync: async (...args) => { window.__duplexTest.dotnetCalls.push(args); } };
+    await window.ocComposerVoice.startDuplex(dotnet, 'sess-lv28', 1, null, 'ticket-v2');
+
+    const duplex = window.__ocVoiceTestHooks.getDuplexState();
+    const origCapDisc = duplex.captureNode.disconnect.bind(duplex.captureNode);
+    duplex.captureNode.disconnect = () => { captureDisconnected = true; origCapDisc(); };
+    const origPbDisc = duplex.playback.node.disconnect.bind(duplex.playback.node);
+    duplex.playback.node.disconnect = () => { playbackDisconnected = true; origPbDisc(); };
+    const origSrcDisc = duplex.source.disconnect.bind(duplex.source);
+    duplex.source.disconnect = () => { sourceDisconnected = true; origSrcDisc(); };
+
+    await window.ocComposerVoice.stopSession(true, 'user_exit');
+
+    return {
+      tracksStopped: window.__duplexTest.tracksStopped,
+      extraTrackStopped,
+      socketClosed: window.__duplexTest.socketClosed,
+      contextClosed: window.__duplexTest.contextClosed,
+      captureDisconnected,
+      playbackDisconnected,
+      sourceDisconnected,
+      duplexStateAfterStop: window.__ocVoiceTestHooks.getDuplexState(),
+      closeEvent: window.__duplexTest.sentJson.find(m => m.type === 'session.close'),
+      stoppedCallback: window.__duplexTest.dotnetCalls.some(c => c[0] === 'OnDuplexVoiceStopped')
+    };
+  });
+
+  expect(summary.tracksStopped).toBe(2);
+  expect(summary.extraTrackStopped).toBe(true);
+  expect(summary.socketClosed).toBe(true);
+  expect(summary.contextClosed).toBe(true);
+  expect(summary.captureDisconnected).toBe(true);
+  expect(summary.playbackDisconnected).toBe(true);
+  expect(summary.sourceDisconnected).toBe(true);
+  expect(summary.duplexStateAfterStop).toBeNull();
+  expect(summary.closeEvent).toMatchObject({ type: 'session.close', reason: 'user_exit' });
+  expect(summary.stoppedCallback).toBe(true);
 });

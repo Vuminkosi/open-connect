@@ -971,12 +971,15 @@ window.ocComposerVoice = (() => {
         if (current.isPlaying) {
           if (current.bargeInOnsetStartedAt === 0) {
             current.bargeInOnsetStartedAt = now;
-          } else if (now - current.bargeInOnsetStartedAt >= bargeInDebounceMs) {
-            interruptPlayback('barge_in');
-            // Flush retained pre-roll immediately so first words of the interruption are not dropped.
-            for (const preRollBytes of current.preRollPcm.splice(0)) {
-              enqueueOutboundPcm(preRollBytes);
-            }
+            return;
+          }
+          if (now - current.bargeInOnsetStartedAt < bargeInDebounceMs) {
+            return;
+          }
+          interruptPlayback('barge_in');
+          // Flush retained pre-roll immediately so first words of the interruption are not dropped.
+          for (const preRollBytes of current.preRollPcm.splice(0)) {
+            enqueueOutboundPcm(preRollBytes);
           }
         }
         if (!current.speechActive) {

@@ -110,9 +110,17 @@ public sealed class OpenConnectVoiceBridgeTests
             upstreamObservedSubProtocol = context.WebSockets.WebSocketRequestedProtocols.FirstOrDefault();
             using var ws = await context.WebSockets.AcceptWebSocketAsync(upstreamObservedSubProtocol);
             var buf = new byte[4096];
-            var received = await ws.ReceiveAsync(buf, context.RequestAborted);
-            await ws.SendAsync(buf.AsMemory(0, received.Count), received.MessageType, received.EndOfMessage, context.RequestAborted);
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", context.RequestAborted);
+            while (ws.State == WebSocketState.Open)
+            {
+                var received = await ws.ReceiveAsync(buf, context.RequestAborted);
+                if (received.MessageType == WebSocketMessageType.Close)
+                {
+                    await ws.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "done", context.RequestAborted);
+                    break;
+                }
+
+                await ws.SendAsync(buf.AsMemory(0, received.Count), received.MessageType, received.EndOfMessage, context.RequestAborted);
+            }
         });
         await upstreamApp.StartAsync();
         var upstreamAddress = new Uri(upstreamApp.Urls.Single());
@@ -156,6 +164,15 @@ public sealed class OpenConnectVoiceBridgeTests
         var result = await client.ReceiveAsync(reply, CancellationToken.None);
         Assert.Equal(WebSocketMessageType.Binary, result.MessageType);
         Assert.Equal(payload, reply[..result.Count]);
+
+        using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        if (client.State is WebSocketState.Open or WebSocketState.CloseReceived)
+        {
+            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", closeCts.Token);
+        }
+
+        await bridgeApp.StopAsync(closeCts.Token);
+        await upstreamApp.StopAsync(closeCts.Token);
     }
 
     private sealed class StubWebSocketFeature(IList<string> requestedProtocols) : IHttpWebSocketFeature

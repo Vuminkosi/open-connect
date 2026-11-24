@@ -130,7 +130,16 @@ public sealed class OpenConnectVoiceBridge
             var result = await source.ReceiveAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
             if (result.MessageType == WebSocketMessageType.Close)
             {
-                await destination.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken).ConfigureAwait(false);
+                var closeStatus = source.CloseStatus ?? WebSocketCloseStatus.NormalClosure;
+                var closeDescription = source.CloseStatusDescription ?? string.Empty;
+                if (destination.State is WebSocketState.Open or WebSocketState.CloseReceived)
+                {
+                    await destination.CloseOutputAsync(closeStatus, closeDescription, cancellationToken).ConfigureAwait(false);
+                }
+                if (source.State == WebSocketState.CloseReceived)
+                {
+                    await source.CloseOutputAsync(closeStatus, closeDescription, cancellationToken).ConfigureAwait(false);
+                }
                 return;
             }
 
