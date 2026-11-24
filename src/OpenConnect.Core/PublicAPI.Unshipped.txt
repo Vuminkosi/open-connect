@@ -1,4 +1,43 @@
 #nullable enable
+OpenConnect.Core.AdaptiveEndpointDecision
+OpenConnect.Core.AdaptiveEndpointDecision.BackchannelIgnore = 2 -> OpenConnect.Core.AdaptiveEndpointDecision
+OpenConnect.Core.AdaptiveEndpointDecision.ContinueListening = 0 -> OpenConnect.Core.AdaptiveEndpointDecision
+OpenConnect.Core.AdaptiveEndpointDecision.EndpointReady = 1 -> OpenConnect.Core.AdaptiveEndpointDecision
+OpenConnect.Core.AdaptiveEndpointEvaluator
+OpenConnect.Core.AdaptiveEndpointEvaluator.AdaptiveEndpointEvaluator(bool conservativeMode = false) -> void
+OpenConnect.Core.AdaptiveEndpointEvaluator.Evaluate(OpenConnect.Core.AdaptiveEndpointInput! input) -> OpenConnect.Core.AdaptiveEndpointResult!
+OpenConnect.Core.AdaptiveEndpointInput
+OpenConnect.Core.AdaptiveEndpointInput.<Clone>$() -> OpenConnect.Core.AdaptiveEndpointInput!
+OpenConnect.Core.AdaptiveEndpointInput.AdaptiveEndpointInput(int SilenceDurationMs, string! PartialTranscript, long TranscriptRevision, int StableDurationMs, bool IsAssistantSpeaking, bool SpeechDetected) -> void
+OpenConnect.Core.AdaptiveEndpointInput.Deconstruct(out int SilenceDurationMs, out string! PartialTranscript, out long TranscriptRevision, out int StableDurationMs, out bool IsAssistantSpeaking, out bool SpeechDetected) -> void
+OpenConnect.Core.AdaptiveEndpointInput.Equals(OpenConnect.Core.AdaptiveEndpointInput? other) -> bool
+OpenConnect.Core.AdaptiveEndpointInput.IsAssistantSpeaking.get -> bool
+OpenConnect.Core.AdaptiveEndpointInput.IsAssistantSpeaking.init -> void
+OpenConnect.Core.AdaptiveEndpointInput.PartialTranscript.get -> string!
+OpenConnect.Core.AdaptiveEndpointInput.PartialTranscript.init -> void
+OpenConnect.Core.AdaptiveEndpointInput.SilenceDurationMs.get -> int
+OpenConnect.Core.AdaptiveEndpointInput.SilenceDurationMs.init -> void
+OpenConnect.Core.AdaptiveEndpointInput.SpeechDetected.get -> bool
+OpenConnect.Core.AdaptiveEndpointInput.SpeechDetected.init -> void
+OpenConnect.Core.AdaptiveEndpointInput.StableDurationMs.get -> int
+OpenConnect.Core.AdaptiveEndpointInput.StableDurationMs.init -> void
+OpenConnect.Core.AdaptiveEndpointInput.TranscriptRevision.get -> long
+OpenConnect.Core.AdaptiveEndpointInput.TranscriptRevision.init -> void
+OpenConnect.Core.AdaptiveEndpointResult
+OpenConnect.Core.AdaptiveEndpointResult.<Clone>$() -> OpenConnect.Core.AdaptiveEndpointResult!
+OpenConnect.Core.AdaptiveEndpointResult.AdaptiveEndpointResult(OpenConnect.Core.AdaptiveEndpointDecision Decision, double Confidence, int RecommendedSilenceMs, string! Reason, bool Authoritative = false) -> void
+OpenConnect.Core.AdaptiveEndpointResult.Authoritative.get -> bool
+OpenConnect.Core.AdaptiveEndpointResult.Authoritative.init -> void
+OpenConnect.Core.AdaptiveEndpointResult.Confidence.get -> double
+OpenConnect.Core.AdaptiveEndpointResult.Confidence.init -> void
+OpenConnect.Core.AdaptiveEndpointResult.Decision.get -> OpenConnect.Core.AdaptiveEndpointDecision
+OpenConnect.Core.AdaptiveEndpointResult.Decision.init -> void
+OpenConnect.Core.AdaptiveEndpointResult.Deconstruct(out OpenConnect.Core.AdaptiveEndpointDecision Decision, out double Confidence, out int RecommendedSilenceMs, out string! Reason, out bool Authoritative) -> void
+OpenConnect.Core.AdaptiveEndpointResult.Equals(OpenConnect.Core.AdaptiveEndpointResult? other) -> bool
+OpenConnect.Core.AdaptiveEndpointResult.Reason.get -> string!
+OpenConnect.Core.AdaptiveEndpointResult.Reason.init -> void
+OpenConnect.Core.AdaptiveEndpointResult.RecommendedSilenceMs.get -> int
+OpenConnect.Core.AdaptiveEndpointResult.RecommendedSilenceMs.init -> void
 OpenConnect.Core.AgentDefinitionRegistry
 OpenConnect.Core.AgentDefinitionRegistry.AgentDefinitionRegistry() -> void
 OpenConnect.Core.AgentDefinitionRegistry.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -257,13 +296,35 @@ OpenConnect.Core.Configuration.OpenConnectOutboxOptions.OpenConnectOutboxOptions
 OpenConnect.Core.Configuration.OpenConnectOutboxOptions.StandaloneDeployed.get -> bool
 OpenConnect.Core.Configuration.OpenConnectOutboxOptions.StandaloneDeployed.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.ConservativeEndpointing.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.ConservativeEndpointing.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableContinuousConversation.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableContinuousConversation.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableLiveTranscription.get -> bool
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableLiveTranscription.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableRecordedTranscription.get -> bool
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableRecordedTranscription.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSemanticTurnDetection.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSemanticTurnDetection.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSpeechOutput.get -> bool
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableSpeechOutput.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableStreamingSpeechOutput.get -> bool
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.EnableStreamingSpeechOutput.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxBufferedOutputFrames.get -> int
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxBufferedOutputFrames.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxPhraseWords.get -> int
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxPhraseWords.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxRollingSessionAudioBytes.get -> long
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxRollingSessionAudioBytes.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxUtteranceAudioBytes.get -> long
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MaxUtteranceAudioBytes.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MinPhraseWords.get -> int
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.MinPhraseWords.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.OpenConnectVoiceOptions() -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.PhraseFlushTimeoutMs.get -> int
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.PhraseFlushTimeoutMs.set -> void
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.RollingSessionWindowSeconds.get -> int
+OpenConnect.Core.Configuration.OpenConnectVoiceOptions.RollingSessionWindowSeconds.set -> void
 OpenConnect.Core.Configuration.OpenConnectVoiceOptions.Vad.get -> OpenConnect.Core.Configuration.VoiceVadOptions!
 OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions
 OpenConnect.Core.Configuration.OperationalAgentsWorkerOptions.EnableDurableRecovery.get -> bool
@@ -435,6 +496,173 @@ OpenConnect.Core.CoreToolRegistry.Get(OpenConnect.Abstractions.ToolId toolId) ->
 OpenConnect.Core.CoreToolRegistry.GetAuthorized(OpenConnect.Abstractions.AgentId agentId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
 OpenConnect.Core.CoreToolRegistry.GetForAgent(OpenConnect.Abstractions.AgentId agentId) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.ToolDescriptor!>!
 OpenConnect.Core.CoreToolRegistry.RegisterDescriptor(OpenConnect.Abstractions.ToolDescriptor! descriptor) -> void
+OpenConnect.Core.DuplexCaptureResult
+OpenConnect.Core.DuplexCaptureResult.<Clone>$() -> OpenConnect.Core.DuplexCaptureResult!
+OpenConnect.Core.DuplexCaptureResult.Accepted.get -> bool
+OpenConnect.Core.DuplexCaptureResult.Accepted.init -> void
+OpenConnect.Core.DuplexCaptureResult.CaptureId.get -> string?
+OpenConnect.Core.DuplexCaptureResult.CaptureId.init -> void
+OpenConnect.Core.DuplexCaptureResult.Deconstruct(out bool Accepted, out string? CaptureId, out long SpeechEpoch, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexCaptureResult.DuplexCaptureResult(bool Accepted, string? CaptureId, long SpeechEpoch, string? RejectionReason) -> void
+OpenConnect.Core.DuplexCaptureResult.Equals(OpenConnect.Core.DuplexCaptureResult? other) -> bool
+OpenConnect.Core.DuplexCaptureResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexCaptureResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexCaptureResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexCaptureResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexConnectionFenceResult
+OpenConnect.Core.DuplexConnectionFenceResult.<Clone>$() -> OpenConnect.Core.DuplexConnectionFenceResult!
+OpenConnect.Core.DuplexConnectionFenceResult.ConnectionState.get -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Core.DuplexConnectionFenceResult.ConnectionState.init -> void
+OpenConnect.Core.DuplexConnectionFenceResult.Deconstruct(out bool Fenced, out long SpeechEpoch, out OpenConnect.Abstractions.Speech.VoiceConnectionState ConnectionState, out OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? Reconciliation, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexConnectionFenceResult.DuplexConnectionFenceResult(bool Fenced, long SpeechEpoch, OpenConnect.Abstractions.Speech.VoiceConnectionState ConnectionState, OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? Reconciliation, string? RejectionReason) -> void
+OpenConnect.Core.DuplexConnectionFenceResult.Equals(OpenConnect.Core.DuplexConnectionFenceResult? other) -> bool
+OpenConnect.Core.DuplexConnectionFenceResult.Fenced.get -> bool
+OpenConnect.Core.DuplexConnectionFenceResult.Fenced.init -> void
+OpenConnect.Core.DuplexConnectionFenceResult.Reconciliation.get -> OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation?
+OpenConnect.Core.DuplexConnectionFenceResult.Reconciliation.init -> void
+OpenConnect.Core.DuplexConnectionFenceResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexConnectionFenceResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexConnectionFenceResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexConnectionFenceResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult
+OpenConnect.Core.DuplexFinalAdmissionResult.<Clone>$() -> OpenConnect.Core.DuplexFinalAdmissionResult!
+OpenConnect.Core.DuplexFinalAdmissionResult.Admitted.get -> bool
+OpenConnect.Core.DuplexFinalAdmissionResult.Admitted.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.Deconstruct(out bool Admitted, out bool IsDuplicate, out string? TurnId, out string? IdempotencyKey, out long SpeechEpoch, out string? Transcript, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.DuplexFinalAdmissionResult(bool Admitted, bool IsDuplicate, string? TurnId, string? IdempotencyKey, long SpeechEpoch, string? Transcript, string? RejectionReason) -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.Equals(OpenConnect.Core.DuplexFinalAdmissionResult? other) -> bool
+OpenConnect.Core.DuplexFinalAdmissionResult.IdempotencyKey.get -> string?
+OpenConnect.Core.DuplexFinalAdmissionResult.IdempotencyKey.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.IsDuplicate.get -> bool
+OpenConnect.Core.DuplexFinalAdmissionResult.IsDuplicate.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexFinalAdmissionResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexFinalAdmissionResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.Transcript.get -> string?
+OpenConnect.Core.DuplexFinalAdmissionResult.Transcript.init -> void
+OpenConnect.Core.DuplexFinalAdmissionResult.TurnId.get -> string?
+OpenConnect.Core.DuplexFinalAdmissionResult.TurnId.init -> void
+OpenConnect.Core.DuplexInterruptResult
+OpenConnect.Core.DuplexInterruptResult.<Clone>$() -> OpenConnect.Core.DuplexInterruptResult!
+OpenConnect.Core.DuplexInterruptResult.Accepted.get -> bool
+OpenConnect.Core.DuplexInterruptResult.Accepted.init -> void
+OpenConnect.Core.DuplexInterruptResult.CancelledResponseId.get -> string?
+OpenConnect.Core.DuplexInterruptResult.CancelledResponseId.init -> void
+OpenConnect.Core.DuplexInterruptResult.Deconstruct(out bool Accepted, out bool WasIdempotentReplay, out long PreviousSpeechEpoch, out long NewSpeechEpoch, out string? CancelledResponseId, out OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? Reconciliation, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexInterruptResult.DuplexInterruptResult(bool Accepted, bool WasIdempotentReplay, long PreviousSpeechEpoch, long NewSpeechEpoch, string? CancelledResponseId, OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? Reconciliation, string? RejectionReason) -> void
+OpenConnect.Core.DuplexInterruptResult.Equals(OpenConnect.Core.DuplexInterruptResult? other) -> bool
+OpenConnect.Core.DuplexInterruptResult.NewSpeechEpoch.get -> long
+OpenConnect.Core.DuplexInterruptResult.NewSpeechEpoch.init -> void
+OpenConnect.Core.DuplexInterruptResult.PreviousSpeechEpoch.get -> long
+OpenConnect.Core.DuplexInterruptResult.PreviousSpeechEpoch.init -> void
+OpenConnect.Core.DuplexInterruptResult.Reconciliation.get -> OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation?
+OpenConnect.Core.DuplexInterruptResult.Reconciliation.init -> void
+OpenConnect.Core.DuplexInterruptResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexInterruptResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexInterruptResult.WasIdempotentReplay.get -> bool
+OpenConnect.Core.DuplexInterruptResult.WasIdempotentReplay.init -> void
+OpenConnect.Core.DuplexPartialResult
+OpenConnect.Core.DuplexPartialResult.<Clone>$() -> OpenConnect.Core.DuplexPartialResult!
+OpenConnect.Core.DuplexPartialResult.Accepted.get -> bool
+OpenConnect.Core.DuplexPartialResult.Accepted.init -> void
+OpenConnect.Core.DuplexPartialResult.Deconstruct(out bool Accepted, out long SpeechEpoch, out long Revision, out string? PartialText, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexPartialResult.DuplexPartialResult(bool Accepted, long SpeechEpoch, long Revision, string? PartialText, string? RejectionReason) -> void
+OpenConnect.Core.DuplexPartialResult.Equals(OpenConnect.Core.DuplexPartialResult? other) -> bool
+OpenConnect.Core.DuplexPartialResult.PartialText.get -> string?
+OpenConnect.Core.DuplexPartialResult.PartialText.init -> void
+OpenConnect.Core.DuplexPartialResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexPartialResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexPartialResult.Revision.get -> long
+OpenConnect.Core.DuplexPartialResult.Revision.init -> void
+OpenConnect.Core.DuplexPartialResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexPartialResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult
+OpenConnect.Core.DuplexPlaybackReceiptResult.<Clone>$() -> OpenConnect.Core.DuplexPlaybackReceiptResult!
+OpenConnect.Core.DuplexPlaybackReceiptResult.Accepted.get -> bool
+OpenConnect.Core.DuplexPlaybackReceiptResult.Accepted.init -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.ConfirmedPlayedSamples.get -> long
+OpenConnect.Core.DuplexPlaybackReceiptResult.ConfirmedPlayedSamples.init -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.Deconstruct(out bool Accepted, out long ConfirmedPlayedSamples, out long TransmittedSamples, out OpenConnect.Abstractions.Speech.VoiceOutputState OutputState, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.DuplexPlaybackReceiptResult(bool Accepted, long ConfirmedPlayedSamples, long TransmittedSamples, OpenConnect.Abstractions.Speech.VoiceOutputState OutputState, string? RejectionReason) -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.Equals(OpenConnect.Core.DuplexPlaybackReceiptResult? other) -> bool
+OpenConnect.Core.DuplexPlaybackReceiptResult.OutputState.get -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Core.DuplexPlaybackReceiptResult.OutputState.init -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexPlaybackReceiptResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexPlaybackReceiptResult.TransmittedSamples.get -> long
+OpenConnect.Core.DuplexPlaybackReceiptResult.TransmittedSamples.init -> void
+OpenConnect.Core.DuplexResponseStartResult
+OpenConnect.Core.DuplexResponseStartResult.<Clone>$() -> OpenConnect.Core.DuplexResponseStartResult!
+OpenConnect.Core.DuplexResponseStartResult.Accepted.get -> bool
+OpenConnect.Core.DuplexResponseStartResult.Accepted.init -> void
+OpenConnect.Core.DuplexResponseStartResult.Deconstruct(out bool Accepted, out string? ResponseId, out long SpeechEpoch, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexResponseStartResult.DuplexResponseStartResult(bool Accepted, string? ResponseId, long SpeechEpoch, string? RejectionReason) -> void
+OpenConnect.Core.DuplexResponseStartResult.Equals(OpenConnect.Core.DuplexResponseStartResult? other) -> bool
+OpenConnect.Core.DuplexResponseStartResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexResponseStartResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexResponseStartResult.ResponseId.get -> string?
+OpenConnect.Core.DuplexResponseStartResult.ResponseId.init -> void
+OpenConnect.Core.DuplexResponseStartResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexResponseStartResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult
+OpenConnect.Core.DuplexSegmentRegistrationResult.<Clone>$() -> OpenConnect.Core.DuplexSegmentRegistrationResult!
+OpenConnect.Core.DuplexSegmentRegistrationResult.Accepted.get -> bool
+OpenConnect.Core.DuplexSegmentRegistrationResult.Accepted.init -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult.Deconstruct(out bool Accepted, out long TransmittedSamples, out long SpeechEpoch, out string? RejectionReason) -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult.DuplexSegmentRegistrationResult(bool Accepted, long TransmittedSamples, long SpeechEpoch, string? RejectionReason) -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult.Equals(OpenConnect.Core.DuplexSegmentRegistrationResult? other) -> bool
+OpenConnect.Core.DuplexSegmentRegistrationResult.RejectionReason.get -> string?
+OpenConnect.Core.DuplexSegmentRegistrationResult.RejectionReason.init -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexSegmentRegistrationResult.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexSegmentRegistrationResult.TransmittedSamples.get -> long
+OpenConnect.Core.DuplexSegmentRegistrationResult.TransmittedSamples.init -> void
+OpenConnect.Core.DuplexVoiceSessionCoordinator
+OpenConnect.Core.DuplexVoiceSessionCoordinator.BeginCapture(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! captureId, string? voiceConnectionId = null) -> OpenConnect.Core.DuplexCaptureResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.CompleteResponseGeneration(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! responseId, long speechEpoch) -> OpenConnect.Core.DuplexVoiceSessionSnapshot?
+OpenConnect.Core.DuplexVoiceSessionCoordinator.DuplexVoiceSessionCoordinator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>! options) -> void
+OpenConnect.Core.DuplexVoiceSessionCoordinator.FenceConnection(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! voiceConnectionId, bool markReconnecting = false) -> OpenConnect.Core.DuplexConnectionFenceResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.GetSnapshot(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId) -> OpenConnect.Core.DuplexVoiceSessionSnapshot?
+OpenConnect.Core.DuplexVoiceSessionCoordinator.HandleInterrupt(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.Speech.VoiceInterruptRequest! request) -> OpenConnect.Core.DuplexInterruptResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.OpenSession(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! voiceConnectionId) -> OpenConnect.Core.DuplexVoiceSessionSnapshot!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.RecordPartial(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! captureId, long speechEpoch, long revision, string! partialText) -> OpenConnect.Core.DuplexPartialResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.RecordPlaybackReceipt(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.Speech.VoicePlaybackReceipt! receipt) -> OpenConnect.Core.DuplexPlaybackReceiptResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.RegisterAudioSegment(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! responseId, long speechEpoch, OpenConnect.Abstractions.Speech.VoiceSegmentMetadata! segment) -> OpenConnect.Core.DuplexSegmentRegistrationResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.SetMuted(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, bool muted) -> OpenConnect.Core.DuplexVoiceSessionSnapshot?
+OpenConnect.Core.DuplexVoiceSessionCoordinator.StartResponse(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! responseId, long speechEpoch) -> OpenConnect.Core.DuplexResponseStartResult!
+OpenConnect.Core.DuplexVoiceSessionCoordinator.TryAdmitFinal(OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.SessionId sessionId, string! captureId, long speechEpoch, string! finalTranscript) -> OpenConnect.Core.DuplexFinalAdmissionResult!
+OpenConnect.Core.DuplexVoiceSessionSnapshot
+OpenConnect.Core.DuplexVoiceSessionSnapshot.<Clone>$() -> OpenConnect.Core.DuplexVoiceSessionSnapshot!
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ActiveCaptureId.get -> string?
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ActiveCaptureId.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ActiveResponseId.get -> string?
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ActiveResponseId.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ConnectionState.get -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ConnectionState.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.Deconstruct(out OpenConnect.Core.VoiceSessionKey Key, out string! VoiceConnectionId, out OpenConnect.Abstractions.Speech.VoiceConnectionState ConnectionState, out OpenConnect.Abstractions.Speech.VoiceInputState InputState, out OpenConnect.Abstractions.Speech.VoiceReasoningState ReasoningState, out OpenConnect.Abstractions.Speech.VoiceOutputState OutputState, out long SpeechEpoch, out string? ActiveCaptureId, out string? ActiveResponseId, out long LastPartialRevision, out long TransmittedSamples, out long LastConfirmedPlayedSamples, out bool HasPlaybackReceipt) -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.DuplexVoiceSessionSnapshot(OpenConnect.Core.VoiceSessionKey Key, string! VoiceConnectionId, OpenConnect.Abstractions.Speech.VoiceConnectionState ConnectionState, OpenConnect.Abstractions.Speech.VoiceInputState InputState, OpenConnect.Abstractions.Speech.VoiceReasoningState ReasoningState, OpenConnect.Abstractions.Speech.VoiceOutputState OutputState, long SpeechEpoch, string? ActiveCaptureId, string? ActiveResponseId, long LastPartialRevision, long TransmittedSamples, long LastConfirmedPlayedSamples, bool HasPlaybackReceipt) -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.Equals(OpenConnect.Core.DuplexVoiceSessionSnapshot? other) -> bool
+OpenConnect.Core.DuplexVoiceSessionSnapshot.HasPlaybackReceipt.get -> bool
+OpenConnect.Core.DuplexVoiceSessionSnapshot.HasPlaybackReceipt.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.InputState.get -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Core.DuplexVoiceSessionSnapshot.InputState.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.Key.get -> OpenConnect.Core.VoiceSessionKey
+OpenConnect.Core.DuplexVoiceSessionSnapshot.Key.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.LastConfirmedPlayedSamples.get -> long
+OpenConnect.Core.DuplexVoiceSessionSnapshot.LastConfirmedPlayedSamples.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.LastPartialRevision.get -> long
+OpenConnect.Core.DuplexVoiceSessionSnapshot.LastPartialRevision.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.OutputState.get -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Core.DuplexVoiceSessionSnapshot.OutputState.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ReasoningState.get -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Core.DuplexVoiceSessionSnapshot.ReasoningState.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.SpeechEpoch.get -> long
+OpenConnect.Core.DuplexVoiceSessionSnapshot.SpeechEpoch.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.TransmittedSamples.get -> long
+OpenConnect.Core.DuplexVoiceSessionSnapshot.TransmittedSamples.init -> void
+OpenConnect.Core.DuplexVoiceSessionSnapshot.VoiceConnectionId.get -> string!
+OpenConnect.Core.DuplexVoiceSessionSnapshot.VoiceConnectionId.init -> void
 OpenConnect.Core.McpServiceRegistry
 OpenConnect.Core.McpServiceRegistry.Get(string! name) -> OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions?
 OpenConnect.Core.McpServiceRegistry.GetAll() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions!>!
@@ -498,6 +726,17 @@ OpenConnect.Core.ServerVadFrameResult.SpeechProbability.init -> void
 OpenConnect.Core.ServerVadFrameResult.StateWasReset.get -> bool
 OpenConnect.Core.ServerVadFrameResult.StateWasReset.init -> void
 OpenConnect.Core.ServiceCollectionExtensions
+OpenConnect.Core.SpeakablePhraseSegment
+OpenConnect.Core.SpeakablePhraseSegment.<Clone>$() -> OpenConnect.Core.SpeakablePhraseSegment!
+OpenConnect.Core.SpeakablePhraseSegment.Deconstruct(out int SegmentIndex, out string! SpokenText, out string! SourceText) -> void
+OpenConnect.Core.SpeakablePhraseSegment.Equals(OpenConnect.Core.SpeakablePhraseSegment? other) -> bool
+OpenConnect.Core.SpeakablePhraseSegment.SegmentIndex.get -> int
+OpenConnect.Core.SpeakablePhraseSegment.SegmentIndex.init -> void
+OpenConnect.Core.SpeakablePhraseSegment.SourceText.get -> string!
+OpenConnect.Core.SpeakablePhraseSegment.SourceText.init -> void
+OpenConnect.Core.SpeakablePhraseSegment.SpeakablePhraseSegment(int SegmentIndex, string! SpokenText, string! SourceText) -> void
+OpenConnect.Core.SpeakablePhraseSegment.SpokenText.get -> string!
+OpenConnect.Core.SpeakablePhraseSegment.SpokenText.init -> void
 OpenConnect.Core.Speech.MultipartSpeechToTextUploadClient
 OpenConnect.Core.Speech.MultipartSpeechToTextUploadClient.IsConfigured.get -> bool
 OpenConnect.Core.Speech.MultipartSpeechToTextUploadClient.MultipartSpeechToTextUploadClient(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Speech.SpeechToTextOptions!>! options) -> void
@@ -505,11 +744,14 @@ OpenConnect.Core.Speech.MultipartSpeechToTextUploadClient.MultipartSpeechToTextU
 OpenConnect.Core.Speech.MultipartSpeechToTextUploadClient.TranscribeAsync(System.IO.Stream! audio, string! fileName, string! contentType, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.SpeechToTextUploadResult!>!
 OpenConnect.Core.Speech.OpenConnectSpeechToTextServiceCollectionExtensions
 OpenConnect.Core.Speech.RealtimeTranscriptCollector
+OpenConnect.Core.Speech.RealtimeTranscriptCollector.LastPartialRevision.get -> long
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.RealtimeTranscriptCollector() -> void
+OpenConnect.Core.Speech.RealtimeTranscriptCollector.ResetPartialRevision() -> void
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.Transcripts.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.TryAppend(string! json) -> bool
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.TryAppend(string! json, out OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? appended) -> bool
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.TryReadPartial(string! json, out OpenConnect.Abstractions.Speech.RealtimePartialTranscript? partial) -> bool
+OpenConnect.Core.Speech.RealtimeTranscriptCollector.TryReadPartial(string! json, out OpenConnect.Abstractions.Speech.RealtimePartialTranscript? partial, out long revision) -> bool
 OpenConnect.Core.Speech.RealtimeTranscriptCollector.Turns.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>!
 OpenConnect.Core.Speech.SpeechToTextOptions
 OpenConnect.Core.Speech.SpeechToTextOptions.ApiKey.get -> string?
@@ -538,6 +780,20 @@ OpenConnect.Core.Speech.WebSocketRealtimeSpeechToTextClient.BuildHandshake() -> 
 OpenConnect.Core.Speech.WebSocketRealtimeSpeechToTextClient.IsConfigured.get -> bool
 OpenConnect.Core.Speech.WebSocketRealtimeSpeechToTextClient.TranscribePcmAsync(System.IO.Stream! pcm24kMono16Bit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), System.Func<OpenConnect.Abstractions.Speech.RealtimePartialTranscript!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onPartialTranscript = null, System.Func<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onFinalTranscript = null) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!>!
 OpenConnect.Core.Speech.WebSocketRealtimeSpeechToTextClient.WebSocketRealtimeSpeechToTextClient(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Speech.SpeechToTextOptions!>! options) -> void
+OpenConnect.Core.SpeechPhraseFormatter
+OpenConnect.Core.SpeechPhraseFormatter.AppendDelta(string? delta, bool forceFlush = false) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Core.SpeakablePhraseSegment!>!
+OpenConnect.Core.SpeechPhraseFormatter.Flush() -> OpenConnect.Core.SpeakablePhraseSegment?
+OpenConnect.Core.SpeechPhraseFormatter.Reset() -> void
+OpenConnect.Core.SpeechPhraseFormatter.SpeechPhraseFormatter(OpenConnect.Core.SpeechPhraseFormatterOptions? options = null) -> void
+OpenConnect.Core.SpeechPhraseFormatterOptions
+OpenConnect.Core.SpeechPhraseFormatterOptions.<Clone>$() -> OpenConnect.Core.SpeechPhraseFormatterOptions!
+OpenConnect.Core.SpeechPhraseFormatterOptions.Deconstruct(out int MinPhraseWords, out int MaxPhraseWords) -> void
+OpenConnect.Core.SpeechPhraseFormatterOptions.Equals(OpenConnect.Core.SpeechPhraseFormatterOptions? other) -> bool
+OpenConnect.Core.SpeechPhraseFormatterOptions.MaxPhraseWords.get -> int
+OpenConnect.Core.SpeechPhraseFormatterOptions.MaxPhraseWords.init -> void
+OpenConnect.Core.SpeechPhraseFormatterOptions.MinPhraseWords.get -> int
+OpenConnect.Core.SpeechPhraseFormatterOptions.MinPhraseWords.init -> void
+OpenConnect.Core.SpeechPhraseFormatterOptions.SpeechPhraseFormatterOptions(int MinPhraseWords = 8, int MaxPhraseWords = 25) -> void
 OpenConnect.Core.VadEngine
 OpenConnect.Core.VadEngine.None = 0 -> OpenConnect.Core.VadEngine
 OpenConnect.Core.VadEngine.SileroOnnx = 1 -> OpenConnect.Core.VadEngine
@@ -547,6 +803,17 @@ OpenConnect.Core.VadLocation.Client = 1 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VadLocation.Disabled = 0 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VadLocation.Hybrid = 3 -> OpenConnect.Core.VadLocation
 OpenConnect.Core.VadLocation.Server = 2 -> OpenConnect.Core.VadLocation
+OpenConnect.Core.VoiceSessionKey
+OpenConnect.Core.VoiceSessionKey.Deconstruct(out OpenConnect.Abstractions.TenantId Tenant, out OpenConnect.Abstractions.PrincipalId Principal, out OpenConnect.Abstractions.SessionId Session) -> void
+OpenConnect.Core.VoiceSessionKey.Equals(OpenConnect.Core.VoiceSessionKey other) -> bool
+OpenConnect.Core.VoiceSessionKey.Principal.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Core.VoiceSessionKey.Principal.init -> void
+OpenConnect.Core.VoiceSessionKey.Session.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Core.VoiceSessionKey.Session.init -> void
+OpenConnect.Core.VoiceSessionKey.Tenant.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Core.VoiceSessionKey.Tenant.init -> void
+OpenConnect.Core.VoiceSessionKey.VoiceSessionKey() -> void
+OpenConnect.Core.VoiceSessionKey.VoiceSessionKey(OpenConnect.Abstractions.TenantId Tenant, OpenConnect.Abstractions.PrincipalId Principal, OpenConnect.Abstractions.SessionId Session) -> void
 OpenConnect.Core.VoiceTurnCommitResult
 OpenConnect.Core.VoiceTurnCommitResult.<Clone>$() -> OpenConnect.Core.VoiceTurnCommitResult!
 OpenConnect.Core.VoiceTurnCommitResult.Committed.get -> bool
@@ -576,9 +843,42 @@ const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
 const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultHandshakeTimeoutSeconds = 10 -> int
 const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultMaxAudioBytes = 33554432 -> long
 const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
+override OpenConnect.Core.AdaptiveEndpointInput.Equals(object? obj) -> bool
+override OpenConnect.Core.AdaptiveEndpointInput.GetHashCode() -> int
+override OpenConnect.Core.AdaptiveEndpointInput.ToString() -> string!
+override OpenConnect.Core.AdaptiveEndpointResult.Equals(object? obj) -> bool
+override OpenConnect.Core.AdaptiveEndpointResult.GetHashCode() -> int
+override OpenConnect.Core.AdaptiveEndpointResult.ToString() -> string!
 override OpenConnect.Core.CloudTranscriptionRouteDecision.Equals(object? obj) -> bool
 override OpenConnect.Core.CloudTranscriptionRouteDecision.GetHashCode() -> int
 override OpenConnect.Core.CloudTranscriptionRouteDecision.ToString() -> string!
+override OpenConnect.Core.DuplexCaptureResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexCaptureResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexCaptureResult.ToString() -> string!
+override OpenConnect.Core.DuplexConnectionFenceResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexConnectionFenceResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexConnectionFenceResult.ToString() -> string!
+override OpenConnect.Core.DuplexFinalAdmissionResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexFinalAdmissionResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexFinalAdmissionResult.ToString() -> string!
+override OpenConnect.Core.DuplexInterruptResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexInterruptResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexInterruptResult.ToString() -> string!
+override OpenConnect.Core.DuplexPartialResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexPartialResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexPartialResult.ToString() -> string!
+override OpenConnect.Core.DuplexPlaybackReceiptResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexPlaybackReceiptResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexPlaybackReceiptResult.ToString() -> string!
+override OpenConnect.Core.DuplexResponseStartResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexResponseStartResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexResponseStartResult.ToString() -> string!
+override OpenConnect.Core.DuplexSegmentRegistrationResult.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexSegmentRegistrationResult.GetHashCode() -> int
+override OpenConnect.Core.DuplexSegmentRegistrationResult.ToString() -> string!
+override OpenConnect.Core.DuplexVoiceSessionSnapshot.Equals(object? obj) -> bool
+override OpenConnect.Core.DuplexVoiceSessionSnapshot.GetHashCode() -> int
+override OpenConnect.Core.DuplexVoiceSessionSnapshot.ToString() -> string!
 override OpenConnect.Core.RecordedAudioUpload.Equals(object? obj) -> bool
 override OpenConnect.Core.RecordedAudioUpload.GetHashCode() -> int
 override OpenConnect.Core.RecordedAudioUpload.ToString() -> string!
@@ -588,15 +888,44 @@ override OpenConnect.Core.Runtime.LoadedInstructions.ToString() -> string!
 override OpenConnect.Core.ServerVadFrameResult.Equals(object? obj) -> bool
 override OpenConnect.Core.ServerVadFrameResult.GetHashCode() -> int
 override OpenConnect.Core.ServerVadFrameResult.ToString() -> string!
+override OpenConnect.Core.SpeakablePhraseSegment.Equals(object? obj) -> bool
+override OpenConnect.Core.SpeakablePhraseSegment.GetHashCode() -> int
+override OpenConnect.Core.SpeakablePhraseSegment.ToString() -> string!
+override OpenConnect.Core.SpeechPhraseFormatterOptions.Equals(object? obj) -> bool
+override OpenConnect.Core.SpeechPhraseFormatterOptions.GetHashCode() -> int
+override OpenConnect.Core.SpeechPhraseFormatterOptions.ToString() -> string!
+override OpenConnect.Core.VoiceSessionKey.GetHashCode() -> int
 override OpenConnect.Core.VoiceTurnCommitResult.Equals(object? obj) -> bool
 override OpenConnect.Core.VoiceTurnCommitResult.GetHashCode() -> int
 override OpenConnect.Core.VoiceTurnCommitResult.ToString() -> string!
+static OpenConnect.Core.AdaptiveEndpointInput.operator !=(OpenConnect.Core.AdaptiveEndpointInput? left, OpenConnect.Core.AdaptiveEndpointInput? right) -> bool
+static OpenConnect.Core.AdaptiveEndpointInput.operator ==(OpenConnect.Core.AdaptiveEndpointInput? left, OpenConnect.Core.AdaptiveEndpointInput? right) -> bool
+static OpenConnect.Core.AdaptiveEndpointResult.operator !=(OpenConnect.Core.AdaptiveEndpointResult? left, OpenConnect.Core.AdaptiveEndpointResult? right) -> bool
+static OpenConnect.Core.AdaptiveEndpointResult.operator ==(OpenConnect.Core.AdaptiveEndpointResult? left, OpenConnect.Core.AdaptiveEndpointResult? right) -> bool
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.CanonicalDockerImages.get -> System.Collections.Generic.IReadOnlyDictionary<OpenConnect.Abstractions.OpenConnectWorkerKind, string!>!
 static OpenConnect.Core.Capabilities.WorkerCapabilityRegistry.GetCanonicalDockerImage(OpenConnect.Abstractions.OpenConnectWorkerKind kind) -> string!
 static OpenConnect.Core.CloudTranscriptionRouteDecision.operator !=(OpenConnect.Core.CloudTranscriptionRouteDecision? left, OpenConnect.Core.CloudTranscriptionRouteDecision? right) -> bool
 static OpenConnect.Core.CloudTranscriptionRouteDecision.operator ==(OpenConnect.Core.CloudTranscriptionRouteDecision? left, OpenConnect.Core.CloudTranscriptionRouteDecision? right) -> bool
 static OpenConnect.Core.Configuration.AgentOptionsMapping.ToRunBudget(OpenConnect.Core.Configuration.AgentRegistryOptions! options) -> OpenConnect.Abstractions.AgentBudget!
 static OpenConnect.Core.Configuration.OpenConnectConfigurationBinder.Bind(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! configurationValues, string! sectionPrefix = "OpenConnect") -> OpenConnect.Core.Configuration.OpenConnectOptions!
+static OpenConnect.Core.DuplexCaptureResult.operator !=(OpenConnect.Core.DuplexCaptureResult? left, OpenConnect.Core.DuplexCaptureResult? right) -> bool
+static OpenConnect.Core.DuplexCaptureResult.operator ==(OpenConnect.Core.DuplexCaptureResult? left, OpenConnect.Core.DuplexCaptureResult? right) -> bool
+static OpenConnect.Core.DuplexConnectionFenceResult.operator !=(OpenConnect.Core.DuplexConnectionFenceResult? left, OpenConnect.Core.DuplexConnectionFenceResult? right) -> bool
+static OpenConnect.Core.DuplexConnectionFenceResult.operator ==(OpenConnect.Core.DuplexConnectionFenceResult? left, OpenConnect.Core.DuplexConnectionFenceResult? right) -> bool
+static OpenConnect.Core.DuplexFinalAdmissionResult.operator !=(OpenConnect.Core.DuplexFinalAdmissionResult? left, OpenConnect.Core.DuplexFinalAdmissionResult? right) -> bool
+static OpenConnect.Core.DuplexFinalAdmissionResult.operator ==(OpenConnect.Core.DuplexFinalAdmissionResult? left, OpenConnect.Core.DuplexFinalAdmissionResult? right) -> bool
+static OpenConnect.Core.DuplexInterruptResult.operator !=(OpenConnect.Core.DuplexInterruptResult? left, OpenConnect.Core.DuplexInterruptResult? right) -> bool
+static OpenConnect.Core.DuplexInterruptResult.operator ==(OpenConnect.Core.DuplexInterruptResult? left, OpenConnect.Core.DuplexInterruptResult? right) -> bool
+static OpenConnect.Core.DuplexPartialResult.operator !=(OpenConnect.Core.DuplexPartialResult? left, OpenConnect.Core.DuplexPartialResult? right) -> bool
+static OpenConnect.Core.DuplexPartialResult.operator ==(OpenConnect.Core.DuplexPartialResult? left, OpenConnect.Core.DuplexPartialResult? right) -> bool
+static OpenConnect.Core.DuplexPlaybackReceiptResult.operator !=(OpenConnect.Core.DuplexPlaybackReceiptResult? left, OpenConnect.Core.DuplexPlaybackReceiptResult? right) -> bool
+static OpenConnect.Core.DuplexPlaybackReceiptResult.operator ==(OpenConnect.Core.DuplexPlaybackReceiptResult? left, OpenConnect.Core.DuplexPlaybackReceiptResult? right) -> bool
+static OpenConnect.Core.DuplexResponseStartResult.operator !=(OpenConnect.Core.DuplexResponseStartResult? left, OpenConnect.Core.DuplexResponseStartResult? right) -> bool
+static OpenConnect.Core.DuplexResponseStartResult.operator ==(OpenConnect.Core.DuplexResponseStartResult? left, OpenConnect.Core.DuplexResponseStartResult? right) -> bool
+static OpenConnect.Core.DuplexSegmentRegistrationResult.operator !=(OpenConnect.Core.DuplexSegmentRegistrationResult? left, OpenConnect.Core.DuplexSegmentRegistrationResult? right) -> bool
+static OpenConnect.Core.DuplexSegmentRegistrationResult.operator ==(OpenConnect.Core.DuplexSegmentRegistrationResult? left, OpenConnect.Core.DuplexSegmentRegistrationResult? right) -> bool
+static OpenConnect.Core.DuplexVoiceSessionSnapshot.operator !=(OpenConnect.Core.DuplexVoiceSessionSnapshot? left, OpenConnect.Core.DuplexVoiceSessionSnapshot? right) -> bool
+static OpenConnect.Core.DuplexVoiceSessionSnapshot.operator ==(OpenConnect.Core.DuplexVoiceSessionSnapshot? left, OpenConnect.Core.DuplexVoiceSessionSnapshot? right) -> bool
 static OpenConnect.Core.RecordedAudioUpload.operator !=(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
 static OpenConnect.Core.RecordedAudioUpload.operator ==(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
 static OpenConnect.Core.Runtime.LoadedInstructions.operator !=(OpenConnect.Core.Runtime.LoadedInstructions? left, OpenConnect.Core.Runtime.LoadedInstructions? right) -> bool
@@ -626,10 +955,18 @@ static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTool<TTool>(th
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranscriptionWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranscriptionWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectTranslationWorker(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.TranslationWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.ServiceCollectionExtensions.AddOpenConnectVoice(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.SpeakablePhraseSegment.operator !=(OpenConnect.Core.SpeakablePhraseSegment? left, OpenConnect.Core.SpeakablePhraseSegment? right) -> bool
+static OpenConnect.Core.SpeakablePhraseSegment.operator ==(OpenConnect.Core.SpeakablePhraseSegment? left, OpenConnect.Core.SpeakablePhraseSegment? right) -> bool
 static OpenConnect.Core.Speech.OpenConnectSpeechToTextServiceCollectionExtensions.AddOpenConnectSpeechToText(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.Speech.OpenConnectSpeechToTextServiceCollectionExtensions.AddOpenConnectSpeechToText(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Core.Speech.SpeechToTextOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Core.Speech.OpenConnectSpeechToTextServiceCollectionExtensions.AddOpenConnectSpeechToText(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! configurationValues) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Core.SpeechPhraseFormatterOptions.operator !=(OpenConnect.Core.SpeechPhraseFormatterOptions? left, OpenConnect.Core.SpeechPhraseFormatterOptions? right) -> bool
+static OpenConnect.Core.SpeechPhraseFormatterOptions.operator ==(OpenConnect.Core.SpeechPhraseFormatterOptions? left, OpenConnect.Core.SpeechPhraseFormatterOptions? right) -> bool
+static OpenConnect.Core.VoiceSessionKey.operator !=(OpenConnect.Core.VoiceSessionKey left, OpenConnect.Core.VoiceSessionKey right) -> bool
+static OpenConnect.Core.VoiceSessionKey.operator ==(OpenConnect.Core.VoiceSessionKey left, OpenConnect.Core.VoiceSessionKey right) -> bool
 static OpenConnect.Core.VoiceTurnCommitResult.operator !=(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
 static OpenConnect.Core.VoiceTurnCommitResult.operator ==(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
 static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
 virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!
+~override OpenConnect.Core.VoiceSessionKey.Equals(object obj) -> bool
+~override OpenConnect.Core.VoiceSessionKey.ToString() -> string

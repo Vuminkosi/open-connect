@@ -544,6 +544,7 @@ OpenConnect.Client.NavigatorClientService.StartGuidedTour(string! tourId, System
 OpenConnect.Client.NavigatorClientService.StopGuidedTour() -> void
 OpenConnect.Client.OpenConnectClient
 OpenConnect.Client.OpenConnectClient.CancelTaskAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
+OpenConnect.Client.OpenConnectClient.ConnectVoiceSessionAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.IRealtimeVoiceSession!>!
 OpenConnect.Client.OpenConnectClient.CreateMiniComposerTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateSessionAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Client.SessionRecord!>!
 OpenConnect.Client.OpenConnectClient.CreateTaskAsync(OpenConnect.Client.CreateTaskRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
@@ -585,6 +586,16 @@ OpenConnect.Client.OpenConnectClientReconnectOptions.OpenConnectClientReconnectO
 OpenConnect.Client.OpenConnectClientReconnectOptions.ResumeFromLastCursor.get -> bool
 OpenConnect.Client.OpenConnectClientReconnectOptions.ResumeFromLastCursor.set -> void
 OpenConnect.Client.OpenConnectClientServiceCollectionExtensions
+OpenConnect.Client.RealtimeVoiceSession
+OpenConnect.Client.RealtimeVoiceSession.AcknowledgePlaybackAsync(OpenConnect.Abstractions.Speech.VoicePlaybackReceipt! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.DisposeAsync() -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.EndUtteranceAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.InterruptAsync(OpenConnect.Abstractions.Speech.VoiceInterruptRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.ReadEventsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.Speech.VoiceSessionEvent!>!
+OpenConnect.Client.RealtimeVoiceSession.SendAudioAsync(System.ReadOnlyMemory<byte> pcm, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.SessionId.get -> string!
+OpenConnect.Client.RealtimeVoiceSession.SetMutedAsync(bool muted, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.RealtimeVoiceSession.VoiceConnectionId.get -> string!
 OpenConnect.Client.RecordedVoiceDraft
 OpenConnect.Client.RecordedVoiceDraft.<Clone>$() -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.RecordedVoiceDraft.CreatedAtUtc.get -> System.DateTimeOffset
@@ -680,10 +691,16 @@ OpenConnect.Client.VadLocation.Server = 2 -> OpenConnect.Client.VadLocation
 OpenConnect.Client.VoiceClientOptions
 OpenConnect.Client.VoiceClientOptions.EnableBargeIn.get -> bool
 OpenConnect.Client.VoiceClientOptions.EnableBargeIn.set -> void
+OpenConnect.Client.VoiceClientOptions.EnableContinuousConversation.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableContinuousConversation.set -> void
 OpenConnect.Client.VoiceClientOptions.EnableLiveTranscription.get -> bool
 OpenConnect.Client.VoiceClientOptions.EnableLiveTranscription.set -> void
 OpenConnect.Client.VoiceClientOptions.EnablePlayback.get -> bool
 OpenConnect.Client.VoiceClientOptions.EnablePlayback.set -> void
+OpenConnect.Client.VoiceClientOptions.EnableSemanticTurnDetection.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableSemanticTurnDetection.set -> void
+OpenConnect.Client.VoiceClientOptions.EnableStreamingPlayback.get -> bool
+OpenConnect.Client.VoiceClientOptions.EnableStreamingPlayback.set -> void
 OpenConnect.Client.VoiceClientOptions.EnableVoiceRecording.get -> bool
 OpenConnect.Client.VoiceClientOptions.EnableVoiceRecording.set -> void
 OpenConnect.Client.VoiceClientOptions.MaxRecordingBytes.get -> int
@@ -711,6 +728,7 @@ OpenConnect.Client.VoiceClientService.TriggerBargeIn() -> long
 OpenConnect.Client.VoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.UpdateLiveHypothesis(string! partialTranscript, long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.VoiceClientService(OpenConnect.Client.VoiceClientOptions! options) -> void
+const OpenConnect.Client.RealtimeVoiceSession.SubProtocol = "openconnect.voice.v2" -> string!
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.ToString() -> string!

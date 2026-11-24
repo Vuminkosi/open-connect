@@ -12,6 +12,12 @@ public sealed class RealtimeTranscriptCollector
     private readonly List<RealtimeTranscriptTurn> _transcripts = [];
     private readonly HashSet<long> _completedTurnIds = [];
 
+    /// <summary>Highest monotonically increasing partial transcript revision observed so far.</summary>
+    public long LastPartialRevision { get; private set; }
+
+    /// <summary>Resets partial transcript revision tracking for a new utterance capture.</summary>
+    public void ResetPartialRevision() => LastPartialRevision = 0;
+
     /// <summary>Ordered finalized transcript turns collected so far.</summary>
     public IReadOnlyList<RealtimeTranscriptTurn> Turns => _transcripts
         .OrderBy(turn => turn.TurnId ?? long.MaxValue)
@@ -22,8 +28,13 @@ public sealed class RealtimeTranscriptCollector
 
     /// <summary>Attempts to read a bounded non-final partial transcript from a provider JSON event.</summary>
     public bool TryReadPartial(string json, out RealtimePartialTranscript? partial)
+        => TryReadPartial(json, out partial, out _);
+
+    /// <summary>Attempts to read a bounded non-final partial transcript and its monotonic revision from a provider JSON event.</summary>
+    public bool TryReadPartial(string json, out RealtimePartialTranscript? partial, out long revision)
     {
         partial = null;
+        revision = LastPartialRevision;
         if (string.IsNullOrWhiteSpace(json))
         {
             return false;
@@ -64,6 +75,26 @@ public sealed class RealtimeTranscriptCollector
                 turnId = parsedTurnId;
             }
 
+            long nextRevision;
+            if (root.TryGetProperty("revision", out var revisionValue))
+            {
+                if (revisionValue.ValueKind != JsonValueKind.Number
+                    || !revisionValue.TryGetInt64(out var parsedRevision)
+                    || parsedRevision <= 0
+                    || parsedRevision <= LastPartialRevision)
+                {
+                    return false;
+                }
+
+                nextRevision = parsedRevision;
+            }
+            else
+            {
+                nextRevision = LastPartialRevision + 1;
+            }
+
+            LastPartialRevision = nextRevision;
+            revision = nextRevision;
             partial = new RealtimePartialTranscript(turnId, transcript);
             return true;
         }

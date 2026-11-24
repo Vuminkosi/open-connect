@@ -149,6 +149,9 @@ public sealed class VoiceClientOptions
     public bool EnableVoiceRecording { get; set; } = true;
     public bool EnablePlayback { get; set; } = true;
     public bool EnableBargeIn { get; set; } = true;
+    public bool EnableContinuousConversation { get; set; }
+    public bool EnableStreamingPlayback { get; set; }
+    public bool EnableSemanticTurnDetection { get; set; }
     public int MaxRecordingBytes { get; set; } = 10 * 1024 * 1024;
     public TimeSpan MaxRecordingDuration { get; set; } = TimeSpan.FromMinutes(5);
 

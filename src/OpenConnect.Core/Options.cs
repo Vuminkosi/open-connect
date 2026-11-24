@@ -167,6 +167,17 @@ public sealed class OpenConnectVoiceOptions
     public bool EnableLiveTranscription { get; set; } = true;
     public bool EnableRecordedTranscription { get; set; } = true;
     public bool EnableSpeechOutput { get; set; } = true;
+    public bool EnableContinuousConversation { get; set; }
+    public bool EnableStreamingSpeechOutput { get; set; }
+    public bool EnableSemanticTurnDetection { get; set; }
+    public long MaxUtteranceAudioBytes { get; set; } = 32L * 1024 * 1024;
+    public long MaxRollingSessionAudioBytes { get; set; } = 256L * 1024 * 1024;
+    public int RollingSessionWindowSeconds { get; set; } = 3600;
+    public int MaxBufferedOutputFrames { get; set; } = 256;
+    public int PhraseFlushTimeoutMs { get; set; } = 350;
+    public int MinPhraseWords { get; set; } = 8;
+    public int MaxPhraseWords { get; set; } = 25;
+    public bool ConservativeEndpointing { get; set; }
     public VoiceVadOptions Vad { get; } = new();
 }
 
