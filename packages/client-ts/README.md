@@ -25,6 +25,28 @@ const unsubscribe = client.subscribeEvents("<session-ulid>", { onEvent: console.
 unsubscribe();
 ```
 
+After the stream connects, the host sends a `registered` control frame
+(`{"type":"registered","connectionId":"...","sessionId":"..."}`). `subscribeEvents`
+no longer passes this frame to `onEvent`; supply the optional `onRegistered`
+callback to receive it as a `SessionRegistration` (`connectionId`, `sessionId`).
+Without the callback the frame is ignored. Frames that are neither a valid
+`registered` frame nor a well-formed event are reported to `onError` as
+`invalid_request` and are not delivered to `onEvent`. Callers that previously
+filtered `type === "registered"` inside `onEvent` can remove that check.
+
+UUID session routes deliver canonical `SessionEvent` frames. ULID session routes
+deliver the legacy host record (`sessionId`, `sequence`, `type`, `data`), which is
+passed to `onEvent` unchanged as before. Unlike the .NET client, which skips records
+it cannot deserialize, the TypeScript client reports unrecognized frames to `onError`.
+
+```ts
+client.subscribeEvents("<session-ulid>", {
+  onRegistered: ({ connectionId }) => console.log("connected", connectionId),
+  onEvent: console.log,
+  onError: console.error,
+});
+```
+
 `listReadyHostCapabilities()` reads the authenticated host registry across all
 kinds. Descriptors contain the logical ID under `id.value` and include only ready,
 non-expired registrations. Registration and worker readiness remain the host

@@ -4,6 +4,7 @@ import type {
   CreateTaskRequest,
   OpenConnectErrorCode,
   SessionEvent,
+  SessionRegistration,
   TaskRecord,
 } from "./types.js";
 
@@ -38,6 +39,46 @@ export type FetchImpl = (
   input: string | URL,
   init?: RequestInit,
 ) => Promise<Response>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRegisteredFrame(frame: unknown): frame is Record<string, unknown> {
+  return isRecord(frame) && frame["type"] === "registered";
+}
+
+/**
+ * The host sends the canonical SessionEvent shape on UUID session routes and the
+ * legacy EventRecord shape (`sessionId`, `sequence`, `type`, `data`) on ULID routes.
+ */
+function isLegacyEventRecordShape(frame: unknown): boolean {
+  return (
+    isRecord(frame) &&
+    typeof frame["sessionId"] === "string" &&
+    typeof frame["sequence"] === "number" &&
+    Number.isInteger(frame["sequence"]) &&
+    typeof frame["type"] === "string" &&
+    typeof frame["data"] === "string"
+  );
+}
+
+function isSessionEventShape(frame: unknown): boolean {
+  return isCanonicalEventShape(frame) || isLegacyEventRecordShape(frame);
+}
+
+function isCanonicalEventShape(frame: unknown): boolean {
+  return (
+    isRecord(frame) &&
+    typeof frame["eventId"] === "string" &&
+    typeof frame["eventType"] === "string" &&
+    typeof frame["sessionId"] === "string" &&
+    typeof frame["sequence"] === "number" &&
+    Number.isInteger(frame["sequence"]) &&
+    typeof frame["occurredAt"] === "string" &&
+    isRecord(frame["payload"])
+  );
+}
 
 /** Minimal WebSocket surface the client depends on (browser + Node 24). */
 export interface EventSocket {
@@ -235,6 +276,8 @@ export class OpenConnectClient {
     sessionId: string,
     handlers: {
       onEvent: (event: SessionEvent) => void;
+      /** Called once with the server's `registered` control frame. Never delivered to onEvent. */
+      onRegistered?: (registration: SessionRegistration) => void;
       onError?: (error: OpenConnectError) => void;
       afterSequence?: number;
     },
@@ -261,7 +304,20 @@ export class OpenConnectClient {
           typeof ev === "object" && ev !== null && "data" in ev
             ? String((ev as { data: unknown }).data)
             : String(ev);
-        handlers.onEvent(JSON.parse(raw) as SessionEvent);
+        const frame: unknown = JSON.parse(raw);
+        if (isRegisteredFrame(frame)) {
+          if (typeof frame["connectionId"] !== "string" || typeof frame["sessionId"] !== "string") {
+            throw new OpenConnectError("invalid_request", "Malformed registered frame.");
+          }
+          handlers.onRegistered?.({
+            connectionId: frame["connectionId"],
+            sessionId: frame["sessionId"],
+          });
+        } else if (isSessionEventShape(frame)) {
+          handlers.onEvent(frame as unknown as SessionEvent);
+        } else {
+          throw new OpenConnectError("invalid_request", "Unexpected frame on session event stream.");
+        }
       } catch (error) {
         handlers.onError?.(
           error instanceof OpenConnectError

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The TypeScript client's `subscribeEvents` no longer delivers the server `registered` control frame to `onEvent`. It is exposed through the new optional `onRegistered` callback (`SessionRegistration`), and malformed or unrecognized frames are reported to `onError` instead of `onEvent` (#106). Both the canonical (UUID route) and legacy `EventRecord` (ULID route) event shapes are still delivered to `onEvent`. This differs from the .NET client, which silently skips undeserializable records.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.
