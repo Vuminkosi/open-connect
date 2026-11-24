@@ -276,7 +276,11 @@ internal static class VoiceDuplexSessionHandler
 
                 if (_sessionOpened)
                 {
-                    _coordinator.FenceConnection(_tenant, _principal, _sessionId, _voiceConnectionId, markReconnecting: false);
+                    var fenced = _coordinator.FenceConnection(_tenant, _principal, _sessionId, _voiceConnectionId, markReconnecting: false);
+                    if (fenced.Fenced && fenced.Reconciliation is not null)
+                    {
+                        await PersistDeliveryReconciliationAsync(fenced.Reconciliation, "connection_closed").ConfigureAwait(false);
+                    }
                 }
 
                 _controlChannel.Writer.TryComplete();
@@ -726,6 +730,7 @@ internal static class VoiceDuplexSessionHandler
             if (!result.WasIdempotentReplay)
             {
                 await CancelActiveResponseAsync(cancelAdmittedTask: true).ConfigureAwait(false);
+                await PersistDeliveryReconciliationAsync(result.Reconciliation, reason).ConfigureAwait(false);
                 VoiceDuplexMetrics.RecordBargeInStop(Stopwatch.GetElapsedTime(startTs).TotalMilliseconds);
             }
 
@@ -829,7 +834,7 @@ internal static class VoiceDuplexSessionHandler
         private async Task<string> EnsureSttReadyAsync(CancellationToken ct)
         {
             var configuration = _context.RequestServices.GetService<IConfiguration>();
-            var localOnly = configuration?.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly") ?? false;
+            var localOnly = IsLocalOnlySpeechEgress();
             var sdkStt = _context.RequestServices.GetService<IRealtimeSpeechToTextClient>();
 
             if (!localOnly && sdkStt is { IsConfigured: true })
@@ -866,8 +871,7 @@ internal static class VoiceDuplexSessionHandler
 
         private async Task StartSttUtteranceAsync(string captureId, long speechEpoch, CancellationToken ct)
         {
-            var configuration = _context.RequestServices.GetService<IConfiguration>();
-            var localOnly = configuration?.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly") ?? false;
+            var localOnly = IsLocalOnlySpeechEgress();
             var sdkStt = _context.RequestServices.GetService<IRealtimeSpeechToTextClient>();
 
             if (!localOnly && sdkStt is { IsConfigured: true })
@@ -893,6 +897,62 @@ internal static class VoiceDuplexSessionHandler
                     speechEpoch
                 }, ct).ConfigureAwait(false);
             }
+        }
+
+        private bool IsLocalOnlySpeechEgress()
+        {
+            var configuration = _context.RequestServices.GetService<IConfiguration>();
+            if (configuration?.GetValue<bool>("Workers:Transcription:RealtimeLocalOnly") ?? false)
+            {
+                return true;
+            }
+
+            var cloudOptions = _context.RequestServices.GetService<IOptions<CloudTranscriptionOptions>>()?.Value;
+            var approvedCloudAudioEgress = cloudOptions is { ApprovedAudioEgressPolicy: true } or { RequireApprovedAudioEgress: false };
+
+            var privacyOptions = _context.RequestServices.GetService<IOptions<OpenConnect.Privacy.PrivacyOptions>>()?.Value;
+            if (privacyOptions is { Enabled: true })
+            {
+                if (privacyOptions.Mode == FirewallMode.LocalOnly)
+                {
+                    return true;
+                }
+
+                if (privacyOptions.Mode == FirewallMode.StrictLocal && !approvedCloudAudioEgress)
+                {
+                    return true;
+                }
+            }
+
+            var corePrivacyOptions = _context.RequestServices.GetService<IOptions<OpenConnect.Core.Configuration.PrivacyOptions>>()?.Value;
+            if (corePrivacyOptions is { Enabled: true })
+            {
+                if (corePrivacyOptions.Mode == FirewallMode.LocalOnly)
+                {
+                    return true;
+                }
+
+                if (corePrivacyOptions.Mode == FirewallMode.StrictLocal && !approvedCloudAudioEgress)
+                {
+                    return true;
+                }
+            }
+
+            var coreOptions = _context.RequestServices.GetService<IOptions<OpenConnectOptions>>()?.Value;
+            if (coreOptions?.Privacy is { Enabled: true })
+            {
+                if (coreOptions.Privacy.Mode == FirewallMode.LocalOnly)
+                {
+                    return true;
+                }
+
+                if (coreOptions.Privacy.Mode == FirewallMode.StrictLocal && !approvedCloudAudioEgress)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private async Task ForwardPcmToSttAsync(byte[] pcmCopy, CancellationToken ct)
@@ -1247,6 +1307,7 @@ internal static class VoiceDuplexSessionHandler
             long sampleOffset = 0;
             var sawDelta = false;
             var taskIdText = taskId.Value.ToString();
+            string? previousSegmentTail = null;
 
             await EnqueueControlAsync(new
             {
@@ -1309,13 +1370,14 @@ internal static class VoiceDuplexSessionHandler
                                         VoiceDuplexMetrics.RecordFirstSpeakablePhrase(Stopwatch.GetElapsedTime(turnStartTs).TotalMilliseconds);
                                     }
 
-                                    sampleOffset = await SynthesizeAndEmitSegmentAsync(
+                                    (sampleOffset, previousSegmentTail) = await SynthesizeAndEmitSegmentAsync(
                                         synthesizer!,
                                         egressGate,
                                         responseId,
                                         speechEpoch,
                                         streamId,
                                         segment,
+                                        previousSegmentTail,
                                         sampleOffset,
                                         turnStartTs,
                                         () =>
@@ -1357,13 +1419,14 @@ internal static class VoiceDuplexSessionHandler
                                             VoiceDuplexMetrics.RecordFirstSpeakablePhrase(Stopwatch.GetElapsedTime(turnStartTs).TotalMilliseconds);
                                         }
 
-                                        sampleOffset = await SynthesizeAndEmitSegmentAsync(
+                                        (sampleOffset, previousSegmentTail) = await SynthesizeAndEmitSegmentAsync(
                                             synthesizer!,
                                             egressGate,
                                             responseId,
                                             speechEpoch,
                                             streamId,
                                             segment,
+                                            previousSegmentTail,
                                             sampleOffset,
                                             turnStartTs,
                                             () =>
@@ -1388,13 +1451,14 @@ internal static class VoiceDuplexSessionHandler
                                             VoiceDuplexMetrics.RecordFirstSpeakablePhrase(Stopwatch.GetElapsedTime(turnStartTs).TotalMilliseconds);
                                         }
 
-                                        sampleOffset = await SynthesizeAndEmitSegmentAsync(
+                                        (sampleOffset, previousSegmentTail) = await SynthesizeAndEmitSegmentAsync(
                                             synthesizer!,
                                             egressGate,
                                             responseId,
                                             speechEpoch,
                                             streamId,
                                             tail,
+                                            previousSegmentTail,
                                             sampleOffset,
                                             turnStartTs,
                                             () =>
@@ -1410,6 +1474,40 @@ internal static class VoiceDuplexSessionHandler
                                 }
                             }
                         }
+                        else if (string.Equals(ev.Type, "tool.started", StringComparison.Ordinal)
+                            || string.Equals(ev.Type, "tool.completed", StringComparison.Ordinal))
+                        {
+                            var (toolName, callId, status) = ParseToolEventSummary(ev.Data);
+                            await EnqueueControlAsync(new
+                            {
+                                version = VoiceBinaryFrameCodec.ProtocolVersion,
+                                type = ev.Type,
+                                voiceConnectionId = _voiceConnectionId,
+                                responseId,
+                                speechEpoch,
+                                sequence = Interlocked.Increment(ref _outboundControlSeq),
+                                toolName,
+                                callId,
+                                status
+                            }, ct).ConfigureAwait(false);
+                        }
+                        else if (string.Equals(ev.Type, "confirmation.required", StringComparison.Ordinal)
+                            || string.Equals(ev.Type, "approval.required", StringComparison.Ordinal))
+                        {
+                            var (toolName, actionId, summary) = ParseConfirmationEventSummary(ev.Data);
+                            await EnqueueControlAsync(new
+                            {
+                                version = VoiceBinaryFrameCodec.ProtocolVersion,
+                                type = "confirmation.required",
+                                voiceConnectionId = _voiceConnectionId,
+                                responseId,
+                                speechEpoch,
+                                sequence = Interlocked.Increment(ref _outboundControlSeq),
+                                toolName,
+                                actionId,
+                                summary
+                            }, ct).ConfigureAwait(false);
+                        }
                         else if (string.Equals(ev.Type, "task.completed", StringComparison.Ordinal))
                         {
                             if (canSynthesize)
@@ -1417,13 +1515,14 @@ internal static class VoiceDuplexSessionHandler
                                 var tail = formatter.Flush();
                                 if (tail is not null)
                                 {
-                                    sampleOffset = await SynthesizeAndEmitSegmentAsync(
+                                    (sampleOffset, previousSegmentTail) = await SynthesizeAndEmitSegmentAsync(
                                         synthesizer!,
                                         egressGate,
                                         responseId,
                                         speechEpoch,
                                         streamId,
                                         tail,
+                                        previousSegmentTail,
                                         sampleOffset,
                                         turnStartTs,
                                         () =>
@@ -1487,9 +1586,14 @@ internal static class VoiceDuplexSessionHandler
             {
                 // Expected on barge-in interrupt or disconnect.
             }
-            catch (Exception ex)
+            catch (PrivacyBlockedException)
             {
-                _logger.LogWarning("Duplex response stream failed with {ExceptionType}.", ex.GetType().Name);
+                DrainPendingAudioFrames();
+                _coordinator.HandleInterrupt(
+                    _tenant,
+                    _principal,
+                    _sessionId,
+                    new VoiceInterruptRequest($"privacy-{responseId}-{speechEpoch}", responseId, speechEpoch, 0, "privacy_blocked"));
                 try
                 {
                     await EnqueueControlAsync(new
@@ -1500,8 +1604,41 @@ internal static class VoiceDuplexSessionHandler
                         responseId,
                         speechEpoch,
                         sequence = Interlocked.Increment(ref _outboundControlSeq),
-                        errorCode = ErrorCodes.CapabilityUnavailable,
-                        reason = "Voice response synthesis failed."
+                        errorCode = ErrorCodes.PrivacyBlocked,
+                        reason = "Voice response blocked by privacy policy.",
+                        recoverable = true
+                    }, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Ignore transport failure while reporting policy block.
+                }
+            }
+            catch (Exception ex)
+            {
+                DrainPendingAudioFrames();
+                _logger.LogWarning("Duplex response stream failed with {ExceptionType}.", ex.GetType().Name);
+                var isOverloaded = ex is InvalidOperationException
+                    && ex.Message.Contains("overloaded", StringComparison.OrdinalIgnoreCase);
+                var errorCode = isOverloaded ? ErrorCodes.RateLimited : ErrorCodes.CapabilityUnavailable;
+                var reason = isOverloaded
+                    ? "Voice synthesis or output buffer overloaded."
+                    : ex is TimeoutException
+                        ? "Voice worker timed out."
+                        : "Voice response synthesis failed.";
+                try
+                {
+                    await EnqueueControlAsync(new
+                    {
+                        version = VoiceBinaryFrameCodec.ProtocolVersion,
+                        type = "response.error",
+                        voiceConnectionId = _voiceConnectionId,
+                        responseId,
+                        speechEpoch,
+                        sequence = Interlocked.Increment(ref _outboundControlSeq),
+                        errorCode,
+                        reason,
+                        recoverable = true
                     }, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch
@@ -1511,13 +1648,14 @@ internal static class VoiceDuplexSessionHandler
             }
         }
 
-        private async Task<long> SynthesizeAndEmitSegmentAsync(
+        private async Task<(long SampleOffset, string? SegmentTail)> SynthesizeAndEmitSegmentAsync(
             IStreamingSpeechSynthesizer synthesizer,
             IEgressGate? egressGate,
             string responseId,
             long speechEpoch,
             uint streamId,
             SpeakablePhraseSegment segment,
+            string? previousSegmentTail,
             long currentSampleOffset,
             long turnStartTs,
             Action onFirstChunk,
@@ -1526,10 +1664,10 @@ internal static class VoiceDuplexSessionHandler
             var spokenText = segment.SpokenText;
             if (string.IsNullOrWhiteSpace(spokenText))
             {
-                return currentSampleOffset;
+                return (currentSampleOffset, previousSegmentTail);
             }
 
-            // Screen complete speakable segment fail-closed before synthesis when privacy gate is registered.
+            // Screen complete speakable segment (and cross-segment boundary) fail-closed before synthesis when privacy gate is registered.
             if (egressGate is not null)
             {
                 var egressContext = new EgressContext(
@@ -1537,17 +1675,46 @@ internal static class VoiceDuplexSessionHandler
                     _principal,
                     _sessionId,
                     EgressDestination.Output);
+
+                if (!string.IsNullOrWhiteSpace(previousSegmentTail))
+                {
+                    var boundaryWindow = $"{previousSegmentTail} {spokenText}";
+                    var boundaryDecision = await egressGate.EvaluateAsync(boundaryWindow, egressContext, ct).ConfigureAwait(false);
+                    if (boundaryDecision is null
+                        || !boundaryDecision.Allowed
+                        || boundaryDecision.Action is SecurityPolicyAction.Block or SecurityPolicyAction.Review
+                        || string.IsNullOrWhiteSpace(boundaryDecision.SanitizedContent))
+                    {
+                        throw new PrivacyBlockedException("Voice segment blocked across phrase boundary by privacy policy.");
+                    }
+
+                    if (boundaryDecision.DetectedEntities.Count > 0)
+                    {
+                        var prefix = previousSegmentTail + " ";
+                        if (boundaryDecision.SanitizedContent.StartsWith(prefix, StringComparison.Ordinal))
+                        {
+                            spokenText = boundaryDecision.SanitizedContent[prefix.Length..].Trim();
+                        }
+                        else
+                        {
+                            throw new PrivacyBlockedException("Cross-segment sensitive entity could not be safely isolated for speech.");
+                        }
+                    }
+                }
+
                 var decision = await egressGate.EvaluateAsync(spokenText, egressContext, ct).ConfigureAwait(false);
                 if (decision is null
                     || !decision.Allowed
                     || decision.Action is SecurityPolicyAction.Block or SecurityPolicyAction.Review
                     || string.IsNullOrWhiteSpace(decision.SanitizedContent))
                 {
-                    return currentSampleOffset;
+                    throw new PrivacyBlockedException("Voice segment blocked by privacy policy.");
                 }
 
                 spokenText = decision.SanitizedContent;
             }
+
+            var nextTail = spokenText.Length <= 64 ? spokenText : spokenText[^64..];
 
             var segmentId = $"seg-{segment.SegmentIndex}";
             var segmentStartSample = currentSampleOffset;
@@ -1581,7 +1748,7 @@ internal static class VoiceDuplexSessionHandler
                 var snapshot = _coordinator.GetSnapshot(_tenant, _principal, _sessionId);
                 if (snapshot is null || snapshot.SpeechEpoch != speechEpoch)
                 {
-                    return currentSampleOffset;
+                    return (currentSampleOffset, nextTail);
                 }
 
                 onFirstChunk();
@@ -1649,7 +1816,120 @@ internal static class VoiceDuplexSessionHandler
                 }, ct).ConfigureAwait(false);
             }
 
-            return currentSampleOffset;
+            return (currentSampleOffset, nextTail);
+        }
+
+        private void DrainPendingAudioFrames()
+        {
+            while (_audioChannel.Reader.TryRead(out _))
+            {
+            }
+        }
+
+        private async Task PersistDeliveryReconciliationAsync(VoiceDeliveryReconciliation? reconciliation, string reason)
+        {
+            if (reconciliation is null)
+            {
+                return;
+            }
+
+            var sessions = _context.RequestServices.GetService<InMemorySessionStore>();
+            if (sessions is null)
+            {
+                return;
+            }
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                responseId = reconciliation.ResponseId,
+                speechEpoch = reconciliation.SpeechEpoch,
+                reason,
+                transmittedSamples = reconciliation.TransmittedSamples,
+                reportedPlayedSamples = reconciliation.ReportedPlayedSamples,
+                receiptReceived = reconciliation.ReceiptReceived,
+                confirmedText = reconciliation.ConfirmedText,
+                uncertainText = reconciliation.UncertainText,
+                confirmedSegments = reconciliation.ConfirmedPlayedSegments.Select(static s => s.SegmentId).ToArray(),
+                uncertainSegment = reconciliation.UncertainPartiallyPlayedSegment?.SegmentId,
+                unheardSegments = reconciliation.UnheardSegments.Select(static s => s.SegmentId).ToArray()
+            }, JsonOptions);
+
+            try
+            {
+                await sessions.AppendEventAsync(_sessionId.Value, "voice.delivery.reconciled", payload, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to persist voice delivery reconciliation ({ExceptionType}).", ex.GetType().Name);
+            }
+        }
+
+        private static (string ToolName, string? CallId, string Status) ParseToolEventSummary(string? data)
+        {
+            if (string.IsNullOrWhiteSpace(data))
+            {
+                return ("tool", null, "running");
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(data);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var toolName = ReadString(doc.RootElement, "toolName")
+                        ?? ReadString(doc.RootElement, "tool")
+                        ?? ReadString(doc.RootElement, "name")
+                        ?? "tool";
+                    var callId = ReadString(doc.RootElement, "callId")
+                        ?? ReadString(doc.RootElement, "invocationId")
+                        ?? ReadString(doc.RootElement, "id");
+                    var status = ReadString(doc.RootElement, "status")
+                        ?? ReadString(doc.RootElement, "state")
+                        ?? "ok";
+                    return (toolName, callId, status);
+                }
+            }
+            catch (JsonException)
+            {
+                // Non-JSON payload; return safe generic metadata without leaking raw data.
+            }
+
+            return ("tool", null, "ok");
+        }
+
+        private static (string ToolName, string? ActionId, string Summary) ParseConfirmationEventSummary(string? data)
+        {
+            if (string.IsNullOrWhiteSpace(data))
+            {
+                return ("action", null, "Confirmation required.");
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(data);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var toolName = ReadString(doc.RootElement, "toolName")
+                        ?? ReadString(doc.RootElement, "tool")
+                        ?? ReadString(doc.RootElement, "name")
+                        ?? "action";
+                    var actionId = ReadString(doc.RootElement, "actionId")
+                        ?? ReadString(doc.RootElement, "approvalId")
+                        ?? ReadString(doc.RootElement, "requestId")
+                        ?? ReadString(doc.RootElement, "id");
+                    var summary = ReadString(doc.RootElement, "summary")
+                        ?? ReadString(doc.RootElement, "prompt")
+                        ?? ReadString(doc.RootElement, "reason")
+                        ?? "Confirmation required.";
+                    return (toolName, actionId, summary);
+                }
+            }
+            catch (JsonException)
+            {
+                // Non-JSON payload; return safe generic summary.
+            }
+
+            return ("action", null, "Confirmation required.");
         }
 
         private async Task CancelActiveResponseAsync(bool cancelAdmittedTask)

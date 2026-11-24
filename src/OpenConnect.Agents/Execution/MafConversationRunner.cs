@@ -406,7 +406,9 @@ public sealed class MafConversationRunner
         string? single = null;
         foreach (var content in update.Contents)
         {
-            if (content is TextContent textContent && !string.IsNullOrEmpty(textContent.Text))
+            if (content.GetType() == typeof(TextContent)
+                && content is TextContent textContent
+                && !string.IsNullOrEmpty(textContent.Text))
             {
                 if (single is null && builder is null)
                 {
