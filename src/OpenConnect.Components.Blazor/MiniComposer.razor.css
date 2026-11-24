@@ -381,6 +381,28 @@
 .oc-speech-item:disabled { opacity: .6; cursor: not-allowed !important; }
 .oc-voice-unavailable { margin: 4px 12px; font-size: .8rem; }
 
+.oc-live-voice-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 2px 2px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--mud-palette-background-grey, rgba(0, 0, 0, 0.04));
+}
+
+.oc-live-voice-status {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mud-palette-text-secondary);
+}
+
+.oc-live-voice-toggle--active {
+    font-weight: 600;
+}
+
 .oc-speech-item .mud-icon-root {
     color: #00875a !important;
     fill: #00875a !important;

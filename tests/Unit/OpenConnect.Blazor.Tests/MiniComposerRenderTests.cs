@@ -259,16 +259,20 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
     [Fact]
     public async Task ReadAloudSkipsFencedCodeSamplesAndSummarizesInstead()
     {
-        using var context = new BunitContext();
-        context.JSInterop.Mode = JSRuntimeMode.Loose;
-        context.Services.AddMudServices();
+        using var context = new OpenConnectBunitContext();
         var client = new FakeOpenConnectClient();
-        context.Services.AddSingleton<IOpenConnectClient>(client);
+        Configure(context, client);
         var session = NewSession();
+        var sessionId = new SessionId(Ulid.NewUlid());
         RenderMiniComposer(context, session, startOpen: true);
 
-        session.AppendAssistantMessage(
-            "Register voice on your host.\n\n```csharp\nbuilder.Services.AddOpenConnectSpeechToText(builder.Configuration);\n```\n\nWant me to open LiveUI next?");
+        session.BeginSend("How do I register voice?");
+        session.ApplyEvent(new EventRecord(
+            sessionId,
+            1,
+            "message.delta",
+            "Register voice on your host.\n\n```csharp\nbuilder.Services.AddOpenConnectSpeechToText(builder.Configuration);\n```\n\nWant me to open LiveUI next?"));
+        session.ApplyEvent(new EventRecord(sessionId, 2, "message.completed", string.Empty));
 
         await Task.Delay(100);
         var spoken = string.Join(" ", client.SynthesizedTexts);

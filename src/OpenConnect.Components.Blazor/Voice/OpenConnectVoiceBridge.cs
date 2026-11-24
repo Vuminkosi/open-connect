@@ -14,23 +14,31 @@ public sealed class OpenConnectVoiceBridge
 {
     public const string RoutePrefix = "/openconnect/v1/voice/realtime/";
     public const string VoiceSubProtocol = "openconnect.voice.v1";
+    public const string VoiceV2SubProtocol = "openconnect.voice.v2";
     public const string TicketSubProtocolPrefix = "oc-ticket.";
 
     private readonly OpenConnectVoiceTicketStore _tickets;
     private readonly OpenConnectVoiceBridgeOptions _options;
+    private readonly TimeProvider _timeProvider;
 
     public OpenConnectVoiceBridge(OpenConnectVoiceTicketStore tickets, IOptions<OpenConnectVoiceBridgeOptions> options)
-        : this(tickets, options?.Value ?? throw new ArgumentNullException(nameof(options)))
+        : this(tickets, options?.Value ?? throw new ArgumentNullException(nameof(options)), TimeProvider.System)
     {
     }
 
     public OpenConnectVoiceBridge(OpenConnectVoiceTicketStore tickets, OpenConnectVoiceBridgeOptions options)
+        : this(tickets, options, TimeProvider.System)
+    {
+    }
+
+    internal OpenConnectVoiceBridge(OpenConnectVoiceTicketStore tickets, OpenConnectVoiceBridgeOptions options, TimeProvider? timeProvider)
     {
         ArgumentNullException.ThrowIfNull(tickets);
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
         _tickets = tickets;
         _options = options;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
@@ -47,12 +55,14 @@ public sealed class OpenConnectVoiceBridge
         var origin = context.Request.Headers.Origin.ToString();
         var expectedOrigin = $"{context.Request.Scheme}://{context.Request.Host}";
         var isLoopbackHost = _options.AllowLoopbackHttp && IsLoopbackHost(context.Request.Host.Host);
+        var requestedProtocol = protocols.Count == 2 ? protocols[0] : null;
+        var isSupportedProtocol = string.Equals(requestedProtocol, VoiceSubProtocol, StringComparison.Ordinal) ||
+            string.Equals(requestedProtocol, VoiceV2SubProtocol, StringComparison.Ordinal);
 
         if ((!context.Request.IsHttps && !isLoopbackHost) ||
             !context.WebSockets.IsWebSocketRequest ||
             !string.Equals(origin, expectedOrigin, StringComparison.OrdinalIgnoreCase) ||
-            protocols.Count != 2 ||
-            !string.Equals(protocols[0], VoiceSubProtocol, StringComparison.Ordinal) ||
+            !isSupportedProtocol ||
             !protocols[1].StartsWith(TicketSubProtocolPrefix, StringComparison.Ordinal) ||
             !_tickets.TryConsume(protocols[1][TicketSubProtocolPrefix.Length..], sessionId, out var bearerToken))
         {
@@ -60,8 +70,11 @@ public sealed class OpenConnectVoiceBridge
             return;
         }
 
+        var negotiatedProtocol = requestedProtocol!;
+        var isDuplexV2 = string.Equals(negotiatedProtocol, VoiceV2SubProtocol, StringComparison.Ordinal);
+
         using var upstream = new ClientWebSocket();
-        upstream.Options.AddSubProtocol(VoiceSubProtocol);
+        upstream.Options.AddSubProtocol(negotiatedProtocol);
         upstream.Options.SetRequestHeader("Authorization", new AuthenticationHeaderValue("Bearer", bearerToken).ToString());
 
         var gateway = _options.GatewayBaseAddress!;
@@ -83,10 +96,11 @@ public sealed class OpenConnectVoiceBridge
             return;
         }
 
-        using var browser = await context.WebSockets.AcceptWebSocketAsync(VoiceSubProtocol).ConfigureAwait(false);
+        var acceptedProtocol = string.IsNullOrEmpty(upstream.SubProtocol) ? negotiatedProtocol : upstream.SubProtocol;
+        using var browser = await context.WebSockets.AcceptWebSocketAsync(acceptedProtocol).ConfigureAwait(false);
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
-        var toGateway = RelayAsync(browser, upstream, limitAudio: true, lifetime.Token);
-        var toBrowser = RelayAsync(upstream, browser, limitAudio: false, lifetime.Token);
+        var toGateway = RelayAsync(browser, upstream, limitAudio: true, isDuplexV2, lifetime.Token);
+        var toBrowser = RelayAsync(upstream, browser, limitAudio: false, isDuplexV2, lifetime.Token);
         await Task.WhenAny(toGateway, toBrowser).ConfigureAwait(false);
         lifetime.Cancel();
         try
@@ -97,10 +111,20 @@ public sealed class OpenConnectVoiceBridge
         catch (WebSocketException) { }
     }
 
-    private async Task RelayAsync(WebSocket source, WebSocket destination, bool limitAudio, CancellationToken cancellationToken)
+    private async Task RelayAsync(
+        WebSocket source,
+        WebSocket destination,
+        bool limitAudio,
+        bool isDuplexV2,
+        CancellationToken cancellationToken)
     {
         var buffer = new byte[_options.MaxFrameBytes];
         long audioBytes = 0;
+        long currentMessageBytes = 0;
+        var rollingBudget = isDuplexV2 && limitAudio
+            ? new RollingAudioBudget(_options.MaxRollingSessionAudioBytes, TimeSpan.FromSeconds(_options.RollingSessionWindowSeconds), _timeProvider)
+            : null;
+
         while (source.State == WebSocketState.Open && destination.State == WebSocketState.Open)
         {
             var result = await source.ReceiveAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
@@ -110,13 +134,81 @@ public sealed class OpenConnectVoiceBridge
                 return;
             }
 
-            if (limitAudio && result.MessageType == WebSocketMessageType.Binary &&
-                (audioBytes += result.Count) > _options.MaxAudioBytes)
+            if (isDuplexV2)
             {
-                return;
+                currentMessageBytes += result.Count;
+                if (currentMessageBytes > _options.MaxFrameBytes || (!result.EndOfMessage && currentMessageBytes >= _options.MaxFrameBytes))
+                {
+                    if (source.State == WebSocketState.Open)
+                        await source.CloseOutputAsync(WebSocketCloseStatus.MessageTooBig, "Voice frame exceeds limit.", cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+
+                if (result.EndOfMessage)
+                    currentMessageBytes = 0;
+            }
+
+            if (limitAudio && result.MessageType == WebSocketMessageType.Binary)
+            {
+                if (rollingBudget is not null)
+                {
+                    if (!rollingBudget.TryConsume(result.Count))
+                    {
+                        if (source.State == WebSocketState.Open)
+                            await source.CloseOutputAsync(WebSocketCloseStatus.PolicyViolation, "Rolling voice audio budget exceeded.", cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+                }
+                else if ((audioBytes += result.Count) > _options.MaxAudioBytes)
+                {
+                    return;
+                }
             }
 
             await destination.SendAsync(buffer.AsMemory(0, result.Count), result.MessageType, result.EndOfMessage, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    internal sealed class RollingAudioBudget
+    {
+        private readonly long _maxBytes;
+        private readonly TimeSpan _window;
+        private readonly TimeProvider _timeProvider;
+        private readonly Queue<(DateTimeOffset Timestamp, int Bytes)> _entries = new();
+        private long _totalBytes;
+
+        public RollingAudioBudget(long maxBytes, TimeSpan window, TimeProvider? timeProvider = null)
+        {
+            _maxBytes = maxBytes;
+            _window = window;
+            _timeProvider = timeProvider ?? TimeProvider.System;
+        }
+
+        public long CurrentBytes => _totalBytes;
+
+        public bool TryConsume(int bytes)
+        {
+            if (bytes < 0)
+                return false;
+
+            var now = _timeProvider.GetUtcNow();
+            var cutoff = now - _window;
+            while (_entries.Count > 0 && _entries.Peek().Timestamp <= cutoff)
+            {
+                var expired = _entries.Dequeue();
+                _totalBytes -= expired.Bytes;
+            }
+
+            if (_totalBytes + bytes > _maxBytes)
+                return false;
+
+            if (bytes > 0)
+            {
+                _entries.Enqueue((now, bytes));
+                _totalBytes += bytes;
+            }
+
+            return true;
         }
     }
 

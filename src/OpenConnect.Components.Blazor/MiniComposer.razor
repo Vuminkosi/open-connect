@@ -167,6 +167,68 @@
                 <p class="oc-voice-unavailable" role="status">Voice input is unavailable. You can continue using text; voice output is configured separately.</p>
             }
 
+            @if (EnableContinuousVoice)
+            {
+                <div class="oc-live-voice-bar" role="group" aria-label="Live voice controls">
+                    <button type="button"
+                            class="oc-speech-item oc-live-voice-toggle @(_duplexVoiceActive ? "oc-live-voice-toggle--active" : "")"
+                            @onclick="ToggleContinuousVoiceAsync"
+                            disabled="@VoiceInputBlocked"
+                            aria-pressed="@_duplexVoiceActive.ToString().ToLowerInvariant()"
+                            aria-label="@(_duplexVoiceActive ? "Stop live voice" : "Start live voice")"
+                            title="@(_duplexVoiceActive ? "Stop live voice" : "Start live voice")">
+                        <MudIcon Icon="@(_duplexVoiceActive ? Icons.Material.Filled.GraphicEq : Icons.Material.Filled.RecordVoiceOver)" Size="Size.Small" />
+                        <span>@(_duplexVoiceActive ? "Live voice on" : "Live voice")</span>
+                    </button>
+
+                    @if (_duplexVoiceActive)
+                    {
+                        <button type="button"
+                                class="oc-speech-item oc-live-voice-mute"
+                                @onclick="ToggleContinuousMuteAsync"
+                                aria-pressed="@_duplexMuted.ToString().ToLowerInvariant()"
+                                aria-label="@(_duplexMuted ? "Unmute microphone" : "Mute microphone")"
+                                title="@(_duplexMuted ? "Unmute microphone" : "Mute microphone")">
+                            <MudIcon Icon="@(_duplexMuted ? Icons.Material.Filled.MicOff : Icons.Material.Filled.Mic)" Size="Size.Small" />
+                            <span>@(_duplexMuted ? "Unmute" : "Mute")</span>
+                        </button>
+
+                        @if (string.Equals(_duplexStatus, "speaking", StringComparison.Ordinal))
+                        {
+                            <button type="button"
+                                    class="oc-speech-item oc-live-voice-interrupt"
+                                    @onclick="InterruptContinuousPlaybackAsync"
+                                    aria-label="Stop speaking"
+                                    title="Stop speaking">
+                                <MudIcon Icon="@Icons.Material.Filled.Stop" Size="Size.Small" />
+                                <span>Interrupt</span>
+                            </button>
+                        }
+
+                        <button type="button"
+                                class="oc-speech-item oc-live-voice-stop"
+                                @onclick="StopContinuousVoiceAsync"
+                                aria-label="Stop live voice session"
+                                title="Stop live voice session">
+                            <MudIcon Icon="@Icons.Material.Filled.StopCircle" Size="Size.Small" />
+                            <span>Stop</span>
+                        </button>
+                    }
+
+                    @if (!string.IsNullOrEmpty(ContinuousVoiceStatusLabel))
+                    {
+                        <span class="oc-live-voice-status" role="status" aria-live="polite" aria-atomic="true">
+                            @ContinuousVoiceStatusLabel
+                        </span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_duplexError))
+                {
+                    <div class="oc-bubble-error oc-live-voice-error" role="status" aria-live="polite">@_duplexError</div>
+                }
+            }
+
             <!-- Live streaming response -->
             @if (!string.IsNullOrWhiteSpace(Session?.StreamingText) && ShouldRenderLiveResponse())
             {

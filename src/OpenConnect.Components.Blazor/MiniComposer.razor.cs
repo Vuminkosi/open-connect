@@ -47,6 +47,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
+    private bool _duplexVoiceActive;
+    private bool _duplexMuted;
+    private string? _duplexStatus;
+    private string? _duplexError;
     private Task? _sessionCreationTask;
     private bool _sessionCreationFailed;
     private int _inputRenderKey;
@@ -78,7 +82,24 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// <summary>Whether the host is checking voice input availability.</summary>
     [Parameter] public bool VoiceInputChecking { get; set; }
 
+    /// <summary>
+    /// Opt-in continuous full-duplex Live Voice (<c>openconnect.voice.v2</c>) mode.
+    /// Defaults to <see langword="false"/> so existing v1 push-to-talk behavior is unchanged.
+    /// </summary>
+    [Parameter] public bool EnableContinuousVoice { get; set; }
+
     private bool VoiceInputBlocked => VoiceInputChecking || VoiceInputAvailable == false;
+
+    private string? ContinuousVoiceStatusLabel => (_duplexStatus ?? Session?.ContinuousVoiceStatus) switch
+    {
+        "listening" => "Listening",
+        "thinking" => "Thinking",
+        "speaking" => "Speaking",
+        "muted" => "Muted",
+        "awaiting_confirmation" => "Awaiting confirmation",
+        "unavailable" => "Unavailable",
+        _ => VoiceInputAvailable == false ? "Unavailable" : null
+    };
 
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
@@ -389,7 +410,21 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!VoiceInputBlocked || !_micOn) return;
+        if (!VoiceInputBlocked) return;
+
+        if (_duplexVoiceActive)
+        {
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = "unavailable";
+            _micOn = false;
+            try { await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false); }
+            catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
+            Session.FailContinuousVoiceSession("Live voice is unavailable. Text input remains available.");
+            return;
+        }
+
+        if (!_micOn) return;
         _micOn = false;
         if (_voiceActive)
         {
@@ -419,7 +454,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(response))
                 _speechDisplayText = response;
-            if (_speechOn)
+            if (_speechOn && !_duplexVoiceActive)
                 QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
             TryNotifySpeechResponseCompleted(response);
         }
@@ -1142,8 +1177,215 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return InvokeAsync(StateHasChanged);
     }
 
+    [JSInvokable]
+    public Task OnDuplexVoiceStateChanged(string status, long speechEpoch, string? detail = null)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(status))
+            return Task.CompletedTask;
+
+        var normalized = status.Trim().ToLowerInvariant();
+        if (string.Equals(_duplexStatus, normalized, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(detail))
+            return Task.CompletedTask;
+
+        _duplexStatus = normalized;
+        _duplexMuted = string.Equals(normalized, "muted", StringComparison.Ordinal);
+        _duplexError = null;
+        Session?.UpdateContinuousVoiceStatus(normalized, speechEpoch);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnDuplexVoiceFinal(string text, long speechEpoch)
+    {
+        if (_disposed || Session is null)
+            return;
+
+        if (!Session.CommitContinuousVoiceTranscript(text, speechEpoch))
+            return;
+
+        _duplexStatus = "thinking";
+        _draft = string.Empty;
+        _inputRenderKey++;
+        await AutosizeAsync().ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    [JSInvokable]
+    public Task OnDuplexVoiceError(string message)
+    {
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = "unavailable";
+        _micOn = false;
+        _duplexError = string.IsNullOrWhiteSpace(message)
+            ? "Live voice is unavailable. Text input remains available."
+            : message;
+        Session?.FailContinuousVoiceSession(_duplexError);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnDuplexVoiceStopped()
+    {
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = null;
+        _micOn = false;
+        Session?.StopContinuousVoiceSession();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleContinuousVoiceAsync()
+    {
+        if (VoiceInputBlocked)
+            return;
+
+        if (_duplexVoiceActive)
+        {
+            await StopContinuousVoiceAsync().ConfigureAwait(false);
+            return;
+        }
+
+        _duplexError = null;
+        if (string.IsNullOrWhiteSpace(Session.SessionId))
+        {
+            try
+            {
+                var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+                Session.AttachSession(created.Id.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                _duplexStatus = "unavailable";
+                _duplexError = FriendlyError(ex);
+                Session.FailContinuousVoiceSession(_duplexError);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                return;
+            }
+        }
+
+        var epoch = Session.StartContinuousVoiceSession(permissionGranted: true);
+        if (Session.MicrophoneState == ComposerMicrophoneState.Failed)
+            return;
+
+        try
+        {
+            if (Client is IRealtimeOpenConnectClient)
+                await WaitForConnectionAsync(Session, Session.SessionId!, CancellationToken.None).ConfigureAwait(false);
+
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
+            await JS.InvokeVoidAsync(
+                "ocComposerVoice.startDuplex",
+                _dotNetRef,
+                Session.SessionId,
+                epoch,
+                VoiceEndpoint,
+                ticket,
+                Session.ConnectionId).ConfigureAwait(false);
+
+            if (VoiceInputBlocked)
+            {
+                await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false);
+                return;
+            }
+
+            _duplexVoiceActive = true;
+            _duplexMuted = false;
+            _duplexStatus = "listening";
+            _micOn = true;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException or TimeoutException)
+        {
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = "unavailable";
+            _micOn = false;
+            _duplexError = DescribeVoiceFailure(ex);
+            Session.FailContinuousVoiceSession(_duplexError);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ToggleContinuousMuteAsync()
+    {
+        if (!_duplexVoiceActive)
+            return;
+
+        var nextMuted = !_duplexMuted;
+        _duplexMuted = nextMuted;
+        _duplexStatus = nextMuted ? "muted" : "listening";
+        Session?.UpdateContinuousVoiceStatus(_duplexStatus, Session.SpeechEpoch);
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.setMuted", nextMuted).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private async Task InterruptContinuousPlaybackAsync()
+    {
+        if (!_duplexVoiceActive)
+            return;
+
+        _duplexStatus = _duplexMuted ? "muted" : "listening";
+        Session?.TriggerBargeIn();
+        Session?.UpdateContinuousVoiceStatus(_duplexStatus, Session.SpeechEpoch);
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.interruptPlayback", "manual_interrupt").ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private async Task StopContinuousVoiceAsync()
+    {
+        if (!_duplexVoiceActive && Session?.IsContinuousVoiceActive != true)
+            return;
+
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = null;
+        _micOn = false;
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "user_stopped").ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        Session?.StopContinuousVoiceSession();
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private static string DescribeVoiceFailure(Exception ex)
+    {
+        var message = ex.Message ?? string.Empty;
+        if (message.Contains("NotAllowedError", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("permission denied", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Microphone permission was denied. Text input remains available.";
+        }
+
+        if (message.Contains("NotFoundError", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("DevicesNotFound", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No microphone was found on this device. Text input remains available.";
+        }
+
+        return "Live voice is unavailable. Text input remains available.";
+    }
+
     private async Task ToggleVoiceAsync()
     {
+        if (EnableContinuousVoice)
+        {
+            await ToggleContinuousVoiceAsync().ConfigureAwait(false);
+            return;
+        }
+
         if (VoiceInputBlocked) return;
         if (!_voiceActive && !_micOn)
         {
@@ -1419,6 +1661,26 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         _sendCts?.Dispose();
         _speechCts?.Dispose();
         _planningAckCts?.Dispose();
+
+        if (_duplexVoiceActive || _voiceActive)
+        {
+            var wasDuplex = _duplexVoiceActive;
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = null;
+            _voiceActive = false;
+            _micOn = false;
+            try
+            {
+                if (wasDuplex)
+                    await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "disposed").ConfigureAwait(false);
+                else
+                    await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+            Session?.DisposeVoiceState();
+        }
+
         await DetachJsAsync(dragOnly: false).ConfigureAwait(false);
         _dotNetRef?.Dispose();
         GC.SuppressFinalize(this);

@@ -15,6 +15,18 @@ public sealed class OpenConnectVoiceBridgeOptions
 
     public long MaxAudioBytes { get; set; } = 32 * 1024 * 1024;
 
+    /// <summary>
+    /// Maximum cumulative client-to-gateway binary audio bytes allowed within
+    /// <see cref="RollingSessionWindowSeconds"/> for persistent <c>openconnect.voice.v2</c> sessions.
+    /// </summary>
+    public long MaxRollingSessionAudioBytes { get; set; } = 64L * 1024 * 1024;
+
+    /// <summary>
+    /// Rolling time window in seconds over which <see cref="MaxRollingSessionAudioBytes"/> is enforced
+    /// for <c>openconnect.voice.v2</c> sessions.
+    /// </summary>
+    public int RollingSessionWindowSeconds { get; set; } = 300;
+
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     internal void Validate()
@@ -35,6 +47,12 @@ public sealed class OpenConnectVoiceBridgeOptions
 
         if (MaxAudioBytes is < 1024 or > 128L * 1024 * 1024)
             throw new InvalidOperationException("OpenConnectVoiceBridgeOptions.MaxAudioBytes must be between 1024 and 134217728.");
+
+        if (MaxRollingSessionAudioBytes is < 1024 or > 512L * 1024 * 1024)
+            throw new InvalidOperationException("OpenConnectVoiceBridgeOptions.MaxRollingSessionAudioBytes must be between 1024 and 536870912.");
+
+        if (RollingSessionWindowSeconds is < 1 or > 3600)
+            throw new InvalidOperationException("OpenConnectVoiceBridgeOptions.RollingSessionWindowSeconds must be between 1 and 3600.");
 
         if (ConnectTimeout <= TimeSpan.Zero || ConnectTimeout > TimeSpan.FromMinutes(1))
             throw new InvalidOperationException("OpenConnectVoiceBridgeOptions.ConnectTimeout must be between 1 ms and 60 seconds.");
