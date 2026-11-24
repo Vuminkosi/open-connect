@@ -247,9 +247,23 @@ public sealed class MafConversationRunner
 
     /// <summary>Runs one authorized native-session turn and publishes local state only after durable CAS succeeds.</summary>
     /// <remarks>Authentication, authorization and trusted binding selection belong to the host. History is only this runner's projection and is not restored as a transcript. This runner cannot prove distributed effect fencing; effect implementations need their own fencing or idempotency.</remarks>
-    public async Task<AgentResponse> TurnDurableAsync(string prompt, AgentExecutionContext executionContext,
+    public Task<AgentResponse> TurnDurableAsync(string prompt, AgentExecutionContext executionContext,
         IsExecutionRevoked isExecutionRevoked, NativeSessionTurnPersistenceContext persistenceContext,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        TurnDurableCoreAsync(prompt, executionContext, isExecutionRevoked, persistenceContext, useStreaming: false, onTextDelta: null, cancellationToken);
+
+    /// <summary>Runs one authorized native-session turn with ordered user-facing assistant text delta streaming, publishing local state only after durable CAS succeeds.</summary>
+    /// <remarks>Only user-facing assistant <see cref="TextContent"/> updates are forwarded to <paramref name="onTextDelta"/>; hidden reasoning, tool calls, and tool results are never emitted as deltas. When the underlying chat client is guarded by <see cref="FirewallGuardedChatClient"/>, responses are screened fail-closed before any text delta is released.</remarks>
+    public Task<AgentResponse> TurnDurableStreamingAsync(string prompt, AgentExecutionContext executionContext,
+        IsExecutionRevoked isExecutionRevoked, NativeSessionTurnPersistenceContext persistenceContext,
+        Func<string, CancellationToken, ValueTask>? onTextDelta = null,
+        CancellationToken cancellationToken = default) =>
+        TurnDurableCoreAsync(prompt, executionContext, isExecutionRevoked, persistenceContext, useStreaming: true, onTextDelta, cancellationToken);
+
+    private async Task<AgentResponse> TurnDurableCoreAsync(string prompt, AgentExecutionContext executionContext,
+        IsExecutionRevoked isExecutionRevoked, NativeSessionTurnPersistenceContext persistenceContext,
+        bool useStreaming, Func<string, CancellationToken, ValueTask>? onTextDelta,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
         ArgumentNullException.ThrowIfNull(executionContext);
@@ -306,7 +320,34 @@ public sealed class MafConversationRunner
                     promptIndex = _history.Count;
                     _history.Add(new ChatMessage(ChatRole.User, prompt));
                 }
-                var response = await agent.RunAsync(prompt, candidateSession, cancellationToken: ct).ConfigureAwait(false);
+
+                AgentResponse response;
+                if (useStreaming)
+                {
+                    var updates = new List<AgentResponseUpdate>();
+                    await foreach (var update in agent.RunStreamingAsync(prompt, candidateSession, cancellationToken: ct).ConfigureAwait(false))
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (update is null)
+                            continue;
+                        updates.Add(update);
+                        if (onTextDelta is not null && (update.Role is null || update.Role == ChatRole.Assistant))
+                        {
+                            var delta = ExtractUserFacingText(update);
+                            if (!string.IsNullOrEmpty(delta))
+                            {
+                                await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
+                                await onTextDelta(delta, ct).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    response = updates.ToAgentResponse();
+                }
+                else
+                {
+                    response = await agent.RunAsync(prompt, candidateSession, cancellationToken: ct).ConfigureAwait(false);
+                }
+
                 await ValidateOwnershipAndAuthorizationAsync(ownership, executionContext, isExecutionRevoked, ct).ConfigureAwait(false);
                 var save = await persistenceContext.Persistence.SaveAsync(agent, candidateSession, binding, expectedVersion, ct).ConfigureAwait(false);
                 if (save == NativeAgentSessionSaveOutcome.Conflict)
@@ -354,6 +395,33 @@ public sealed class MafConversationRunner
                 }
             }
         }
+    }
+
+    private static string ExtractUserFacingText(AgentResponseUpdate update)
+    {
+        if (update.Contents is null || update.Contents.Count == 0)
+            return string.Empty;
+
+        StringBuilder? builder = null;
+        string? single = null;
+        foreach (var content in update.Contents)
+        {
+            if (content is TextContent textContent && !string.IsNullOrEmpty(textContent.Text))
+            {
+                if (single is null && builder is null)
+                {
+                    single = textContent.Text;
+                }
+                else
+                {
+                    builder ??= new StringBuilder(single);
+                    single = null;
+                    builder.Append(textContent.Text);
+                }
+            }
+        }
+
+        return builder?.ToString() ?? single ?? string.Empty;
     }
 
     private void PinMode(bool durable, NativeAgentSessionBinding? binding)

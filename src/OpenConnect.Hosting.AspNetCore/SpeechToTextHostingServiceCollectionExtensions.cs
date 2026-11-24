@@ -23,6 +23,15 @@ public static class SpeechToTextHostingServiceCollectionExtensions
             configuration.AsEnumerable());
         services.TryAddSingleton<IVoiceActivityDetector>(_ =>
             new SileroOnnxVoiceActivityDetector(configuration["OpenConnect:Voice:Vad:ModelPath"]));
+        services.TryAddSingleton<IStreamingSpeechSynthesizer, KokoroStreamingSpeechSynthesizer>();
+        return services;
+    }
+
+    /// <summary>Registers the default Kokoro <see cref="IStreamingSpeechSynthesizer"/> for incremental duplex voice speech output.</summary>
+    public static IServiceCollection AddOpenConnectStreamingSpeechSynthesis(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IStreamingSpeechSynthesizer, KokoroStreamingSpeechSynthesizer>();
         return services;
     }
 

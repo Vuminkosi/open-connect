@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Speech;
+using OpenConnect.Core.Configuration;
 using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore.Voice;
 
@@ -36,6 +38,27 @@ internal static class VoiceRealtimeWebSocketHandler
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
+        }
+
+        var requestedProtocols = context.WebSockets.WebSocketRequestedProtocols;
+        var requestsV2 = requestedProtocols.Contains(VoiceDuplexSessionHandler.SubProtocol, StringComparer.Ordinal);
+        var requestsV1 = requestedProtocols.Contains("openconnect.voice.v1", StringComparer.Ordinal);
+        if (requestsV2)
+        {
+            var voiceOptions = context.RequestServices.GetService<IOptions<OpenConnectVoiceOptions>>()?.Value
+                ?? new OpenConnectVoiceOptions();
+            if (voiceOptions.EnableContinuousConversation)
+            {
+                using var duplexBrowser = await context.WebSockets.AcceptWebSocketAsync(VoiceDuplexSessionHandler.SubProtocol).ConfigureAwait(false);
+                await VoiceDuplexSessionHandler.HandleSocketAsync(duplexBrowser, context, sessionId, tenant, principal, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            if (!requestsV1)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                return;
+            }
         }
 
         using var browser = await context.WebSockets.AcceptWebSocketAsync("openconnect.voice.v1").ConfigureAwait(false);

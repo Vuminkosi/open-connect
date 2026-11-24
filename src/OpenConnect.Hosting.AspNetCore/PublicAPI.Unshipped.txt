@@ -219,6 +219,10 @@ OpenConnect.Hosting.AspNetCore.TaskRequest.Message.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.get -> string?
 OpenConnect.Hosting.AspNetCore.TaskRequest.SessionId.init -> void
 OpenConnect.Hosting.AspNetCore.TaskRequest.TaskRequest(string! ClientTaskId, string? Message = null, string? SessionId = null) -> void
+OpenConnect.Hosting.AspNetCore.Voice.KokoroStreamingSpeechSynthesizer
+OpenConnect.Hosting.AspNetCore.Voice.KokoroStreamingSpeechSynthesizer.IsConfigured.get -> bool
+OpenConnect.Hosting.AspNetCore.Voice.KokoroStreamingSpeechSynthesizer.KokoroStreamingSpeechSynthesizer(Microsoft.Extensions.Configuration.IConfiguration! configuration, Microsoft.Extensions.Logging.ILogger<OpenConnect.Hosting.AspNetCore.Voice.KokoroStreamingSpeechSynthesizer!>? logger = null) -> void
+OpenConnect.Hosting.AspNetCore.Voice.KokoroStreamingSpeechSynthesizer.SynthesizePcmStreamAsync(string! text, string? voice = null, string? locale = null, float speed = 1, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<System.ReadOnlyMemory<byte>>!
 OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector
 OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.CreateSession() -> OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession!
 OpenConnect.Hosting.AspNetCore.Voice.SileroOnnxVoiceActivityDetector.Dispose() -> void
@@ -281,6 +285,7 @@ static OpenConnect.Hosting.AspNetCore.SessionRequest.operator !=(OpenConnect.Hos
 static OpenConnect.Hosting.AspNetCore.SessionRequest.operator ==(OpenConnect.Hosting.AspNetCore.SessionRequest? left, OpenConnect.Hosting.AspNetCore.SessionRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.SpeechToTextHostingServiceCollectionExtensions.AddOpenConnectSileroVad(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string? modelPath = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.SpeechToTextHostingServiceCollectionExtensions.AddOpenConnectSpeechToText(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.SpeechToTextHostingServiceCollectionExtensions.AddOpenConnectStreamingSpeechSynthesis(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator !=(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.TaskRequest.operator ==(OpenConnect.Hosting.AspNetCore.TaskRequest? left, OpenConnect.Hosting.AspNetCore.TaskRequest? right) -> bool
 static OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitorServiceCollectionExtensions.AddOpenConnectWorkerCapabilityMonitor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource!>! sources, System.TimeSpan? interval = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
