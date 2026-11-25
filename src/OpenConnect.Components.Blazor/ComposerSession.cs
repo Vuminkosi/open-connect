@@ -63,6 +63,15 @@ public sealed class ComposerSession
 
     public long PlaybackEpoch { get; private set; }
 
+    /// <summary>Whether an opt-in continuous v2 duplex voice session is currently active.</summary>
+    public bool IsContinuousVoiceActive { get; private set; }
+
+    /// <summary>Whether the microphone is muted within an active continuous voice session.</summary>
+    public bool IsContinuousVoiceMuted { get; private set; }
+
+    /// <summary>Current continuous voice status (listening, thinking, speaking, muted, awaiting_confirmation, unavailable).</summary>
+    public string? ContinuousVoiceStatus { get; private set; }
+
     public RecordedVoiceDraft? StagedRecording { get; private set; }
 
     public IReadOnlyList<ComposerMessage> Messages
@@ -149,6 +158,9 @@ public sealed class ComposerSession
             StagedRecording = null;
             MicrophoneState = ComposerMicrophoneState.Off;
             SpeechState = ComposerSpeechState.Off;
+            IsContinuousVoiceActive = false;
+            IsContinuousVoiceMuted = false;
+            ContinuousVoiceStatus = null;
             SpeechEpoch++;
             PlaybackEpoch++;
             PendingNavigatorAction = null;
@@ -536,6 +548,160 @@ public sealed class ComposerSession
             StagedRecording = null;
             MicrophoneState = ComposerMicrophoneState.Off;
             SpeechState = ComposerSpeechState.Off;
+            IsContinuousVoiceActive = false;
+            IsContinuousVoiceMuted = false;
+            ContinuousVoiceStatus = null;
+        }
+
+        Notify();
+    }
+
+    /// <summary>Starts an opt-in continuous duplex voice session after explicit user activation.</summary>
+    public long StartContinuousVoiceSession(bool permissionGranted)
+    {
+        lock (_gate)
+        {
+            if (!permissionGranted)
+            {
+                IsContinuousVoiceActive = false;
+                IsContinuousVoiceMuted = false;
+                ContinuousVoiceStatus = "unavailable";
+                MicrophoneState = ComposerMicrophoneState.Failed;
+                _errors.Add("Microphone permission denied.");
+                SpeechEpoch++;
+                Notify();
+                return SpeechEpoch;
+            }
+
+            SpeechEpoch++;
+            _livePartialTranscript = string.Empty;
+            IsContinuousVoiceActive = true;
+            IsContinuousVoiceMuted = false;
+            ContinuousVoiceStatus = "listening";
+            MicrophoneState = ComposerMicrophoneState.ListeningLive;
+            if (SpeechState == ComposerSpeechState.Playing)
+            {
+                PlaybackEpoch++;
+                SpeechState = ComposerSpeechState.On;
+            }
+        }
+
+        Notify();
+        return SpeechEpoch;
+    }
+
+    /// <summary>Updates the continuous voice state (listening, thinking, speaking, muted, awaiting_confirmation, unavailable).</summary>
+    public void UpdateContinuousVoiceStatus(string status, long speechEpoch = 0)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(status);
+        var normalized = status.Trim().ToLowerInvariant();
+        lock (_gate)
+        {
+            if (speechEpoch > SpeechEpoch)
+            {
+                SpeechEpoch = speechEpoch;
+            }
+
+            ContinuousVoiceStatus = normalized;
+            IsContinuousVoiceMuted = string.Equals(normalized, "muted", StringComparison.Ordinal);
+
+            switch (normalized)
+            {
+                case "listening":
+                    IsContinuousVoiceActive = true;
+                    MicrophoneState = ComposerMicrophoneState.ListeningLive;
+                    if (SpeechState == ComposerSpeechState.Playing)
+                        SpeechState = ComposerSpeechState.On;
+                    break;
+                case "muted":
+                    IsContinuousVoiceActive = true;
+                    MicrophoneState = ComposerMicrophoneState.Off;
+                    break;
+                case "speaking":
+                    IsContinuousVoiceActive = true;
+                    SpeechState = ComposerSpeechState.Playing;
+                    break;
+                case "thinking":
+                case "awaiting_confirmation":
+                    IsContinuousVoiceActive = true;
+                    break;
+                case "unavailable":
+                    IsContinuousVoiceActive = false;
+                    IsContinuousVoiceMuted = false;
+                    MicrophoneState = ComposerMicrophoneState.Failed;
+                    break;
+            }
+        }
+
+        Notify();
+    }
+
+    /// <summary>
+    /// Commits a gateway-authorized final transcript in continuous voice mode without
+    /// tearing down the active microphone capture session.
+    /// </summary>
+    public bool CommitContinuousVoiceTranscript(string finalTranscript, long speechEpoch)
+    {
+        if (string.IsNullOrWhiteSpace(finalTranscript))
+            return false;
+
+        lock (_gate)
+        {
+            if (!IsContinuousVoiceActive)
+                return false;
+
+            if (speechEpoch > SpeechEpoch)
+                SpeechEpoch = speechEpoch;
+
+            if (speechEpoch != 0 && speechEpoch < SpeechEpoch)
+                return false;
+
+            _livePartialTranscript = string.Empty;
+            ContinuousVoiceStatus = "thinking";
+            _messages.Add(new ComposerMessage("user", finalTranscript.Trim(), LastSequence, ComposerMessageState.Received));
+            _streamingRole = "assistant";
+            _streamingText = string.Empty;
+            Connection = ComposerConnectionState.Streaming;
+        }
+
+        Notify();
+        return true;
+    }
+
+    /// <summary>Stops an active continuous duplex voice session cleanly.</summary>
+    public void StopContinuousVoiceSession()
+    {
+        lock (_gate)
+        {
+            SpeechEpoch++;
+            PlaybackEpoch++;
+            IsContinuousVoiceActive = false;
+            IsContinuousVoiceMuted = false;
+            ContinuousVoiceStatus = null;
+            _livePartialTranscript = string.Empty;
+            MicrophoneState = ComposerMicrophoneState.Off;
+            if (SpeechState == ComposerSpeechState.Playing)
+                SpeechState = ComposerSpeechState.On;
+        }
+
+        Notify();
+    }
+
+    /// <summary>Fails an active continuous voice session with an explicit user-facing reason while preserving text input.</summary>
+    public void FailContinuousVoiceSession(string message)
+    {
+        lock (_gate)
+        {
+            SpeechEpoch++;
+            PlaybackEpoch++;
+            IsContinuousVoiceActive = false;
+            IsContinuousVoiceMuted = false;
+            ContinuousVoiceStatus = "unavailable";
+            _livePartialTranscript = string.Empty;
+            MicrophoneState = ComposerMicrophoneState.Failed;
+            _errors.Add(string.IsNullOrWhiteSpace(message)
+                ? "Live voice is unavailable. Text input remains available."
+                : message);
         }
 
         Notify();

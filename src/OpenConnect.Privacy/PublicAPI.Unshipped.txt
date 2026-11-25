@@ -100,9 +100,16 @@ OpenConnect.Privacy.HostPrivacyEvidence.Action.get -> OpenConnect.Abstractions.S
 OpenConnect.Privacy.HostPrivacyEvidence.Allowed.get -> bool
 OpenConnect.Privacy.HostPrivacyEvidence.Categories.get -> System.Collections.Generic.IReadOnlyDictionary<string!, int>!
 OpenConnect.Privacy.HostPrivacyEvidence.Destination.get -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.HostPrivacyEvidence.EnforcementAuthority.get -> string!
 OpenConnect.Privacy.HostPrivacyEvidence.EventId.get -> System.Guid
+OpenConnect.Privacy.HostPrivacyEvidence.IntegrityDigest.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.OccurredAt.get -> System.DateTimeOffset?
+OpenConnect.Privacy.HostPrivacyEvidence.PolicyId.get -> string?
+OpenConnect.Privacy.HostPrivacyEvidence.PolicyRevision.get -> string?
 OpenConnect.Privacy.HostPrivacyEvidence.ReasonCode.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.RequestId.get -> string?
 OpenConnect.Privacy.HostPrivacyEvidence.TenantId.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.TraceId.get -> string?
 OpenConnect.Privacy.IEgressGate
 OpenConnect.Privacy.IEgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.IHostPrivacyEvidenceSink
@@ -239,7 +246,9 @@ static OpenConnect.Privacy.EntitySpan.operator ==(OpenConnect.Privacy.EntitySpan
 static OpenConnect.Privacy.EvidenceRecordingPrivacyServiceCollectionExtensions.AddRecordedPrivacyFirewall(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Func<System.IServiceProvider!, OpenConnect.Privacy.IPrivacyFirewall!>! innerFactory) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator !=(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
 static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator ==(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
+static OpenConnect.Privacy.HostPrivacyEvidence.ComputeIntegrityDigest(System.Guid eventId, string! tenantId, OpenConnect.Privacy.EgressDestination destination, bool allowed, OpenConnect.Abstractions.SecurityPolicyAction action, string! reasonCode, System.Collections.Generic.IReadOnlyDictionary<string!, int>! categories, string! enforcementAuthority = "application-host", string? traceId = null, string? requestId = null, System.DateTimeOffset? occurredAt = null, string? policyId = null, string? policyRevision = null) -> string!
 static OpenConnect.Privacy.HostPrivacyEvidence.Create(System.Guid eventId, OpenConnect.Privacy.EgressContext! context, OpenConnect.Privacy.EgressDecision! decision) -> OpenConnect.Privacy.HostPrivacyEvidence!
+static OpenConnect.Privacy.HostPrivacyEvidence.Create(System.Guid eventId, OpenConnect.Privacy.EgressContext! context, OpenConnect.Privacy.EgressDecision! decision, string? traceId, string? requestId = null, System.DateTimeOffset? occurredAt = null, string? policyId = null, string? policyRevision = null) -> OpenConnect.Privacy.HostPrivacyEvidence!
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandEmbeddingResponseUnchangedAsync(OpenConnect.Privacy.IPrivacyFirewall! firewall, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandGateEmbeddingResponseUnchangedAsync(OpenConnect.Privacy.IEgressGate! gate, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandGateUnchangedAsync(OpenConnect.Privacy.IEgressGate! gate, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.AI;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Hosting.AspNetCore.Execution;
@@ -13,7 +14,8 @@ public sealed record LiveUIHostExecutionInputs(
     AgentExecutionContext Context,
     IsExecutionRevoked IsExecutionRevoked,
     NativeSessionTurnPersistenceContext PersistenceContext,
-    string? Instructions = null);
+    string? Instructions = null,
+    IReadOnlyList<AITool>? AdditionalTools = null);
 
 /// <summary>Supplies host-authorized execution inputs without deriving authority from prompt text.</summary>
 public interface ILiveUIHostExecutionInputsFactory
@@ -43,9 +45,12 @@ public sealed class LiveUIHostTaskAgentExecutionFactory(
             ?? throw new InvalidOperationException("The host execution inputs factory returned no inputs.");
         try
         {
-            var tools = task.Origin == HostTaskOrigin.MiniComposer
+            IReadOnlyList<AITool> liveUiTools = task.Origin == HostTaskOrigin.MiniComposer
                 ? LiveUIClientAgentToolFactory.CreateToolsForConnection(broker, task.SessionId, task.ClientConnectionId!)
                 : [];
+            IReadOnlyList<AITool> tools = inputs.AdditionalTools is { Count: > 0 }
+                ? [.. liveUiTools, .. inputs.AdditionalTools]
+                : liveUiTools;
             var instructions = task.Origin == HostTaskOrigin.MiniComposer
                 ? string.IsNullOrWhiteSpace(inputs.Instructions) ? LiveUIAgentGuidance.Instructions
                     : inputs.Instructions + "\n\n" + LiveUIAgentGuidance.Instructions

@@ -55,6 +55,7 @@ builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = 
 builder.Services.AddHttpClient<DocumentationVoiceReadiness>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
+builder.Services.AddOpenConnectSpeechToText(builder.Configuration);
 builder.Services.AddOpenConnectAgent("documentation-assistant");
 builder.Services.AddOpenConnectTaskExecution(options => { options.Capacity = 32; options.MaxRetainedTasks = 2048; });
 builder.Services.AddSingleton<IHostTaskExecutionAuthorizer, DocumentationTaskAuthorizer>();

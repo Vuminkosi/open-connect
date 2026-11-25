@@ -842,6 +842,303 @@ OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.Queue = 1 -> OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.RejectConflict = 2 -> OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.Serialize = 0 -> OpenConnect.Abstractions.SessionTurnConcurrency
+OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient
+OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient.IsConfigured.get -> bool
+OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient.TranscribePcmAsync(System.IO.Stream! pcm24kMono16Bit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), System.Func<OpenConnect.Abstractions.Speech.RealtimePartialTranscript!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onPartialTranscript = null, System.Func<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onFinalTranscript = null) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!>!
+OpenConnect.Abstractions.Speech.IRealtimeVoiceClient
+OpenConnect.Abstractions.Speech.IRealtimeVoiceClient.ConnectVoiceSessionAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.IRealtimeVoiceSession!>!
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.AcknowledgePlaybackAsync(OpenConnect.Abstractions.Speech.VoicePlaybackReceipt! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.EndUtteranceAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.InterruptAsync(OpenConnect.Abstractions.Speech.VoiceInterruptRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.ReadEventsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.Speech.VoiceSessionEvent!>!
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.SendAudioAsync(System.ReadOnlyMemory<byte> pcm, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.SessionId.get -> string!
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.SetMutedAsync(bool muted, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IRealtimeVoiceSession.VoiceConnectionId.get -> string!
+OpenConnect.Abstractions.Speech.ISpeechToTextUploadClient
+OpenConnect.Abstractions.Speech.ISpeechToTextUploadClient.IsConfigured.get -> bool
+OpenConnect.Abstractions.Speech.ISpeechToTextUploadClient.TranscribeAsync(System.IO.Stream! audio, string! fileName, string! contentType, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.SpeechToTextUploadResult!>!
+OpenConnect.Abstractions.Speech.IStreamingSpeechSynthesizer
+OpenConnect.Abstractions.Speech.IStreamingSpeechSynthesizer.IsConfigured.get -> bool
+OpenConnect.Abstractions.Speech.IStreamingSpeechSynthesizer.SynthesizePcmStreamAsync(string! text, string? voice = null, string? locale = null, float speed = 1, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<System.ReadOnlyMemory<byte>>!
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession.CompleteAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!>!
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession.EndUtteranceAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession.ProviderSessionId.get -> string?
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession.ReadPartialsAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<OpenConnect.Abstractions.Speech.RealtimePartialTranscript!>!
+OpenConnect.Abstractions.Speech.IStreamingSpeechToTextSession.SendPcmAsync(System.ReadOnlyMemory<byte> pcm24kMono16Bit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession
+OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession.AnalyzeAsync(OpenConnect.Abstractions.Speech.VoiceActivityFrame! frame, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Speech.VoiceActivityResult!>
+OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession.Reset() -> void
+OpenConnect.Abstractions.Speech.IVoiceActivityDetector
+OpenConnect.Abstractions.Speech.IVoiceActivityDetector.CreateSession() -> OpenConnect.Abstractions.Speech.IVoiceActivityDetectionSession!
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimePartialTranscript!
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Deconstruct(out long? TurnId, out string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Equals(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? other) -> bool
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.RealtimePartialTranscript(long? TurnId, string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.get -> string!
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.init -> void
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.get -> long?
+OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Deconstruct(out long? TurnId, out string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? other) -> bool
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.RealtimeTranscriptTurn(long? TurnId, string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.get -> string!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.get -> long?
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Deconstruct(out string! SessionId, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>! Turns) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? other) -> bool
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.FinalTranscripts.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.RealtimeTranscriptionResult(string! SessionId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>! Turns) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.get -> string!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.SpeechToTextTurn!
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Deconstruct(out int TurnId, out long StartMs, out long EndMs, out string! Transcript, out string! Speaker) -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.EndMs.get -> long
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.EndMs.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Equals(OpenConnect.Abstractions.Speech.SpeechToTextTurn? other) -> bool
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Speaker.get -> string!
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Speaker.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.SpeechToTextTurn(int TurnId, long StartMs, long EndMs, string! Transcript, string! Speaker) -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.StartMs.get -> long
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.StartMs.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Transcript.get -> string!
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.Transcript.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.TurnId.get -> int
+OpenConnect.Abstractions.Speech.SpeechToTextTurn.TurnId.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.<Clone>$() -> OpenConnect.Abstractions.Speech.SpeechToTextUploadResult!
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.AudioDurationMs.get -> long
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.AudioDurationMs.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Deconstruct(out string! SessionId, out string! Transcript, out long AudioDurationMs, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.SpeechToTextTurn!>! Turns) -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Equals(OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? other) -> bool
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.SessionId.get -> string!
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.SessionId.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.SpeechToTextUploadResult(string! SessionId, string! Transcript, long AudioDurationMs, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.SpeechToTextTurn!>! Turns) -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Transcript.get -> string!
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Transcript.init -> void
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Turns.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.SpeechToTextTurn!>!
+OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Turns.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityFrame
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceActivityFrame!
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Deconstruct(out long Sequence, out int SampleRate, out System.ReadOnlyMemory<float> Samples) -> void
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Equals(OpenConnect.Abstractions.Speech.VoiceActivityFrame? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.SampleRate.get -> int
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.SampleRate.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Samples.get -> System.ReadOnlyMemory<float>
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Samples.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Sequence.get -> long
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.Sequence.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityFrame.VoiceActivityFrame(long Sequence, int SampleRate, System.ReadOnlyMemory<float> Samples) -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult
+OpenConnect.Abstractions.Speech.VoiceActivityResult.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceActivityResult!
+OpenConnect.Abstractions.Speech.VoiceActivityResult.AudioEndSample.get -> long
+OpenConnect.Abstractions.Speech.VoiceActivityResult.AudioEndSample.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.AudioStartSample.get -> long
+OpenConnect.Abstractions.Speech.VoiceActivityResult.AudioStartSample.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.Deconstruct(out long Sequence, out float SpeechProbability, out bool IsSpeech, out bool StateWasReset, out long AudioStartSample, out long AudioEndSample) -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.Equals(OpenConnect.Abstractions.Speech.VoiceActivityResult? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceActivityResult.IsSpeech.get -> bool
+OpenConnect.Abstractions.Speech.VoiceActivityResult.IsSpeech.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.Sequence.get -> long
+OpenConnect.Abstractions.Speech.VoiceActivityResult.Sequence.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.SpeechProbability.get -> float
+OpenConnect.Abstractions.Speech.VoiceActivityResult.SpeechProbability.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.StateWasReset.get -> bool
+OpenConnect.Abstractions.Speech.VoiceActivityResult.StateWasReset.init -> void
+OpenConnect.Abstractions.Speech.VoiceActivityResult.VoiceActivityResult(long Sequence, float SpeechProbability, bool IsSpeech, bool StateWasReset, long AudioStartSample = -1, long AudioEndSample = -1) -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Deconstruct(out OpenConnect.Abstractions.Speech.VoiceAudioStreamKind Kind, out uint StreamId, out long SpeechEpoch, out long Sequence, out long SampleOffset) -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader other) -> bool
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Kind.get -> OpenConnect.Abstractions.Speech.VoiceAudioStreamKind
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Kind.init -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.SampleOffset.get -> long
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.SampleOffset.init -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Sequence.get -> long
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Sequence.init -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.SpeechEpoch.get -> long
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.SpeechEpoch.init -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.StreamId.get -> uint
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.StreamId.init -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.VoiceAudioFrameHeader() -> void
+OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.VoiceAudioFrameHeader(OpenConnect.Abstractions.Speech.VoiceAudioStreamKind Kind, uint StreamId, long SpeechEpoch, long Sequence, long SampleOffset) -> void
+OpenConnect.Abstractions.Speech.VoiceAudioStreamKind
+OpenConnect.Abstractions.Speech.VoiceAudioStreamKind.MicInput = 1 -> OpenConnect.Abstractions.Speech.VoiceAudioStreamKind
+OpenConnect.Abstractions.Speech.VoiceAudioStreamKind.TtsOutput = 2 -> OpenConnect.Abstractions.Speech.VoiceAudioStreamKind
+OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec
+OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Closed = 4 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Closing = 3 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Faulted = 5 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Opening = 0 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Ready = 1 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceConnectionState.Reconnecting = 2 -> OpenConnect.Abstractions.Speech.VoiceConnectionState
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation!
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ConfirmedPlayedSegments.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>!
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ConfirmedPlayedSegments.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ConfirmedText.get -> string!
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ConfirmedText.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.Deconstruct(out string! ResponseId, out long SpeechEpoch, out long TransmittedSamples, out long ReportedPlayedSamples, out bool ReceiptReceived, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>! ConfirmedPlayedSegments, out OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? UncertainPartiallyPlayedSegment, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>! UnheardSegments, out string! ConfirmedText, out string? UncertainText) -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.Equals(OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ReceiptReceived.get -> bool
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ReceiptReceived.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ReportedPlayedSamples.get -> long
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ReportedPlayedSamples.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ResponseId.get -> string!
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ResponseId.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.SpeechEpoch.get -> long
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.SpeechEpoch.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.TransmittedSamples.get -> long
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.TransmittedSamples.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UncertainPartiallyPlayedSegment.get -> OpenConnect.Abstractions.Speech.VoiceSegmentMetadata?
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UncertainPartiallyPlayedSegment.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UncertainText.get -> string?
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UncertainText.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UnheardSegments.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>!
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.UnheardSegments.init -> void
+OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.VoiceDeliveryReconciliation(string! ResponseId, long SpeechEpoch, long TransmittedSamples, long ReportedPlayedSamples, bool ReceiptReceived, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>! ConfirmedPlayedSegments, OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? UncertainPartiallyPlayedSegment, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!>! UnheardSegments, string! ConfirmedText, string? UncertainText) -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions!
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Channels.get -> int
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Channels.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Codec.get -> string!
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Codec.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Deconstruct(out string! Mode, out string! Codec, out int InputSampleRateHz, out int OutputSampleRateHz, out int Channels, out string? Voice, out string? Locale, out bool EnableStreamingSpeechOutput, out bool EnableSemanticTurnDetection) -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.EnableSemanticTurnDetection.get -> bool
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.EnableSemanticTurnDetection.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.EnableStreamingSpeechOutput.get -> bool
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.EnableStreamingSpeechOutput.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Equals(OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.InputSampleRateHz.get -> int
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.InputSampleRateHz.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Locale.get -> string?
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Locale.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Mode.get -> string!
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Mode.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.OutputSampleRateHz.get -> int
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.OutputSampleRateHz.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Voice.get -> string?
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Voice.init -> void
+OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.VoiceDuplexSessionOptions(string! Mode = "duplex", string! Codec = "pcm16le", int InputSampleRateHz = 24000, int OutputSampleRateHz = 24000, int Channels = 1, string? Voice = null, string? Locale = null, bool EnableStreamingSpeechOutput = true, bool EnableSemanticTurnDetection = false) -> void
+OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInputState.EndpointPending = 2 -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInputState.Finalizing = 3 -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInputState.Listening = 0 -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInputState.Muted = 4 -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInputState.SpeechDetected = 1 -> OpenConnect.Abstractions.Speech.VoiceInputState
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceInterruptRequest!
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.Deconstruct(out string! RequestId, out string? ResponseId, out long SpeechEpoch, out long PlayedSamples, out string? Reason) -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.Equals(OpenConnect.Abstractions.Speech.VoiceInterruptRequest? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.PlayedSamples.get -> long
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.PlayedSamples.init -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.Reason.get -> string?
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.Reason.init -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.RequestId.get -> string!
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.RequestId.init -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.ResponseId.get -> string?
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.ResponseId.init -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.SpeechEpoch.get -> long
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.SpeechEpoch.init -> void
+OpenConnect.Abstractions.Speech.VoiceInterruptRequest.VoiceInterruptRequest(string! RequestId, string? ResponseId = null, long SpeechEpoch = 0, long PlayedSamples = 0, string? Reason = null) -> void
+OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Buffering = 1 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Draining = 3 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Failed = 5 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Idle = 0 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Interrupted = 4 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoiceOutputState.Playing = 2 -> OpenConnect.Abstractions.Speech.VoiceOutputState
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.<Clone>$() -> OpenConnect.Abstractions.Speech.VoicePlaybackReceipt!
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.Completed.get -> bool
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.Completed.init -> void
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.Deconstruct(out string! ResponseId, out long SpeechEpoch, out long PlayedSamples, out bool Completed) -> void
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.Equals(OpenConnect.Abstractions.Speech.VoicePlaybackReceipt? other) -> bool
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.PlayedSamples.get -> long
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.PlayedSamples.init -> void
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.ResponseId.get -> string!
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.ResponseId.init -> void
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.SpeechEpoch.get -> long
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.SpeechEpoch.init -> void
+OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.VoicePlaybackReceipt(string! ResponseId, long SpeechEpoch, long PlayedSamples, bool Completed = false) -> void
+OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.AwaitingConfirmation = 3 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.AwaitingTool = 2 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.Cancelling = 4 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.Completed = 5 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.Failed = 6 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.Generating = 1 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceReasoningState.Idle = 0 -> OpenConnect.Abstractions.Speech.VoiceReasoningState
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceSegmentMetadata!
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.Deconstruct(out string! SegmentId, out int SegmentIndex, out string! SpokenText, out string! SourceText, out long StartSampleOffset, out long SampleCount) -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.EndSampleOffset.get -> long
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.Equals(OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SampleCount.get -> long
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SampleCount.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SegmentId.get -> string!
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SegmentId.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SegmentIndex.get -> int
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SegmentIndex.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SourceText.get -> string!
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SourceText.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SpokenText.get -> string!
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.SpokenText.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.StartSampleOffset.get -> long
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.StartSampleOffset.init -> void
+OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.VoiceSegmentMetadata(string! SegmentId, int SegmentIndex, string! SpokenText, string! SourceText, long StartSampleOffset, long SampleCount) -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.<Clone>$() -> OpenConnect.Abstractions.Speech.VoiceSessionEvent!
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.AudioHeader.get -> OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.AudioHeader.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.AudioPayload.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.AudioPayload.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Authoritative.get -> bool?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Authoritative.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.CaptureId.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.CaptureId.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Deconstruct(out int Version, out string! Type, out string? VoiceConnectionId, out string? CaptureId, out string? ResponseId, out string? SegmentId, out long? SpeechEpoch, out long? Sequence, out long? Revision, out string? Text, out bool? Authoritative, out long? SampleOffset, out long? SampleCount, out string? Reason, out string? ErrorCode, out string? PayloadJson) -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Equals(OpenConnect.Abstractions.Speech.VoiceSessionEvent? other) -> bool
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.ErrorCode.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.ErrorCode.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.PayloadJson.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.PayloadJson.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Reason.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Reason.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.ResponseId.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.ResponseId.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Revision.get -> long?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Revision.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SampleCount.get -> long?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SampleCount.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SampleOffset.get -> long?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SampleOffset.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SegmentId.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SegmentId.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Sequence.get -> long?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Sequence.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SpeechEpoch.get -> long?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.SpeechEpoch.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Text.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Text.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Type.get -> string!
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Type.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Version.get -> int
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.Version.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.VoiceConnectionId.get -> string?
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.VoiceConnectionId.init -> void
+OpenConnect.Abstractions.Speech.VoiceSessionEvent.VoiceSessionEvent(int Version, string! Type, string? VoiceConnectionId = null, string? CaptureId = null, string? ResponseId = null, string? SegmentId = null, long? SpeechEpoch = null, long? Sequence = null, long? Revision = null, string? Text = null, bool? Authoritative = null, long? SampleOffset = null, long? SampleCount = null, string? Reason = null, string? ErrorCode = null, string? PayloadJson = null) -> void
 OpenConnect.Abstractions.TaskAcceptance
 OpenConnect.Abstractions.TaskAcceptance.<Clone>$() -> OpenConnect.Abstractions.TaskAcceptance!
 OpenConnect.Abstractions.TaskAcceptance.Deconstruct(out OpenConnect.Abstractions.TaskId TaskId, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! IdempotencyKey) -> void
@@ -1038,6 +1335,12 @@ const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hostin
 const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
 const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
 const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxFrameBytes = 98304 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxPayloadBytes = 98272 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.ProtocolVersion = 2 -> byte
 override OpenConnect.Abstractions.AgentBudget.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.AgentBudget.GetHashCode() -> int
 override OpenConnect.Abstractions.AgentBudget.ToString() -> string!
@@ -1149,6 +1452,46 @@ override OpenConnect.Abstractions.Serialization.UlidIdentifierJsonConverterFacto
 override OpenConnect.Abstractions.Serialization.UlidJsonConverter.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> OpenConnect.Abstractions.Ulid
 override OpenConnect.Abstractions.Serialization.UlidJsonConverter.Write(System.Text.Json.Utf8JsonWriter! writer, OpenConnect.Abstractions.Ulid value, System.Text.Json.JsonSerializerOptions! options) -> void
 override OpenConnect.Abstractions.SessionId.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.ToString() -> string!
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.ToString() -> string!
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.ToString() -> string!
+override OpenConnect.Abstractions.Speech.SpeechToTextTurn.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.SpeechToTextTurn.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.SpeechToTextTurn.ToString() -> string!
+override OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceActivityFrame.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceActivityFrame.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceActivityFrame.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceActivityResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceActivityResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceActivityResult.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceInterruptRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceInterruptRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceInterruptRequest.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.ToString() -> string!
+override OpenConnect.Abstractions.Speech.VoiceSessionEvent.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.VoiceSessionEvent.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.VoiceSessionEvent.ToString() -> string!
 override OpenConnect.Abstractions.TaskAcceptance.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.TaskAcceptance.GetHashCode() -> int
 override OpenConnect.Abstractions.TaskAcceptance.ToString() -> string!
@@ -1254,6 +1597,36 @@ static OpenConnect.Abstractions.RateLimitKeyComparer.Instance.get -> OpenConnect
 static OpenConnect.Abstractions.Serialization.OpenConnectHttpJson.CreateOptions(System.Text.Json.JsonSerializerDefaults defaults = System.Text.Json.JsonSerializerDefaults.Web) -> System.Text.Json.JsonSerializerOptions!
 static OpenConnect.Abstractions.SessionId.operator !=(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
 static OpenConnect.Abstractions.SessionId.operator ==(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator !=(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator ==(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
+static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator ==(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? left, OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? right) -> bool
+static OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.operator ==(OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? left, OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceActivityFrame.operator !=(OpenConnect.Abstractions.Speech.VoiceActivityFrame? left, OpenConnect.Abstractions.Speech.VoiceActivityFrame? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceActivityFrame.operator ==(OpenConnect.Abstractions.Speech.VoiceActivityFrame? left, OpenConnect.Abstractions.Speech.VoiceActivityFrame? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceActivityResult.operator !=(OpenConnect.Abstractions.Speech.VoiceActivityResult? left, OpenConnect.Abstractions.Speech.VoiceActivityResult? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceActivityResult.operator ==(OpenConnect.Abstractions.Speech.VoiceActivityResult? left, OpenConnect.Abstractions.Speech.VoiceActivityResult? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.operator !=(OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader left, OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.operator ==(OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader left, OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.TryDecode(System.ReadOnlySpan<byte> frame, out OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader header, out System.ReadOnlySpan<byte> pcmPayload) -> bool
+static OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.TryEncode(OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader header, System.ReadOnlySpan<byte> pcmPayload, System.Span<byte> destination, out int bytesWritten) -> bool
+static OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.operator !=(OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? left, OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation.operator ==(OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? left, OpenConnect.Abstractions.Speech.VoiceDeliveryReconciliation? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.operator !=(OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? left, OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions.operator ==(OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? left, OpenConnect.Abstractions.Speech.VoiceDuplexSessionOptions? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceInterruptRequest.operator !=(OpenConnect.Abstractions.Speech.VoiceInterruptRequest? left, OpenConnect.Abstractions.Speech.VoiceInterruptRequest? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceInterruptRequest.operator ==(OpenConnect.Abstractions.Speech.VoiceInterruptRequest? left, OpenConnect.Abstractions.Speech.VoiceInterruptRequest? right) -> bool
+static OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.operator !=(OpenConnect.Abstractions.Speech.VoicePlaybackReceipt? left, OpenConnect.Abstractions.Speech.VoicePlaybackReceipt? right) -> bool
+static OpenConnect.Abstractions.Speech.VoicePlaybackReceipt.operator ==(OpenConnect.Abstractions.Speech.VoicePlaybackReceipt? left, OpenConnect.Abstractions.Speech.VoicePlaybackReceipt? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.operator !=(OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? left, OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceSegmentMetadata.operator ==(OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? left, OpenConnect.Abstractions.Speech.VoiceSegmentMetadata? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceSessionEvent.operator !=(OpenConnect.Abstractions.Speech.VoiceSessionEvent? left, OpenConnect.Abstractions.Speech.VoiceSessionEvent? right) -> bool
+static OpenConnect.Abstractions.Speech.VoiceSessionEvent.operator ==(OpenConnect.Abstractions.Speech.VoiceSessionEvent? left, OpenConnect.Abstractions.Speech.VoiceSessionEvent? right) -> bool
 static OpenConnect.Abstractions.TaskAcceptance.operator !=(OpenConnect.Abstractions.TaskAcceptance? left, OpenConnect.Abstractions.TaskAcceptance? right) -> bool
 static OpenConnect.Abstractions.TaskAcceptance.operator ==(OpenConnect.Abstractions.TaskAcceptance? left, OpenConnect.Abstractions.TaskAcceptance? right) -> bool
 static OpenConnect.Abstractions.TaskId.operator !=(OpenConnect.Abstractions.TaskId left, OpenConnect.Abstractions.TaskId right) -> bool
@@ -1284,6 +1657,8 @@ static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator ==(OpenConne
 ~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
 ~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
 ~override OpenConnect.Abstractions.SessionId.ToString() -> string
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.ToString() -> string
 ~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
 ~override OpenConnect.Abstractions.TaskId.ToString() -> string
 ~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool

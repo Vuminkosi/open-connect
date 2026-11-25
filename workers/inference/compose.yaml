@@ -46,7 +46,7 @@ services:
       OC_MODEL_CACHE_DIR: ${OC_MODEL_CACHE_DIR:-/models}
       OC_MODEL_OFFLINE: ${OC_MODEL_OFFLINE:-false}
       OC_INFERENCE_PROVIDER: ${OC_INFERENCE_PROVIDER:-meta-model-api}
-      OC_INFERENCE_MODEL: ${OC_INFERENCE_MODEL:-muse-spark-1.3-contributor}
+      OC_INFERENCE_MODEL: ${OC_INFERENCE_MODEL:-muse-spark-1.3}
       OC_INFERENCE_API_BASE_URL: ${OC_INFERENCE_API_BASE_URL:-https://api.meta.ai/v1}
       OC_CONTRIBUTOR_DATA_USE_APPROVED: ${OC_CONTRIBUTOR_DATA_USE_APPROVED:-0}
       # Deprecated alias for the cloud endpoint; OC_INFERENCE_API_BASE_URL wins.

@@ -6,13 +6,41 @@ namespace OpenConnect.Samples.Blazor;
 public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
 {
     private const string SearchLabel = "Search tasks by title or description...";
+    private const string PriorityFilterLabel = "Priority filter";
+    private const string DueDateFilterLabel = "Due date filter";
     private const string AllTabId = "route.root.components-todolistcomponent-razor-tab-all";
     private const string ActiveTabId = "route.root.components-todolistcomponent-razor-tab-active";
     private const string CompletedTabId = "route.root.components-todolistcomponent-razor-tab-completed";
     private const string SearchInputId = "route.root.components-todolistcomponent-razor-input-search-tasks-by-title-or-description";
+    private const string PriorityFilterId = "route.root.components-todolistcomponent-razor-select-priority-filter";
+    private const string DueDateFilterId = "route.root.components-todolistcomponent-razor-select-due-date-filter";
     private const string TaskListId = "route.root.components-todolistcomponent-razor-list-task-list";
     private const string TodoRegionId = "route.root.components-todolistcomponent-razor-region-todo-list";
     private const string ProgressRegionId = "route.root.components-todoprogresscomponent-razor-region-todo-progress";
+
+    private static readonly HashSet<string> AllowedDueDateFilterValues = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "all",
+        "All due dates",
+        "today",
+        "Due today",
+        "tomorrow",
+        "Due tomorrow",
+        "this-week",
+        "Due this week",
+        "overdue",
+        "Overdue"
+    };
+
+    private static readonly HashSet<string> AllowedPriorityFilterValues = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "all",
+        "All priorities",
+        "Low",
+        "Medium",
+        "High",
+        "Urgent"
+    };
 
     public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(
         LiveUIExecutionContext context,
@@ -41,11 +69,18 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
         {
             LiveUIActionType.SelectTab when IsTab(target) &&
                 target.Label is "All" or "Active" or "Completed" => Allow("todo_status_filter"),
+            LiveUIActionType.Select when IsDueDateFilter(target) &&
+                IsAllowedDueDateValue(context.Action.Parameters.Value) => Allow("todo_due_date_filter"),
+            LiveUIActionType.Select when IsPriorityFilter(target) &&
+                IsAllowedPriorityValue(context.Action.Parameters.Value) => Allow("todo_priority_filter"),
+            LiveUIActionType.Focus or LiveUIActionType.Inspect when IsDueDateFilter(target) => Allow("todo_due_date_filter"),
+            LiveUIActionType.Focus or LiveUIActionType.Inspect when IsPriorityFilter(target) => Allow("todo_priority_filter"),
             LiveUIActionType.SetValue when target.Id == SearchInputId && target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel &&
                 context.Action.Parameters.Value is { Length: <= 2_000 } => Allow("todo_search_filter"),
             LiveUIActionType.Focus when target.Id == SearchInputId && target.Kind == LiveUITargetKind.Input && target.Label == SearchLabel => Allow("todo_search_focus"),
             LiveUIActionType.Inspect when IsTaskList(target) => Allow("todo_list_inspection"),
             LiveUIActionType.Highlight or LiveUIActionType.Scroll when IsTaskList(target) || IsProgressRegion(target) => Allow("todo_visual_guidance"),
+            LiveUIActionType.Highlight when IsDueDateFilter(target) || IsPriorityFilter(target) => Allow("todo_visual_guidance"),
             LiveUIActionType.WaitForState when IsTab(target) &&
                 context.Action.Parameters.StateName == "selected" && target.Label is "All" or "Active" or "Completed" => Allow("todo_filter_verification"),
             LiveUIActionType.WaitForState when IsTaskList(target) &&
@@ -65,6 +100,18 @@ public sealed class TodoLiveUIActionAuthorizer : ILiveUIActionAuthorizer
             CompletedTabId => target.Label == "Completed",
             _ => false
         };
+
+    private static bool IsDueDateFilter(LiveUITarget target) =>
+        target.Id == DueDateFilterId && target.Kind == LiveUITargetKind.Select && target.Label == DueDateFilterLabel;
+
+    private static bool IsPriorityFilter(LiveUITarget target) =>
+        target.Id == PriorityFilterId && target.Kind == LiveUITargetKind.Select && target.Label == PriorityFilterLabel;
+
+    private static bool IsAllowedDueDateValue(string? value) =>
+        value is null || (!string.IsNullOrWhiteSpace(value) && AllowedDueDateFilterValues.Contains(value.Trim()));
+
+    private static bool IsAllowedPriorityValue(string? value) =>
+        value is null || (!string.IsNullOrWhiteSpace(value) && AllowedPriorityFilterValues.Contains(value.Trim()));
 
     private static bool IsTaskList(LiveUITarget target) =>
         (target.Id == TaskListId && target.Kind == LiveUITargetKind.List && target.Label == "Task list") ||

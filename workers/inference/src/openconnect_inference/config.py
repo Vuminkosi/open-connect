@@ -29,7 +29,7 @@ InferenceBackendKind = Literal["existing-local-endpoint", "python-transformers"]
 _DEFAULT_BACKEND: InferenceBackendKind = "python-transformers"
 
 DEFAULT_INFERENCE_PROVIDER = "meta-model-api"
-DEFAULT_INFERENCE_MODEL = "muse-spark-1.3-contributor"
+DEFAULT_INFERENCE_MODEL = "muse-spark-1.3"
 DEFAULT_INFERENCE_API_BASE_URL = "https://api.meta.ai/v1"
 
 CONTRIBUTOR_MODEL_MARKER = "contributor"

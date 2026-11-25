@@ -49,13 +49,20 @@ class FakeTranscriptionEngine:
         )
 
 
-def advertised_capabilities(*, backend: str, partials_supported: bool = False) -> list[str]:
+def advertised_capabilities(
+    *,
+    backend: str,
+    partials_supported: bool = False,
+    streaming_local: bool = False,
+) -> list[str]:
     """Return exactly the capabilities this engine instance can serve."""
     caps = ["transcribe-final"]
     if backend in ("local-fake", "local-model"):
         caps.append("transcribe-recorded")
     if partials_supported:  # fake engine never sets this today
         caps.append("transcribe-partials")
+    if streaming_local:
+        caps.append("transcribe-streaming-local")
     return caps
 
 

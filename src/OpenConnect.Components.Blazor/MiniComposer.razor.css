@@ -140,11 +140,17 @@
     gap: 0.125rem;
 }
 
-.oc-bubble__live-speak--active {
-    box-shadow: 0 0 10px rgba(13, 148, 120, 0.6);
+.oc-bubble__field-actions ::deep .oc-bubble__live-speak--active {
+    box-shadow: 0 0 var(--oc-voice-glow-radius, 0px)
+        color-mix(in srgb, var(--mud-palette-primary) var(--oc-voice-glow-opacity, 0%), transparent);
     transition: box-shadow 90ms ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .oc-bubble__field-actions ::deep .oc-bubble__live-speak--active {
+        transition: none;
+    }
+}
 /* Captions and conversation timeline stay compact while long text scrolls inside its region. */
 .oc-bubble__sent-message {
     margin-block: 0.5rem 0.25rem;
@@ -291,9 +297,9 @@
 /* Status Row: 3 green dots + Voice/Mic Toggles */
 .oc-bubble__status-row {
     display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
     padding-top: 2px !important;
 }
 
@@ -344,8 +350,10 @@
 }
 
 .oc-bubble__speech-action {
-    display: inline-flex !important;
+    display: flex !important;
     align-items: center !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
     gap: 12px !important;
     margin-inline-start: auto !important;
 }
@@ -372,6 +380,28 @@
 
 .oc-speech-item:disabled { opacity: .6; cursor: not-allowed !important; }
 .oc-voice-unavailable { margin: 4px 12px; font-size: .8rem; }
+
+.oc-live-voice-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 2px 2px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: var(--mud-palette-background-grey, rgba(0, 0, 0, 0.04));
+}
+
+.oc-live-voice-status {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--mud-palette-text-secondary);
+}
+
+.oc-live-voice-toggle--active {
+    font-weight: 600;
+}
 
 .oc-speech-item .mud-icon-root {
     color: #00875a !important;

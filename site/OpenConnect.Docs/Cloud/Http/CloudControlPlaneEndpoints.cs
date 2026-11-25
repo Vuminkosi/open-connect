@@ -10,13 +10,16 @@ public static class CloudControlPlaneEndpoints
     {
         if (!databaseConfigured)
         {
-            app.MapGet("/cloud/health/ready", () => Results.Problem(
-                statusCode: StatusCodes.Status503ServiceUnavailable,
-                title: "Cloud control plane is not configured."));
+            app.MapGet("/cloud/health/ready", (HttpContext httpContext) => Problem(
+                httpContext,
+                StatusCodes.Status503ServiceUnavailable,
+                "Cloud control plane is not configured.",
+                "service_unavailable"));
         }
         else
         {
             app.MapGet("/cloud/health/ready", async (
+                HttpContext httpContext,
                 CloudReadinessService readiness,
                 ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
@@ -25,8 +28,8 @@ public static class CloudControlPlaneEndpoints
                 {
                     if (!await readiness.IsReadyAsync(cancellationToken))
                     {
-                        return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
-                            title: "Cloud control plane is not ready.");
+                        return Problem(httpContext, StatusCodes.Status503ServiceUnavailable,
+                            "Cloud control plane is not ready.", "service_unavailable");
                     }
                     return Results.Ok(new { status = "ready" });
                 }
@@ -34,8 +37,8 @@ public static class CloudControlPlaneEndpoints
                 {
                     loggerFactory.CreateLogger("OpenConnect.Cloud.Readiness")
                         .LogWarning("Cloud control-plane readiness check failed.");
-                    return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
-                        title: "Cloud control plane is not ready.");
+                    return Problem(httpContext, StatusCodes.Status503ServiceUnavailable,
+                        "Cloud control plane is not ready.", "service_unavailable");
                 }
             });
         }
@@ -43,9 +46,11 @@ public static class CloudControlPlaneEndpoints
         var group = app.MapGroup("/cloud/api/v1").RequireAuthorization("CloudApi");
         if (!databaseConfigured)
         {
-            group.MapMethods("/{**path}", ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], () => Results.Problem(
-                statusCode: StatusCodes.Status503ServiceUnavailable,
-                title: "Cloud control plane is not configured."));
+            group.MapMethods("/{**path}", ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], (HttpContext httpContext) => Problem(
+                httpContext,
+                StatusCodes.Status503ServiceUnavailable,
+                "Cloud control plane is not configured.",
+                "service_unavailable"));
             return;
         }
 
@@ -90,11 +95,11 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, CreateCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.CreateAsync(subject, tenantId, request, cancellationToken);
-            if (result.Status != "succeeded") return InvitationResponse(result.Status);
+            if (result.Status != "succeeded") return InvitationResponse(context, result.Status);
             context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { code = result.Code, expiresAt = result.ExpiresAt });
         });
@@ -112,13 +117,13 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, Guid invitationId, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
-                return Results.Problem(statusCode: 428, title: "An invitation revision is required.");
+                return Problem(context, StatusCodes.Status428PreconditionRequired, "An invitation revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.RevokeAsync(subject, tenantId, invitationId, revision, cancellationToken);
-            if (result.Status != "succeeded") return InvitationResponse(result.Status);
+            if (result.Status != "succeeded") return InvitationResponse(context, result.Status);
             context.Response.Headers.ETag = $"\"{result.Revision}\"";
             return Results.NoContent();
         });
@@ -127,20 +132,20 @@ public static class CloudControlPlaneEndpoints
             AcceptCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.AcceptAsync(subject, request.Code, cancellationToken);
-            return result == "succeeded" ? Results.NoContent() : InvitationResponse(result);
+            return result == "succeeded" ? Results.NoContent() : InvitationResponse(context, result);
         });
 
         group.MapPut("/tenants/{tenantId:guid}/members/role", async (
             Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
-                return Results.Problem(statusCode: 428, title: "A membership revision is required.");
+                return Problem(context, StatusCodes.Status428PreconditionRequired, "A membership revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, false, cancellationToken));
@@ -150,9 +155,9 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
-                return Results.Problem(statusCode: 428, title: "A membership revision is required.");
+                return Problem(context, StatusCodes.Status428PreconditionRequired, "A membership revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, true, cancellationToken));
@@ -189,10 +194,10 @@ public static class CloudControlPlaneEndpoints
             CloudCapabilityService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
             if (!TryGetExpectedRevision(httpContext, out var expectedRevision))
             {
-                return Results.Problem(statusCode: 428, title: "If-Match is required.", extensions: new Dictionary<string, object?> { ["code"] = "precondition_required" });
+                return Problem(httpContext, StatusCodes.Status428PreconditionRequired, "If-Match is required.", "precondition_required");
             }
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
@@ -211,10 +216,10 @@ public static class CloudControlPlaneEndpoints
             CloudCapabilityService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
             if (!TryGetExpectedRevision(httpContext, out var expectedRevision))
             {
-                return Results.Problem(statusCode: 428, title: "If-Match is required.", extensions: new Dictionary<string, object?> { ["code"] = "precondition_required" });
+                return Problem(httpContext, StatusCodes.Status428PreconditionRequired, "If-Match is required.", "precondition_required");
             }
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
@@ -233,11 +238,11 @@ public static class CloudControlPlaneEndpoints
         {
             if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
             {
-                return Results.BadRequest();
+                return InvalidAntiforgeryResponse(httpContext);
             }
             if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name must contain 1 to 200 characters."] });
+                return ValidationProblem(httpContext, new Dictionary<string, string[]> { ["name"] = ["Name must contain 1 to 200 characters."] });
             }
 
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
@@ -274,16 +279,16 @@ public static class CloudControlPlaneEndpoints
         {
             if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
             {
-                return Results.BadRequest();
+                return InvalidAntiforgeryResponse(httpContext);
             }
             if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 200)
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["name"] = ["Name must contain 1 to 200 characters."] });
+                return ValidationProblem(httpContext, new Dictionary<string, string[]> { ["name"] = ["Name must contain 1 to 200 characters."] });
             }
 
             if (request.Environment is not ("Development" or "Staging" or "Production"))
             {
-                return Results.ValidationProblem(new Dictionary<string, string[]>
+                return ValidationProblem(httpContext, new Dictionary<string, string[]>
                 {
                     ["environment"] = ["Environment must be Development, Staging, or Production."],
                 });
@@ -296,9 +301,14 @@ public static class CloudControlPlaneEndpoints
             }
 
             var result = await service.CreateApplicationAsync(subject, tenantId, request.Name, request.Environment, cancellationToken);
-            return result.Application is null
-                ? Results.NotFound()
-                : Results.Created($"/cloud/api/v1/tenants/{tenantId:D}/applications/{result.Application.Id:D}", result.Application);
+            if (result.Application is null)
+            {
+                return result.Forbidden
+                    ? Problem(httpContext, StatusCodes.Status403Forbidden, "Application administration is not allowed.", "forbidden")
+                    : Problem(httpContext, StatusCodes.Status404NotFound, "Organization was not found.", "not_found");
+            }
+
+            return Results.Created($"/cloud/api/v1/tenants/{tenantId:D}/applications/{result.Application.Id:D}", result.Application);
         });
 
         group.MapGet("/tenants/{tenantId:guid}/applications/{applicationId:guid}/credentials", async (
@@ -327,7 +337,7 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.CreateAsync(subject, tenantId, applicationId, request.Scopes, request.ExpiresAt, cancellationToken);
@@ -345,7 +355,7 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.RotateAsync(subject, tenantId, applicationId, credentialId, request.ExpiresAt, cancellationToken);
@@ -362,14 +372,14 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return Results.BadRequest();
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
             if (subject is null) return Results.Unauthorized();
             var result = await service.RevokeAsync(subject, tenantId, applicationId, credentialId, cancellationToken);
             return result switch
             {
                 "succeeded" => Results.NoContent(),
-                "forbidden" => Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Credential administration is not allowed."),
+                "forbidden" => Problem(httpContext, StatusCodes.Status403Forbidden, "Credential administration is not allowed.", "forbidden"),
                 _ => Results.NotFound(),
             };
         });
@@ -403,6 +413,40 @@ public static class CloudControlPlaneEndpoints
             int.TryParse(value.AsSpan(1, value.Length - 2), NumberStyles.None, CultureInfo.InvariantCulture, out revision) && revision >= 0;
     }
 
+    private static IResult Problem(
+        HttpContext context,
+        int statusCode,
+        string title,
+        string code,
+        IDictionary<string, object?>? extraExtensions = null)
+    {
+        var extensions = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["code"] = code,
+            ["traceId"] = context.TraceIdentifier,
+        };
+        if (extraExtensions is not null)
+        {
+            foreach (var (key, value) in extraExtensions)
+            {
+                extensions[key] = value;
+            }
+        }
+        return Results.Problem(statusCode: statusCode, title: title, extensions: extensions);
+    }
+
+    private static IResult ValidationProblem(HttpContext context, IDictionary<string, string[]> errors) =>
+        Results.ValidationProblem(
+            errors,
+            extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["code"] = "invalid_request",
+                ["traceId"] = context.TraceIdentifier,
+            });
+
+    private static IResult InvalidAntiforgeryResponse(HttpContext context) =>
+        Problem(context, StatusCodes.Status400BadRequest, "A valid antiforgery token is required.", "invalid_antiforgery");
+
     private static IResult CapabilitySelectionResponse(HttpContext context, CloudCapabilitySelectionResult result)
     {
         if (result.Status == "succeeded")
@@ -422,8 +466,8 @@ public static class CloudControlPlaneEndpoints
             "conflict" => (StatusCodes.Status409Conflict, "Capability selection changed; reload its current revision."),
             _ => (StatusCodes.Status500InternalServerError, "Capability selection failed."),
         };
-        return Results.Problem(statusCode: status, title: title,
-            extensions: new Dictionary<string, object?> { ["code"] = result.Status, ["currentRevision"] = result.Revision });
+        return Problem(context, status, title, result.Status,
+            new Dictionary<string, object?> { ["currentRevision"] = result.Revision });
     }
 
     private static IResult MemberChangeResponse(HttpContext context, CloudMemberChangeResult result)
@@ -442,11 +486,11 @@ public static class CloudControlPlaneEndpoints
             "conflict" => (409, "Membership changed; reload its current revision."),
             _ => (500, "Membership change failed."),
         };
-        return Results.Problem(statusCode: status, title: title,
-            extensions: new Dictionary<string, object?> { ["code"] = result.Status, ["currentRevision"] = result.Revision });
+        return Problem(context, status, title, result.Status,
+            new Dictionary<string, object?> { ["currentRevision"] = result.Revision });
     }
 
-    private static IResult InvitationResponse(string status)
+    private static IResult InvitationResponse(HttpContext context, string status)
     {
         var (code, title) = status switch
         {
@@ -459,7 +503,7 @@ public static class CloudControlPlaneEndpoints
             "conflict" => (409, "Invitation could not be completed. Try again."),
             _ => (400, "Invitation is invalid or unavailable."),
         };
-        return Results.Problem(statusCode: code, title: title, extensions: new Dictionary<string, object?> { ["code"] = status });
+        return Problem(context, code, title, status);
     }
 
     private static IResult CredentialIssueResponse(
@@ -487,8 +531,7 @@ public static class CloudControlPlaneEndpoints
             "credential_revoked" => (StatusCodes.Status409Conflict, "The credential has already been revoked."),
             _ => (StatusCodes.Status500InternalServerError, "Credential operation failed."),
         };
-        return Results.Problem(statusCode: status, title: title,
-            extensions: new Dictionary<string, object?> { ["code"] = result.Status });
+        return Problem(context, status, title, result.Status);
     }
 
 }

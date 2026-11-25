@@ -105,7 +105,8 @@ public static class EndpointRouteBuilderExtensions
         group.MapGet("/status", (IServiceProvider services) =>
         {
             var vad = services.GetService<ServerSileroVadEngine>();
-            return Results.Ok(new { vadConfigured = vad is not null });
+            var onnxVad = services.GetService<OpenConnect.Abstractions.Speech.IVoiceActivityDetector>();
+            return Results.Ok(new { vadConfigured = vad is not null || onnxVad is not null });
         }).RequireAuthorization();
 
         group.MapPost("/audio", (HttpContext context) =>

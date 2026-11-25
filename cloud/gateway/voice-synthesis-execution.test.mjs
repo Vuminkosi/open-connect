@@ -85,3 +85,25 @@ test('speech admission, output transcription and policy execute before audio rel
         assert.deepEqual(calls, ['worker', 'transcribe', 'policy']);
     } finally { audio.fill(0); request.body.fill(0); keyring.dispose(); }
 });
+
+test('voice synthesis execution forwards request traceparent to outputScreen.isReady', async () => {
+    const keyring = keys();
+    const traceparent = '00-1234567890abcdef1234567890abcdef-0123456789abcdef-01';
+    const request = { ...input(), traceparent };
+    const audio = Buffer.from([1, 2]);
+    let observedTraceparent;
+    try {
+        const result = await executeVoiceSynthesis(request, {
+            controlPlane: plane(),
+            keyring,
+            createAccessMonitor: () => monitor(),
+            dispatcher: { executeClaimed: async () => ({ status: 'completed', result: { audio, format: 'pcm', sampleRateHz: 24000, channels: 1 } }) },
+            outputScreen: {
+                isReady: async (_signal, propagated) => { observedTraceparent = propagated; return true; },
+                inspectAudio: async () => ({ allowed: true, code: 'allowed' }),
+            },
+        });
+        assert.equal(result.status, 'completed');
+        assert.equal(observedTraceparent, traceparent);
+    } finally { audio.fill(0); request.body.fill(0); keyring.dispose(); }
+});

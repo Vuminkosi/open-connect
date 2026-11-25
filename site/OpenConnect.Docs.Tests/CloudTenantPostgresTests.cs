@@ -173,9 +173,54 @@ public class CloudTenantPostgresTests
         }
         var denied = await store.CreateApplicationAsync(owner, tenant.Id, "After removal", "Development", CancellationToken.None);
         Assert.Null(denied.Application);
+        Assert.False(denied.Forbidden);
         await using var verify = await factory.CreateDbContextAsync();
         Assert.Equal(1, await verify.Applications.CountAsync(x => x.TenantId == tenant.Id));
         Assert.Equal(1, await verify.AuditEvents.CountAsync(x => x.TenantId == tenant.Id && x.Action == "application.created"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == null && x.SubjectId == owner.SubjectId &&
+            x.Action == "application.create" && x.Outcome == "not_found" && x.ResourceId == tenant.Id.ToString("D")));
+    }
+
+    [CloudPostgresFact]
+    public async Task CreateApplicationDistinguishesNonMemberFromForbiddenMemberAndAuditsDenials()
+    {
+        var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
+            .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE"))
+            .Options;
+        IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
+        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        var store = new EfCloudTenantStore(factory, TimeProvider.System);
+        var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var outsider = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
+        var tenant = await store.CreateTenantAsync(owner, "App authz test", CancellationToken.None);
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.Memberships.Add(new CloudMembership
+            {
+                TenantId = tenant.Id,
+                SubjectIssuer = developer.Issuer,
+                SubjectId = developer.SubjectId,
+                Role = "Developer",
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var forbidden = await store.CreateApplicationAsync(developer, tenant.Id, "Dev app", "Development", CancellationToken.None);
+        Assert.Null(forbidden.Application);
+        Assert.True(forbidden.Forbidden);
+
+        var notFound = await store.CreateApplicationAsync(outsider, tenant.Id, "Outsider app", "Development", CancellationToken.None);
+        Assert.Null(notFound.Application);
+        Assert.False(notFound.Forbidden);
+
+        await using var verify = await factory.CreateDbContextAsync();
+        Assert.Equal(0, await verify.Applications.CountAsync(x => x.TenantId == tenant.Id));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == tenant.Id && x.SubjectId == developer.SubjectId &&
+            x.ActorRole == "Developer" && x.Action == "application.create" && x.Outcome == "forbidden"));
+        Assert.True(await verify.AuditEvents.AnyAsync(x => x.TenantId == null && x.SubjectId == outsider.SubjectId &&
+            x.ActorRole == "AuthenticatedUser" && x.Action == "application.create" && x.Outcome == "not_found"));
     }
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>

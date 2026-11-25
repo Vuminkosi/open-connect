@@ -28,7 +28,14 @@ public static class DocumentationLiveUIManifest
                 new("documentation-show-guides", LiveUITargetKind.Button, "Show integration guides",
                     new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Activate },
                     Selector: "#docs-show-guides")]),
-            new("documentation-api", "/api", "API reference", apiTargets)
+            new("documentation-api", "/api", "API reference", apiTargets),
+            new("cloud-overview", "/cloud", "Cloud dashboard",
+                [
+                    Heading("cloud-overview-heading", "OpenConnect Cloud"),
+                    new("cloud-overview-organizations", LiveUITargetKind.Heading, "Organizations",
+                        new HashSet<LiveUICapability> { LiveUICapability.Inspect, LiveUICapability.Highlight, LiveUICapability.Scroll },
+                        Selector: "#organizations-title")
+                ])
         };
         foreach (var document in documents ?? [])
         {

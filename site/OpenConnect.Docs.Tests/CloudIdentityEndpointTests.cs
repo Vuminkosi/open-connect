@@ -75,7 +75,16 @@ public sealed class CloudIdentityEndpointTests
         await app.StartAsync();
         using var client = Client(app);
 
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.GetAsync("/cloud/sign-in")).StatusCode);
+        var signIn = await client.GetAsync("/cloud/sign-in");
+        var signInHtml = await signIn.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, signIn.StatusCode);
+        Assert.Equal("no-store", signIn.Headers.CacheControl?.ToString());
+        Assert.StartsWith("text/html", signIn.Content.Headers.ContentType?.ToString());
+        Assert.Contains("<h1>Sign-in is unavailable</h1>", signInHtml);
+        Assert.Contains("role=\"status\"", signInHtml);
+        Assert.Contains("href=\"/\"", signInHtml);
+        Assert.DoesNotContain("application/problem+json", signInHtml);
+        Assert.DoesNotContain("rfc9110", signInHtml);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/cloud/sign-in/google")).StatusCode);
         var signOut = await client.PostAsync("/cloud/sign-out", null);
         Assert.Equal(HttpStatusCode.Unauthorized, signOut.StatusCode);

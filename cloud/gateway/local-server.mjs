@@ -35,10 +35,10 @@ export function createLocalServer(authorization, classificationProbe, classifica
         } catch {
             const traceId = createTraceContext().traceId;
             response.writeHead(400, { 'content-type': 'application/problem+json', 'connection': 'close', 'cache-control': 'no-store', 'x-trace-id': traceId });
-            response.end(JSON.stringify({ type: 'about:blank', title: 'Invalid request', status: 400, code: 'invalid_request', traceId }));
+            response.end(JSON.stringify({ type: 'about:blank', title: 'Invalid request', status: 400, code: 'invalid_request', retryable: false, traceId }));
         }
     });
-    server.headersTimeout = 10000;
-    server.requestTimeout = 15000;
+    server.headersTimeout = 10_000;
+    server.requestTimeout = 310_000;
     return server;
 }

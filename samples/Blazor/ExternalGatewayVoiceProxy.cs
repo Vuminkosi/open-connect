@@ -27,9 +27,14 @@ public static class ExternalGatewayVoiceProxy
                 return;
             }
 
-            using var browser = await context.WebSockets.AcceptWebSocketAsync("openconnect.voice.v1").ConfigureAwait(false);
+            var requestedSubprotocol = context.WebSockets.WebSocketRequestedProtocols
+                .FirstOrDefault(p => string.Equals(p, "openconnect.voice.v2", StringComparison.Ordinal)
+                    || string.Equals(p, "openconnect.voice.v1", StringComparison.Ordinal))
+                ?? "openconnect.voice.v1";
+
+            using var browser = await context.WebSockets.AcceptWebSocketAsync(requestedSubprotocol).ConfigureAwait(false);
             using var gateway = new ClientWebSocket();
-            gateway.Options.AddSubProtocol("openconnect.voice.v1");
+            gateway.Options.AddSubProtocol(requestedSubprotocol);
             gateway.Options.SetRequestHeader("X-OpenConnect-Test-Tenant", options.TenantId);
             gateway.Options.SetRequestHeader("X-OpenConnect-Test-Principal", options.PrincipalId);
             var gatewayUri = new UriBuilder(baseUri)

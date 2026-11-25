@@ -225,6 +225,8 @@ builder.Services.AddOpenConnect(options =>
     options.Privacy.Enabled = true;
     options.Agents.RegisterLeadAgent = true;
 });
+builder.Services.Configure<OpenConnect.Core.Configuration.OpenConnectVoiceOptions>(
+    builder.Configuration.GetSection("OpenConnect:Voice"));
 TodoCloudPrivacyConfiguration.Configure(builder.Services, builder.Configuration);
 if (builder.Configuration.GetValue<bool>("OpenConnect:CapabilityMonitor:Enabled"))
 {

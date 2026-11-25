@@ -109,11 +109,6 @@
                 </span>
             </div>
 
-            @if (IsLoading)
-            {
-                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="oc-bubble-progress" aria-label="Waiting for reply" />
-            }
-
             <!-- Input Row (SwiftAidv2 Field Wrap Pattern) -->
             <div class="oc-bubble__input-row">
                 <div class="oc-bubble__field-wrap">
@@ -130,45 +125,34 @@
                                   Class="oc-bubble-textfield"
                                   @onkeydown="HandleKeyDown" />
                     <span class="oc-bubble__field-actions">
-                        @if (IsLoading)
+                        <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
+                                       Color="@(_micOn ? Color.Primary : Color.Default)"
+                                       Size="Size.Small"
+                                       OnClick="ToggleMicrophoneAsync"
+                                       Disabled="@VoiceInputBlocked"
+                                       aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
+                                       title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
+
+                        @if (!string.IsNullOrWhiteSpace(_draft))
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.StopCircle"
-                                           Color="Color.Error"
+                            <MudIconButton Icon="@Icons.Material.Filled.Send"
+                                           Color="Color.Primary"
                                            Size="Size.Small"
-                                           OnClick="StopSending"
-                                           aria-label="Stop reply"
-                                           title="Stop reply" />
+                                           OnClick="SendAsync"
+                                           Disabled="@(!CanSend)"
+                                           aria-label="@($"Send to {AssistantName}")"
+                                           title="Send" />
                         }
                         else
                         {
-                            <MudIconButton Icon="@(_micOn ? Icons.Material.Filled.Mic : Icons.Material.Filled.MicOff)"
-                                           Color="@(_micOn ? Color.Primary : Color.Default)"
+                            <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
+                                           Color="@(_micOn || _speechOn ? Color.Primary : Color.Default)"
                                            Size="Size.Small"
-                                           OnClick="ToggleMicrophoneAsync"
+                                           Class="@(_micOn || _speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
+                                           OnClick="ToggleVoiceAsync"
                                            Disabled="@VoiceInputBlocked"
-                                           aria-label="@(_micOn ? "Turn off microphone" : "Turn on microphone")"
-                                           title="@(_micOn ? "Turn off microphone" : "Turn on microphone")" />
-
-                            @if (!string.IsNullOrWhiteSpace(_draft))
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Send"
-                                               Color="Color.Primary"
-                                               Size="Size.Small"
-                                               OnClick="SendAsync"
-                                               Disabled="@(!CanSend)"
-                                               aria-label="@($"Send to {AssistantName}")"
-                                               title="Send" />
-                            }
-                            else
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.GraphicEq"
-                                               Color="@(_speechOn ? Color.Primary : Color.Default)"
-                                               Size="Size.Small"
-                                               Class="@(_speechOn ? "oc-bubble__live-speak oc-bubble__live-speak--active" : "oc-bubble__live-speak")"
-                                               OnClick="ToggleVoiceAsync"
-                                               aria-label="Voice input"
-                                               title="Voice input" />
-                            }
+                                           aria-label="Voice input"
+                                           title="Voice input" />
                         }
                     </span>
                 </div>
@@ -181,6 +165,68 @@
             else if (VoiceInputAvailable == false)
             {
                 <p class="oc-voice-unavailable" role="status">Voice input is unavailable. You can continue using text; voice output is configured separately.</p>
+            }
+
+            @if (EnableContinuousVoice)
+            {
+                <div class="oc-live-voice-bar" role="group" aria-label="Live voice controls">
+                    <button type="button"
+                            class="oc-speech-item oc-live-voice-toggle @(_duplexVoiceActive ? "oc-live-voice-toggle--active" : "")"
+                            @onclick="ToggleContinuousVoiceAsync"
+                            disabled="@VoiceInputBlocked"
+                            aria-pressed="@_duplexVoiceActive.ToString().ToLowerInvariant()"
+                            aria-label="@(_duplexVoiceActive ? "Stop live voice" : "Start live voice")"
+                            title="@(_duplexVoiceActive ? "Stop live voice" : "Start live voice")">
+                        <MudIcon Icon="@(_duplexVoiceActive ? Icons.Material.Filled.GraphicEq : Icons.Material.Filled.RecordVoiceOver)" Size="Size.Small" />
+                        <span>@(_duplexVoiceActive ? "Live voice on" : "Live voice")</span>
+                    </button>
+
+                    @if (_duplexVoiceActive)
+                    {
+                        <button type="button"
+                                class="oc-speech-item oc-live-voice-mute"
+                                @onclick="ToggleContinuousMuteAsync"
+                                aria-pressed="@_duplexMuted.ToString().ToLowerInvariant()"
+                                aria-label="@(_duplexMuted ? "Unmute microphone" : "Mute microphone")"
+                                title="@(_duplexMuted ? "Unmute microphone" : "Mute microphone")">
+                            <MudIcon Icon="@(_duplexMuted ? Icons.Material.Filled.MicOff : Icons.Material.Filled.Mic)" Size="Size.Small" />
+                            <span>@(_duplexMuted ? "Unmute" : "Mute")</span>
+                        </button>
+
+                        @if (string.Equals(_duplexStatus, "speaking", StringComparison.Ordinal))
+                        {
+                            <button type="button"
+                                    class="oc-speech-item oc-live-voice-interrupt"
+                                    @onclick="InterruptContinuousPlaybackAsync"
+                                    aria-label="Stop speaking"
+                                    title="Stop speaking">
+                                <MudIcon Icon="@Icons.Material.Filled.Stop" Size="Size.Small" />
+                                <span>Interrupt</span>
+                            </button>
+                        }
+
+                        <button type="button"
+                                class="oc-speech-item oc-live-voice-stop"
+                                @onclick="StopContinuousVoiceAsync"
+                                aria-label="Stop live voice session"
+                                title="Stop live voice session">
+                            <MudIcon Icon="@Icons.Material.Filled.StopCircle" Size="Size.Small" />
+                            <span>Stop</span>
+                        </button>
+                    }
+
+                    @if (!string.IsNullOrEmpty(ContinuousVoiceStatusLabel))
+                    {
+                        <span class="oc-live-voice-status" role="status" aria-live="polite" aria-atomic="true">
+                            @ContinuousVoiceStatusLabel
+                        </span>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(_duplexError))
+                {
+                    <div class="oc-bubble-error oc-live-voice-error" role="status" aria-live="polite">@_duplexError</div>
+                }
             }
 
             <!-- Live streaming response -->
@@ -248,10 +294,10 @@
                 <div class="oc-bubble-error" role="status">@_speechError</div>
             }
 
-            @if (Suggestions?.Count > 0 && !IsLoading)
+            @if (EffectiveSuggestions.Count > 0 && !IsLoading)
             {
-                <div class="oc-bubble-chips" aria-label="Suggestions">
-                    @foreach (var suggestion in Suggestions)
+                <div class="oc-bubble-chips" aria-label="Suggested next steps">
+                    @foreach (var suggestion in EffectiveSuggestions)
                     {
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => UseSuggestion(suggestion))">@suggestion</MudChip>
                     }

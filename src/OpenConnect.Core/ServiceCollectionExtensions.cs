@@ -135,6 +135,7 @@ public static class ServiceCollectionExtensions
             .Configure(options => configure?.Invoke(options))
             .ValidateOnStart();
         services.TryAddSingleton<VoiceTurnCoordinator>();
+        services.TryAddSingleton<DuplexVoiceSessionCoordinator>();
         return services;
     }
 

@@ -18,4 +18,4 @@ const voiceExecution = voiceSynthesisFromEnvironment(process.env, authorization)
 const knowledgeEmbeddingExecution = knowledgeEmbeddingExecutionFromEnvironment(process.env, authorization);
 const server = createLocalServer(authorization, classificationProbe, classificationExecution, inferenceExecution, liveUIExecution, voiceExecution, knowledgeEmbeddingExecution, analyticsExecution);
 server.on('close', () => { classificationExecution?.keyring.dispose(); inferenceExecution?.keyring.dispose(); inferenceTokenizer?.dispose(); liveUIExecution?.keyring.dispose(); analyticsExecution?.keyring.dispose(); voiceExecution?.keyring.dispose(); knowledgeEmbeddingExecution?.keyring.dispose(); });
-server.listen(Number(process.env.PORT || 8091), '0.0.0.0');
+server.listen(Number(process.env.CLOUD_GATEWAY_PORT || process.env.PORT || 8091), '0.0.0.0');

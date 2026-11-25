@@ -28,7 +28,7 @@ export async function executeVoiceSynthesis(request, { controlPlane, keyring, di
             onAbort = () => resolve(false);
             if (readinessSignal.aborted) onAbort(); else readinessSignal.addEventListener('abort', onAbort, { once: true });
         });
-        if (await Promise.race([outputScreen.isReady(readinessSignal), aborted]) !== true || readinessSignal.aborted) return unavailable();
+        if (await Promise.race([outputScreen.isReady(readinessSignal, request.traceparent), aborted]) !== true || readinessSignal.aborted) return unavailable();
     } catch { return unavailable(); }
     finally { readinessSignal.removeEventListener('abort', onAbort); }
     return withVoiceSynthesisAdmission(request, { controlPlane, keyring }, async claim => {
