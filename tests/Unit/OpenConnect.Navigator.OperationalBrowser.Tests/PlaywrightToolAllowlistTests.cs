@@ -54,10 +54,29 @@ public sealed class PlaywrightToolAllowlistTests
     [InlineData("apiKey")]
     [InlineData("Enter OTP")]
     [InlineData("  CVV  ")]
+    [InlineData("Passphrase")]
+    [InlineData("Pass phrase")]
+    [InlineData("Verification code")]
+    [InlineData("Auth code")]
+    [InlineData("2FA code")]
+    [InlineData("MFA code")]
+    [InlineData("Recovery code")]
+    [InlineData("Credit card")]
+    [InlineData("Design tokens")]
+    [InlineData("Name\nPassword")]
+    [InlineData("Pass\u200Bword")]
     public void FillWithCredentialLikeTargetIsDenied(string target)
     {
         var json = JsonSerializer.Serialize(new { target, value = "x" });
         Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args(json), null, false, out _, out _, out var denial));
+        Assert.Equal("sensitive_input_denied", denial);
+    }
+
+    [Fact]
+    public void FillWithCredentialLikeTargetIsDeniedThroughShortOverload()
+    {
+        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args("{\"target\":\"Passphrase\",\"value\":\"x\"}"), null, false, out var tool, out var denial));
+        Assert.Equal(string.Empty, tool);
         Assert.Equal("sensitive_input_denied", denial);
     }
 

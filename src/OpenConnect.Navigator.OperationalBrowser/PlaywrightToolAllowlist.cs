@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using OpenConnect.Navigator;
 
 namespace OpenConnect.Navigator.Playwright;
@@ -126,11 +125,13 @@ public static class PlaywrightToolAllowlist
     private static readonly string[] CredentialTerms =
     [
         "password", "passcode", "passwd", "secret", "token", "credential", "apikey", "privatekey",
-        "onetimecode", "onetimepassword", "cardnumber", "securitycode", "socialsecurity"
+        "onetimecode", "onetimepassword", "cardnumber", "securitycode", "socialsecurity",
+        "passphrase", "verificationcode", "authcode", "authenticationcode", "recoverycode", "securityanswer",
+        "creditcard", "debitcard"
     ];
 
     // Short abbreviations are matched only as whole words to avoid hits inside ordinary words (e.g. "footprint").
-    private static readonly string[] CredentialWords = ["otp", "pin", "cvv", "cvc", "ssn", "pwd"];
+    private static readonly string[] CredentialWords = ["otp", "pin", "cvv", "cvc", "ssn", "pwd", "2fa", "mfa"];
 
     /// <summary>
     /// Heuristic: denies Fill when the target descriptor text names a credential-like field. This is a text
@@ -143,8 +144,28 @@ public static class PlaywrightToolAllowlist
         var compact = new string(target.Where(char.IsLetterOrDigit).ToArray());
         if (CredentialTerms.Any(term => compact.Contains(term, StringComparison.OrdinalIgnoreCase)))
             return true;
-        var words = Regex.Split(target, "[^\\p{L}\\p{Nd}]+", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+        var words = SplitWords(target);
         return words.Any(word => CredentialWords.Contains(word, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static List<string> SplitWords(string text)
+    {
+        var words = new List<string>();
+        var start = -1;
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (char.IsLetterOrDigit(text[i]))
+            {
+                if (start < 0) start = i;
+            }
+            else if (start >= 0)
+            {
+                words.Add(text[start..i]);
+                start = -1;
+            }
+        }
+        if (start >= 0) words.Add(text[start..]);
+        return words;
     }
 }
 
