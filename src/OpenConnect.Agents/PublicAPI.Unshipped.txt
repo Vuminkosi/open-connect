@@ -1,4 +1,11 @@
-#nullable enable
+﻿#nullable enable
+const OpenConnect.Agents.Catalog.AgentCatalog.FrameworkMaxDepth = 2 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
+const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
+const OpenConnect.Agents.Execution.ConversationCheckpointCodec.CurrentVersion = "oc-checkpoint/v1" -> string!
+const OpenConnect.Agents.Execution.ConversationCheckpointCodec.MaxCheckpointChildren = 64 -> int
 OpenConnect.Agents.Catalog.AgentCatalog
 OpenConnect.Agents.Catalog.AgentCatalog.AgentCatalog() -> void
 OpenConnect.Agents.Catalog.AgentCatalog.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -528,13 +535,13 @@ OpenConnect.Agents.Execution.NativeWorkflowInteraction.CancelAsync() -> System.T
 OpenConnect.Agents.Execution.NativeWorkflowInteraction.DisposeAsync() -> System.Threading.Tasks.ValueTask
 OpenConnect.Agents.Execution.NativeWorkflowInteraction.PendingExternalRequest.get -> Microsoft.Agents.AI.Workflows.ExternalRequest?
 OpenConnect.Agents.Execution.NativeWorkflowInteraction.RespondAsync(Microsoft.Agents.AI.Workflows.ExternalRequest! request, object! responseData, System.Func<Microsoft.Agents.AI.Workflows.ExternalRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
-OpenConnect.Agents.Execution.NativeWorkflowRunResult
-OpenConnect.Agents.Execution.NativeWorkflowRunResult.Events.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.Workflows.WorkflowEvent!>!
-OpenConnect.Agents.Execution.NativeWorkflowRunResult.Outputs.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.Workflows.WorkflowOutputEvent!>!
 OpenConnect.Agents.Execution.NativeWorkflowRunner
 OpenConnect.Agents.Execution.NativeWorkflowRunner.NativeWorkflowRunner() -> void
 OpenConnect.Agents.Execution.NativeWorkflowRunner.RunAgentTurnAsync(Microsoft.Agents.AI.Workflows.Workflow! workflow, System.Collections.Generic.List<Microsoft.Extensions.AI.ChatMessage!>! input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Agents.Execution.NativeWorkflowRunResult!>!
 OpenConnect.Agents.Execution.NativeWorkflowRunner.RunAsync<TInput>(Microsoft.Agents.AI.Workflows.Workflow! workflow, TInput input, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Agents.Execution.NativeWorkflowRunResult!>!
+OpenConnect.Agents.Execution.NativeWorkflowRunResult
+OpenConnect.Agents.Execution.NativeWorkflowRunResult.Events.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.Workflows.WorkflowEvent!>!
+OpenConnect.Agents.Execution.NativeWorkflowRunResult.Outputs.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.Workflows.WorkflowOutputEvent!>!
 OpenConnect.Agents.Execution.OperationalBoundary
 OpenConnect.Agents.Execution.OrchestrationAdapters
 OpenConnect.Agents.Execution.OrchestrationAdapters.DirectRunner(OpenConnect.Abstractions.AgentId agentId, string! prompt, OpenConnect.Agents.Execution.AgentExecutionContext! context) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
@@ -641,6 +648,23 @@ OpenConnect.Agents.Execution.TransitionAuthorization.Equals(OpenConnect.Agents.E
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.get -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.init -> void
 OpenConnect.Agents.Execution.TransitionAuthorization.TransitionAuthorization(bool Allowed, bool RequiresFreshUserTask) -> void
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.BrokeredMessagingAIFunction(OpenConnect.Abstractions.ToolId toolId, string! name, string! description, System.Text.Json.JsonElement jsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! invokeBroker, OpenConnect.Privacy.IEgressGate? egressGate = null, OpenConnect.Agents.Execution.IEgressContextProvider? contextProvider = null) -> void
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.<Clone>$() -> OpenConnect.Agents.Messaging.MessagingAgentToolBinding!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Deconstruct(out OpenConnect.Abstractions.ToolId ToolId, out string! Name, out string! Description, out string! JsonSchema) -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Description.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Description.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Equals(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? other) -> bool
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.JsonSchema.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.JsonSchema.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.MessagingAgentToolBinding(OpenConnect.Abstractions.ToolId ToolId, string! Name, string! Description, string! JsonSchema) -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Name.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Name.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToolId.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolkit
 OpenConnect.Agents.Providers.EchoProvider
 OpenConnect.Agents.Providers.EchoProvider.Descriptor.get -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.EchoProvider.EchoProvider() -> void
@@ -659,8 +683,8 @@ OpenConnect.Agents.Providers.ProviderDescriptor.Deconstruct(out string! Provider
 OpenConnect.Agents.Providers.ProviderDescriptor.Equals(OpenConnect.Agents.Providers.ProviderDescriptor? other) -> bool
 OpenConnect.Agents.Providers.ProviderDescriptor.Locality.get -> OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Agents.Providers.ProviderDescriptor.Locality.init -> void
-OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! ProviderId, bool SupportsChat, bool SupportsStreaming, bool SupportsTools, bool SupportsStructuredOutput, bool SupportsVision = false, OpenConnect.Abstractions.ModelExecutionLocation Locality = OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly) -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! providerId, bool supportsChat, bool supportsStreaming, bool supportsTools, bool supportsStructuredOutput) -> void
+OpenConnect.Agents.Providers.ProviderDescriptor.ProviderDescriptor(string! ProviderId, bool SupportsChat, bool SupportsStreaming, bool SupportsTools, bool SupportsStructuredOutput, bool SupportsVision = false, OpenConnect.Abstractions.ModelExecutionLocation Locality = OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly) -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderId.get -> string!
 OpenConnect.Agents.Providers.ProviderDescriptor.ProviderId.init -> void
 OpenConnect.Agents.Providers.ProviderDescriptor.SupportsChat.get -> bool
@@ -843,13 +867,6 @@ OpenConnect.Agents.Templates.TemplateVariables.TaskGoal.init -> void
 OpenConnect.Agents.Templates.TemplateVariables.TemplateVariables() -> void
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.get -> string?
 OpenConnect.Agents.Templates.TemplateVariables.UserProfileSummary.init -> void
-const OpenConnect.Agents.Catalog.AgentCatalog.FrameworkMaxDepth = 2 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxApprovedArtifactsTokenBudget = 32768 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxRelevantHistoryTokenBudget = 16384 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxScopedMemoryTokenBudget = 8192 -> int
-const OpenConnect.Agents.Execution.ContextProjectionBounds.MaxTaskSummaryTokenBudget = 8192 -> int
-const OpenConnect.Agents.Execution.ConversationCheckpointCodec.CurrentVersion = "oc-checkpoint/v1" -> string!
-const OpenConnect.Agents.Execution.ConversationCheckpointCodec.MaxCheckpointChildren = 64 -> int
 override OpenConnect.Agents.Catalog.DelegationParentContext.Equals(object? obj) -> bool
 override OpenConnect.Agents.Catalog.DelegationParentContext.GetHashCode() -> int
 override OpenConnect.Agents.Catalog.DelegationParentContext.ToString() -> string!
@@ -937,6 +954,12 @@ override OpenConnect.Agents.Execution.StructuredOutputValidationResult.ToString(
 override OpenConnect.Agents.Execution.TransitionAuthorization.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.TransitionAuthorization.GetHashCode() -> int
 override OpenConnect.Agents.Execution.TransitionAuthorization.ToString() -> string!
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.Description.get -> string!
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.JsonSchema.get -> System.Text.Json.JsonElement
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.Name.get -> string!
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Equals(object? obj) -> bool
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.GetHashCode() -> int
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToString() -> string!
 override OpenConnect.Agents.Providers.ProviderDescriptor.Equals(object? obj) -> bool
 override OpenConnect.Agents.Providers.ProviderDescriptor.GetHashCode() -> int
 override OpenConnect.Agents.Providers.ProviderDescriptor.ToString() -> string!
@@ -1044,6 +1067,9 @@ static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator !=
 static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator ==(OpenConnect.Agents.Execution.StructuredOutputValidationResult? left, OpenConnect.Agents.Execution.StructuredOutputValidationResult? right) -> bool
 static OpenConnect.Agents.Execution.TransitionAuthorization.operator !=(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
 static OpenConnect.Agents.Execution.TransitionAuthorization.operator ==(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolBinding.operator !=(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? left, OpenConnect.Agents.Messaging.MessagingAgentToolBinding? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolBinding.operator ==(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? left, OpenConnect.Agents.Messaging.MessagingAgentToolBinding? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolkit.CreateFunctions(System.Collections.Generic.IEnumerable<OpenConnect.Agents.Messaging.MessagingAgentToolBinding!>! bindings, System.Func<OpenConnect.Abstractions.ToolId, System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! invokeBroker, OpenConnect.Privacy.IEgressGate? egressGate = null, OpenConnect.Agents.Execution.IEgressContextProvider? contextProvider = null) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction!>!
 static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 static OpenConnect.Agents.Providers.ProviderDescriptor.operator !=(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool
 static OpenConnect.Agents.Providers.ProviderDescriptor.operator ==(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool

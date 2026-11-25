@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.Allowed = "allowed" -> string!
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ApplicationMismatch = "application_mismatch" -> string!
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.DnsResolutionFailed = "dns_resolution_failed" -> string!
@@ -17,6 +17,7 @@ const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.SchemeNot
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ServiceNotRegistered = "service_not_registered" -> string!
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.TenantMismatch = "tenant_mismatch" -> string!
 const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.UserInfoRejected = "userinfo_rejected" -> string!
+const OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeWebSocketHandler.SubProtocol = "openconnect.messaging.v1" -> string!
 OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter
 OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker
@@ -313,6 +314,143 @@ OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.InMemoryTaskStore() -> void
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.TransitionAsync(OpenConnect.Abstractions.TaskId taskId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.AgentRunState expectedState, OpenConnect.Abstractions.AgentRunState newState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
 OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
 OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker
+OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker.DefaultMessagingVoiceAdmissionBroker(OpenConnect.Hosting.AspNetCore.InMemorySessionStore! sessionStore, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker.IssueAdmissionAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingAttachmentStore
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingAttachmentStore.CompleteUploadAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.AttachmentId attachmentId, System.ReadOnlyMemory<byte> encryptedBytes, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.AttachmentRecord!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingAttachmentStore.DownloadAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.AttachmentId attachmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload?>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingAttachmentStore.InitUploadAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, long encryptedSizeBytes, string! encryptedDigestSha256, System.TimeSpan expiry, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.AttachmentRecord!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingEventReplayStore
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingEventReplayStore.ListConversationsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, int limit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationRecord!>!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingEventReplayStore.ListMessagesAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, long afterSequence, int limit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessageRecord!>!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingEventReplayStore.ReplayEventsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId? deviceId, long afterSequence, int limit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingFollowUpDispatcher
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingFollowUpDispatcher.DispatchAsync(OpenConnect.Abstractions.Messaging.FollowUpRecord! followUp, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingKeyPackageStore
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingKeyPackageStore.ConsumeOneAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId? ownerPrincipalId, OpenConnect.Abstractions.AgentId? ownerAgentId, OpenConnect.Abstractions.Messaging.DeviceId? deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceKeyPackage?>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingKeyPackageStore.PublishAsync(OpenConnect.Abstractions.Messaging.DeviceKeyPackage! keyPackage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceKeyPackage!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingPushRegistrationStore
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingPushRegistrationStore.RegisterAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.Messaging.PushProviderKind provider, string! protectedTokenHandle, bool consentGranted, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.PushRegistrationRecord!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingPushRegistrationStore.RevokeAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.Messaging.PushProviderKind? provider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingRealtimeHub
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingRealtimeHub.ActiveConnectionCount.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingRealtimeHub.CloseDeviceConnectionsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingRealtimeHub.PublishToPrincipalAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingVoiceAdmissionBroker
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingVoiceAdmissionBroker.IssueAdmissionAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingWebSocketTicketService
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingWebSocketTicketService.IssueAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId? deviceId, string? allowedOrigin, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket!>
+OpenConnect.Hosting.AspNetCore.Messaging.IMessagingWebSocketTicketService.TryConsumeAsync(string! ticket, string? requestOrigin, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket?>
+OpenConnect.Hosting.AspNetCore.Messaging.InMemoryMessagingWebSocketTicketService
+OpenConnect.Hosting.AspNetCore.Messaging.InMemoryMessagingWebSocketTicketService.InMemoryMessagingWebSocketTicketService(Microsoft.Extensions.Options.IOptions<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>! options, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.InMemoryMessagingWebSocketTicketService.IssueAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId? deviceId, string? allowedOrigin, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket!>
+OpenConnect.Hosting.AspNetCore.Messaging.InMemoryMessagingWebSocketTicketService.TryConsumeAsync(string! ticket, string? requestOrigin, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket?>
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.Deconstruct(out OpenConnect.Abstractions.Messaging.AttachmentRecord! Metadata, out System.ReadOnlyMemory<byte> EncryptedBytes) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.EncryptedBytes.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.EncryptedBytes.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.Equals(OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload? other) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.MessagingAttachmentDownload(OpenConnect.Abstractions.Messaging.AttachmentRecord! Metadata, System.ReadOnlyMemory<byte> EncryptedBytes) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.Metadata.get -> OpenConnect.Abstractions.Messaging.AttachmentRecord!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.Metadata.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingCursorCodec
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingCursorCodec.Encode(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId? deviceId, string! scope, long sequence) -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingCursorCodec.MessagingCursorCodec(Microsoft.Extensions.Options.IOptions<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>? options = null) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingCursorCodec.TryDecode(string! cursor, OpenConnect.Abstractions.TenantId expectedTenantId, OpenConnect.Abstractions.PrincipalId expectedPrincipalId, OpenConnect.Abstractions.Messaging.DeviceId? expectedDeviceId, string! expectedScope, out long sequence) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>! Events, out string? NextCursor, out bool HasMore) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.Equals(OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage? other) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.Events.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.Events.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.HasMore.get -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.HasMore.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.MessagingEventPage(System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>! Events, string? NextCursor, bool HasMore) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.NextCursor.get -> string?
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.NextCursor.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService.ExecuteSingleCycleAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<int>!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService.MessagingFollowUpSupervisorService(OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator! coordinator, OpenConnect.Hosting.AspNetCore.Messaging.IMessagingFollowUpDispatcher! dispatcher, Microsoft.Extensions.Options.IOptions<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>! options, Microsoft.Extensions.Logging.ILogger<OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService!>! logger, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowedWebSocketOrigins.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowUnencryptedFallback.get -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowUnencryptedFallback.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.ApplicationId.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.ApplicationId.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Audience.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Audience.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.CompanyDisplayName.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.CompanyDisplayName.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.CursorSigningKey.get -> byte[]?
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.CursorSigningKey.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Enabled.get -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Enabled.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpBatchSize.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpBatchSize.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpLeaseDuration.get -> System.TimeSpan
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpLeaseDuration.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpLeaseOwner.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpLeaseOwner.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpPollInterval.get -> System.TimeSpan
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpPollInterval.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Issuer.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Issuer.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxAttachmentBytes.get -> long
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxAttachmentBytes.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxReplayPageSize.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxReplayPageSize.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxRequestBodyBytes.get -> long
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxRequestBodyBytes.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxWebSocketQueueDepth.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxWebSocketQueueDepth.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MessagingHostingOptions() -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.RequireEncryption.get -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.RequireEncryption.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.WebSocketHeartbeatInterval.get -> System.TimeSpan
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.WebSocketHeartbeatInterval.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.WebSocketTicketLifetime.get -> System.TimeSpan
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.WebSocketTicketLifetime.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingServiceCollectionExtensions
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeHub
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeHub.ActiveConnectionCount.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeHub.CloseDeviceConnectionsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeHub.MessagingRealtimeHub(Microsoft.Extensions.Options.IOptions<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>! options) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeHub.PublishToPrincipalAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeWebSocketHandler
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.AdmissionToken.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.AdmissionToken.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.AdmissionTokenHash.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.AdmissionTokenHash.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.Deconstruct(out OpenConnect.Abstractions.SessionId VoiceSessionId, out string! AdmissionToken, out string! AdmissionTokenHash, out System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.Equals(OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission? other) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.ExpiresAtUtc.get -> System.DateTimeOffset
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.ExpiresAtUtc.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.MessagingVoiceAdmission(OpenConnect.Abstractions.SessionId VoiceSessionId, string! AdmissionToken, string! AdmissionTokenHash, System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.VoiceSessionId.get -> OpenConnect.Abstractions.SessionId
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.VoiceSessionId.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.<Clone>$() -> OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.AllowedOrigin.get -> string?
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.AllowedOrigin.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.ApplicationId.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.ApplicationId.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.Deconstruct(out string! Ticket, out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.Messaging.DeviceId? DeviceId, out string? AllowedOrigin, out System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId?
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.DeviceId.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.Equals(OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket? other) -> bool
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.ExpiresAtUtc.get -> System.DateTimeOffset
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.ExpiresAtUtc.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.MessagingWebSocketTicket(string! Ticket, OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.Messaging.DeviceId? DeviceId, string? AllowedOrigin, System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.PrincipalId.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.TenantId.init -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.Ticket.get -> string!
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.Ticket.init -> void
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.DataProtectionNativeAgentSessionProtector(Microsoft.AspNetCore.DataProtection.IDataProtectionProvider! provider) -> void
 OpenConnect.Hosting.AspNetCore.Protection.DataProtectionNativeAgentSessionProtector.ProtectAsync(OpenConnect.Abstractions.Persistence.NativeAgentSessionBinding! binding, System.ReadOnlyMemory<byte> plaintext, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<byte[]!>!
@@ -392,6 +530,18 @@ override OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence.ToString(
 override OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext.Equals(object? obj) -> bool
 override OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext.GetHashCode() -> int
 override OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.ToString() -> string!
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.Equals(object? obj) -> bool
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.GetHashCode() -> int
+override OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.ToString() -> string!
 override OpenConnect.Hosting.AspNetCore.SessionRecord.Equals(object? obj) -> bool
 override OpenConnect.Hosting.AspNetCore.SessionRecord.GetHashCode() -> int
 override OpenConnect.Hosting.AspNetCore.SessionRecord.ToString() -> string!
@@ -405,6 +555,7 @@ override OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.Dispose() -> voi
 static OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter.TryToCanonical(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionUuid, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnect(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectMcp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
+static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectMessaging(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectNavigator(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.MapOpenConnectVoice(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints) -> Microsoft.AspNetCore.Routing.IEndpointRouteBuilder!
 static OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.operator !=(OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? left, OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord? right) -> bool
@@ -426,6 +577,17 @@ static OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext.ope
 static OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingServiceCollectionExtensions.AddOpenConnectFencedHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! serviceId, System.Action<OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy!>! configurePolicy) -> Microsoft.Extensions.DependencyInjection.IHttpClientBuilder!
 static OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingServiceCollectionExtensions.AddOpenConnectServiceFencing(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.Fencing.SystemFencedHostAddressResolver.Instance.get -> OpenConnect.Hosting.AspNetCore.Fencing.SystemFencedHostAddressResolver!
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.operator !=(OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload.operator ==(OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingAttachmentDownload? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.operator !=(OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage.operator ==(OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingEventPage? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingServiceCollectionExtensions.AddOpenConnectMessagingFollowUpSupervisor(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingServiceCollectionExtensions.AddOpenConnectMessagingHosting(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeWebSocketHandler.HandleAsync(Microsoft.AspNetCore.Http.HttpContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.operator !=(OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission.operator ==(OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.operator !=(OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket? right) -> bool
+static OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket.operator ==(OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket? left, OpenConnect.Hosting.AspNetCore.Messaging.MessagingWebSocketTicket? right) -> bool
 static OpenConnect.Hosting.AspNetCore.Protection.NativeAgentSessionProtectionServiceCollectionExtensions.AddOpenConnectNativeAgentSessionProtection(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Hosting.AspNetCore.SessionRecord.operator !=(OpenConnect.Hosting.AspNetCore.SessionRecord? left, OpenConnect.Hosting.AspNetCore.SessionRecord? right) -> bool
 static OpenConnect.Hosting.AspNetCore.SessionRecord.operator ==(OpenConnect.Hosting.AspNetCore.SessionRecord? left, OpenConnect.Hosting.AspNetCore.SessionRecord? right) -> bool
