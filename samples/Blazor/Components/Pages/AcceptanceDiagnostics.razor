@@ -1,0 +1,660 @@
+@page "/diagnostics"
+@rendermode InteractiveServer
+@using System.Text.Json
+@using OpenConnect.Abstractions
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Samples.Blazor.Diagnostics
+@using OpenConnect.Samples.Blazor.Models
+@inject TodoAcceptanceDiagnosticsService Diagnostics
+@inject ISnackbar Snackbar
+
+<PageTitle>OpenConnect - Acceptance Diagnostics</PageTitle>
+
+<div class="d-flex flex-column flex-md-row justify-space-between align-md-center gap-3 mb-6">
+    <div>
+        <MudText Typo="Typo.h4" Class="font-weight-bold" GutterBottom="false">Acceptance Diagnostics Console</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            Live runtime telemetry, encryption disclosures, and deterministic controls for P0 End-to-End acceptance verification.
+        </MudText>
+    </div>
+
+    @if (Diagnostics.IsDevelopment)
+    {
+        <div class="d-flex flex-wrap align-center gap-2">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       Class="oc-touch-target"
+                       Disabled="@_loading"
+                       OnClick="RefreshSnapshotAsync">
+                Refresh Snapshot
+            </MudButton>
+            @if (_snapshot is not null)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="oc-tabular">
+                    Updated @_snapshot.GeneratedAtUtc.ToString("HH:mm:ss") UTC
+                </MudText>
+            }
+        </div>
+    }
+</div>
+
+@if (!Diagnostics.IsDevelopment)
+{
+    <MudPaper Elevation="0" Class="oc-surface-card pa-6" role="status">
+        <div class="d-flex align-start gap-3">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Color="Color.Secondary" aria-hidden="true" />
+            <div>
+                <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Diagnostics Disabled Outside Development</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    The Acceptance Diagnostics Console and failure-injection controls are strictly restricted to the Development environment and are disabled in this deployment.
+                </MudText>
+            </div>
+        </div>
+    </MudPaper>
+}
+else if (_loading && _snapshot is null)
+{
+    <MudPaper Elevation="0" Class="oc-surface-card pa-8 d-flex flex-column align-center" role="status" aria-label="Loading diagnostics">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Collecting live runtime telemetry...</MudText>
+    </MudPaper>
+}
+else if (_snapshot is not null)
+{
+    <!-- Honest Encryption Profile Disclosure Banner -->
+    <section class="oc-encryption-disclosure mb-6" aria-label="Encryption profile disclosure">
+        <MudIcon Icon="@Icons.Material.Outlined.EnhancedEncryption" Color="Color.Warning" aria-hidden="true" />
+        <div style="flex: 1; min-width: 0;">
+            <div class="d-flex flex-wrap align-center gap-2 mb-1">
+                <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Encryption &amp; Cryptographic Seam Disclosure</MudText>
+                <span class="oc-status-badge oc-status-badge--info oc-mono">@_snapshot.CryptoProfile.ProtocolName</span>
+                <span class="oc-status-badge @(_snapshot.CryptoProfile.RequireEncryption ? "oc-status-badge--success" : "oc-status-badge--warning")">
+                    @(_snapshot.CryptoProfile.RequireEncryption ? "Encryption Required" : "Encryption Optional")
+                </span>
+                <span class="oc-status-badge oc-status-badge--warning">
+                    RFC 9420 MLS Interop: Not Yet Complete
+                </span>
+            </div>
+            <MudText Typo="Typo.body2">@_snapshot.CryptoProfile.HonestDisclosure</MudText>
+        </div>
+    </section>
+
+    <!-- Deterministic Acceptance Controls -->
+    <MudPaper Elevation="0" Class="oc-surface-card pa-4 mb-6" aria-label="Deterministic acceptance controls">
+        <div class="d-flex flex-column flex-md-row justify-space-between align-md-center gap-3">
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Deterministic Acceptance Controls</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Trigger real operational task expiration, deadline monitoring sweeps, and honest worker outage simulation.
+                </MudText>
+            </div>
+            <div class="d-flex flex-wrap align-center gap-2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.AddAlert"
+                           Class="oc-touch-target"
+                           Disabled="@_busy"
+                           OnClick="CreateUrgentExpiringTaskAsync">
+                    Create Urgent Expiring Task (Employee A)
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                           Class="oc-touch-target"
+                           Disabled="@_busy"
+                           OnClick="RunDeadlineSweepNowAsync">
+                    Run Deadline Sweep Now
+                </MudButton>
+                <MudSwitch T="bool"
+                           Value="@Diagnostics.IsWorkerOutageInjected"
+                           ValueChanged="ToggleWorkerOutageAsync"
+                           Color="Color.Error"
+                           Label="Inject Worker Outage"
+                           Class="ml-2" />
+            </div>
+        </div>
+
+        @if (_lastActionNote is not null)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-3">
+                @_lastActionNote
+            </MudAlert>
+        }
+    </MudPaper>
+
+    <!-- KPI Telemetry Summary -->
+    <div class="oc-diag-grid mb-6">
+        <div class="oc-stat-card">
+            <div style="flex: 1;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">IMessaging Worker</MudText>
+                <div class="d-flex align-center gap-2 mt-1">
+                    <span class="oc-status-badge @GetWorkerStatusClass(_snapshot.WorkerReadiness)">
+                        @_snapshot.WorkerReadiness.Status
+                    </span>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mt-1">
+                    @_snapshot.WorkerReadiness.Detail
+                </MudText>
+            </div>
+        </div>
+
+        <div class="oc-stat-card">
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Active WebSockets</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold oc-tabular">@_snapshot.ActiveWebSocketConnections</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Messaging: @(_snapshot.MessagingEnabled ? "Enabled" : "Disabled")
+                </MudText>
+            </div>
+        </div>
+
+        <div class="oc-stat-card">
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Durable Follow-Ups</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold oc-tabular">@_snapshot.FollowUps.Count</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="oc-tabular">
+                    @_snapshot.FollowUps.Count(f => f.State is "Scheduled" or "Pending" or "Claimed") active · @_snapshot.FollowUps.Count(f => f.State == "Cancelled") cancelled
+                </MudText>
+            </div>
+        </div>
+
+        <div class="oc-stat-card">
+            <div>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="text-uppercase font-weight-bold">Linked Devices &amp; Receipts</MudText>
+                <MudText Typo="Typo.h5" Class="font-weight-bold oc-tabular">@_snapshot.Devices.Count / @_snapshot.Receipts.Count</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="oc-tabular">
+                    @_snapshot.Devices.Count(d => d.RevokedAtUtc is null && !string.Equals(d.Status, "Revoked", StringComparison.OrdinalIgnoreCase)) active devices
+                </MudText>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linked Mobile Devices -->
+    <MudPaper Elevation="0" Class="oc-surface-card pa-4 mb-6">
+        <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Linked Mobile &amp; Desktop Devices</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+            Enrolled devices across development tenants. Revocation immediately invalidates refresh grants and terminates active WebSockets.
+        </MudText>
+        @if (_snapshot.Devices.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">
+                No enrolled devices recorded yet. Use MiniComposer Settings &rarr; Linked Devices &rarr; Link OpenConnect Mobile to pair an Android emulator or device.
+            </MudText>
+        }
+        else
+        {
+            <div class="oc-diag-table-wrap">
+                <table class="oc-diag-table">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>Platform</th>
+                            <th>Tenant / Principal</th>
+                            <th>Status</th>
+                            <th>Key Fingerprint</th>
+                            <th>Last Seen (UTC)</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var device in _snapshot.Devices)
+                        {
+                            var isRevoked = device.RevokedAtUtc.HasValue || string.Equals(device.Status, "Revoked", StringComparison.OrdinalIgnoreCase);
+                            <tr @key="device.DeviceId">
+                                <td>
+                                    <strong>@device.DisplayName</strong>
+                                    <div class="oc-mono" style="font-size: 0.72rem; color: var(--mud-palette-text-secondary);">@device.DeviceId</div>
+                                </td>
+                                <td>@device.Platform</td>
+                                <td>
+                                    <div>@ResolveTenantLabel(device.TenantId)</div>
+                                    <div style="color: var(--mud-palette-text-secondary);">@ResolvePrincipalLabel(device.PrincipalId)</div>
+                                </td>
+                                <td>
+                                    <span class="oc-status-badge @(isRevoked ? "oc-status-badge--error" : "oc-status-badge--success")">
+                                        @device.Status
+                                    </span>
+                                </td>
+                                <td class="oc-mono">@device.KeyFingerprint</td>
+                                <td class="oc-tabular">@device.LastSeenAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td>
+                                    @if (!isRevoked)
+                                    {
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   Class="oc-touch-target"
+                                                   Disabled="@_busy"
+                                                   OnClick="@(() => RevokeDeviceAsync(device))">
+                                            Revoke
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <span style="color: var(--mud-palette-text-secondary);">Revoked</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+
+    <!-- Operational Tasks & Audit Trail -->
+    <MudPaper Elevation="0" Class="oc-surface-card pa-4 mb-6">
+        <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Operational Tasks &amp; Audit Trail</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+            Cross-tenant Development view of persisted SQLite tasks, deadlines, assignees, and immutable audit entries.
+        </MudText>
+        @if (_snapshot.Tasks.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">No tasks persisted yet.</MudText>
+        }
+        else
+        {
+            <div class="oc-diag-table-wrap">
+                <table class="oc-diag-table">
+                    <thead>
+                        <tr>
+                            <th>Tenant</th>
+                            <th>Task</th>
+                            <th>Assignee</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Due (UTC)</th>
+                            <th>Audit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var task in _snapshot.Tasks)
+                        {
+                            var isOverdue = !task.IsCompleted && task.DueDateUtc is { } d && d < DateTime.UtcNow;
+                            var audits = ParseAudits(task.AuditHistoryJson);
+                            <tr @key="task.Id">
+                                <td>@(string.IsNullOrWhiteSpace(task.TenantId) ? "local" : ResolveTenantLabel(task.TenantId))</td>
+                                <td>
+                                    <strong>@task.Title</strong>
+                                    @if (!string.IsNullOrWhiteSpace(task.EscalationPolicy))
+                                    {
+                                        <div class="oc-mono" style="font-size: 0.72rem; color: var(--mud-palette-text-secondary);">@task.EscalationPolicy</div>
+                                    }
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(task.AssignedPrincipalId) ? "Unassigned" : ResolvePrincipalLabel(task.AssignedPrincipalId))</td>
+                                <td>@task.Priority</td>
+                                <td>
+                                    <span class="oc-status-badge @(task.IsCompleted ? "oc-status-badge--success" : string.Empty)">
+                                        @(task.IsCompleted ? TodoStatus.Completed : task.Status)
+                                    </span>
+                                    @if (isOverdue)
+                                    {
+                                        <span class="oc-overdue-banner ml-1">Overdue</span>
+                                    }
+                                </td>
+                                <td class="oc-tabular">@(task.DueDateUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                                <td>
+                                    @if (audits.Count == 0)
+                                    {
+                                        <span style="color: var(--mud-palette-text-secondary);">0 entries</span>
+                                    }
+                                    else
+                                    {
+                                        <details>
+                                            <summary style="cursor: pointer;">@audits.Count entries</summary>
+                                            <ul class="oc-audit-list mt-2">
+                                                @foreach (var a in audits.OrderByDescending(x => x.TimestampUtc))
+                                                {
+                                                    <li>
+                                                        <strong>@a.Action</strong> (@a.ActorId): @a.Summary
+                                                        <span class="oc-tabular" style="color: var(--mud-palette-text-secondary);">[@a.TimestampUtc.ToString("HH:mm:ss")]</span>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </details>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+
+    <!-- Durable Follow-Ups -->
+    <MudPaper Elevation="0" Class="oc-surface-card pa-4 mb-6">
+        <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Durable Follow-Up Schedules</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+            Pending, dispatched, and cancelled operational follow-ups with idempotency keys.
+        </MudText>
+        @if (_snapshot.FollowUps.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">No follow-ups scheduled yet.</MudText>
+        }
+        else
+        {
+            <div class="oc-diag-table-wrap">
+                <table class="oc-diag-table">
+                    <thead>
+                        <tr>
+                            <th>Tenant</th>
+                            <th>Agent</th>
+                            <th>Recipient</th>
+                            <th>State</th>
+                            <th>Attempts</th>
+                            <th>Due (UTC)</th>
+                            <th>Idempotency Key</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fu in _snapshot.FollowUps)
+                        {
+                            <tr @key="fu.FollowUpId">
+                                <td>@ResolveTenantLabel(fu.TenantId)</td>
+                                <td class="oc-mono">@fu.AgentId</td>
+                                <td>@ResolvePrincipalLabel(fu.RecipientPrincipalId)</td>
+                                <td>
+                                    <span class="oc-status-badge @(fu.State == "Cancelled" ? "oc-status-badge--warning" : fu.State == "Completed" ? "oc-status-badge--success" : "oc-status-badge--info")">
+                                        @fu.State
+                                    </span>
+                                </td>
+                                <td class="oc-tabular">@fu.Attempt / @fu.MaxAttempts</td>
+                                <td class="oc-tabular">@fu.DueAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td class="oc-mono">@fu.IdempotencyKey</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+
+    <!-- Messaging Receipts -->
+    <MudPaper Elevation="0" Class="oc-surface-card pa-4 mb-6">
+        <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Messaging Receipts</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+            Monotonic delivery and read receipts persisted in SQLite.
+        </MudText>
+        @if (_snapshot.Receipts.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">No receipts recorded yet.</MudText>
+        }
+        else
+        {
+            <div class="oc-diag-table-wrap">
+                <table class="oc-diag-table">
+                    <thead>
+                        <tr>
+                            <th>Conversation</th>
+                            <th>Message</th>
+                            <th>Principal</th>
+                            <th>Kind</th>
+                            <th>Seq</th>
+                            <th>Recorded (UTC)</th>
+                            <th>Failure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var receipt in _snapshot.Receipts)
+                        {
+                            <tr>
+                                <td class="oc-mono">@ShortId(receipt.ConversationId)</td>
+                                <td class="oc-mono">@ShortId(receipt.MessageId)</td>
+                                <td>@ResolvePrincipalLabel(receipt.PrincipalId)</td>
+                                <td><span class="oc-status-badge">@receipt.Kind</span></td>
+                                <td class="oc-tabular">@receipt.Sequence</td>
+                                <td class="oc-tabular">@receipt.RecordedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td>@(receipt.FailureReason ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </MudPaper>
+
+    <!-- Push Delivery Attempts & Sanitized Security Evidence -->
+    <MudGrid Spacing="3">
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="0" Class="oc-surface-card pa-4" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Push Delivery Attempts</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+                    Wake-only push notifications (zero message plaintext or sensitive payload).
+                </MudText>
+                @if (_snapshot.PushAttempts.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">No push delivery attempts recorded in this process.</MudText>
+                }
+                else
+                {
+                    <div class="oc-diag-table-wrap">
+                        <table class="oc-diag-table">
+                            <thead>
+                                <tr>
+                                    <th>Time (UTC)</th>
+                                    <th>Provider</th>
+                                    <th>Status</th>
+                                    <th>Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var push in _snapshot.PushAttempts)
+                                {
+                                    <tr>
+                                        <td class="oc-tabular">@push.TimestampUtc.ToString("HH:mm:ss")</td>
+                                        <td>@push.Provider</td>
+                                        <td><span class="oc-status-badge">@push.Status</span></td>
+                                        <td>@push.Summary</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <MudPaper Elevation="0" Class="oc-surface-card pa-4" Style="height: 100%;">
+                <MudText Typo="Typo.h6" Class="font-weight-bold mb-1">Sanitized Security Evidence Feed</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-3">
+                    Content-free authorization, revocation, and failure-injection evidence (never logs raw tokens or PII).
+                </MudText>
+                @if (_snapshot.SecurityEvidence.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" role="status">No security evidence entries recorded yet.</MudText>
+                }
+                else
+                {
+                    <div class="oc-diag-table-wrap">
+                        <table class="oc-diag-table">
+                            <thead>
+                                <tr>
+                                    <th>Time (UTC)</th>
+                                    <th>Category</th>
+                                    <th>Outcome</th>
+                                    <th>Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ev in _snapshot.SecurityEvidence)
+                                {
+                                    <tr>
+                                        <td class="oc-tabular">@ev.TimestampUtc.ToString("HH:mm:ss")</td>
+                                        <td class="oc-mono">@ev.Category</td>
+                                        <td><span class="oc-status-badge">@ev.Outcome</span></td>
+                                        <td>@ev.Summary</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private AcceptanceDiagnosticsSnapshot? _snapshot;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _lastActionNote;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Diagnostics.IsDevelopment)
+        {
+            await RefreshSnapshotAsync();
+        }
+        else
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RefreshSnapshotAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _snapshot = await Diagnostics.GetSnapshotAsync();
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateUrgentExpiringTaskAsync()
+    {
+        _busy = true;
+        try
+        {
+            var result = await Diagnostics.CreateUrgentExpiringTaskAsync("tenant-acme", "emp-a");
+            _lastActionNote = $"Created urgent expiring task \"{result.Task.Title}\" assigned to {result.AssigneeDisplayName} ({result.TenantKey}).";
+            Snackbar.Add("Urgent expiring task created for Employee A.", Severity.Success);
+            await RefreshSnapshotAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RunDeadlineSweepNowAsync()
+    {
+        _busy = true;
+        try
+        {
+            var sweep = await Diagnostics.RunDeadlineSweepNowAsync();
+            var notes = sweep.Notes.Count > 0 ? $" Notes: {string.Join(" | ", sweep.Notes)}" : string.Empty;
+            _lastActionNote = $"Sweep at {sweep.SweptAtUtc:HH:mm:ss} UTC — Overdue found: {sweep.OverdueTasksFound}, Alerts dispatched: {sweep.AlertsDispatched}, Follow-ups scheduled: {sweep.FollowUpsScheduled}, Processed: {sweep.FollowUpsProcessed}, Worker: {sweep.WorkerStatus}.{notes}";
+            Snackbar.Add($"Deadline sweep complete ({sweep.OverdueTasksFound} overdue found).", Severity.Info);
+            await RefreshSnapshotAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ToggleWorkerOutageAsync(bool enabled)
+    {
+        Diagnostics.InjectWorkerOutage(enabled);
+        _lastActionNote = enabled
+            ? "Simulated workers/imessaging outage enabled. Outbound worker dispatch will degrade honestly."
+            : "Simulated workers/imessaging outage cleared.";
+        Snackbar.Add(enabled ? "Worker outage injected." : "Worker outage cleared.", enabled ? Severity.Warning : Severity.Success);
+        await RefreshSnapshotAsync();
+    }
+
+    private async Task RevokeDeviceAsync(DeviceDiagnosticItem device)
+    {
+        if (!TryParseUlid(device.TenantId, out var tUlid)
+            || !TryParseUlid(device.PrincipalId, out var pUlid)
+            || !TryParseUlid(device.DeviceId, out var dUlid))
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var revoked = await Diagnostics.RevokeDeviceAsync(new TenantId(tUlid), new PrincipalId(pUlid), new DeviceId(dUlid));
+            _lastActionNote = revoked
+                ? $"Revoked device \"{device.DisplayName}\" ({ShortId(device.DeviceId)}) and terminated active WebSockets."
+                : "Device enrollment coordinator was not available to revoke device.";
+            Snackbar.Add(revoked ? "Device revoked." : "Revocation unavailable.", revoked ? Severity.Warning : Severity.Error);
+            await RefreshSnapshotAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string GetWorkerStatusClass(WorkerReadinessDiagnostic worker) => worker.Status switch
+    {
+        "ready" => "oc-status-badge--success",
+        "degraded_outage_injected" or "unreachable" or "degraded" => "oc-status-badge--error",
+        _ => "oc-status-badge--warning"
+    };
+
+    private static string ResolveTenantLabel(string tenantId)
+    {
+        if (TryParseUlid(tenantId, out var ulid))
+        {
+            var found = TodoDirectorySeed.FindTenant(new TenantId(ulid));
+            if (found is not null)
+                return found.DisplayName;
+        }
+        return ShortId(tenantId);
+    }
+
+    private static string ResolvePrincipalLabel(string principalId)
+    {
+        if (TryParseUlid(principalId, out var ulid))
+        {
+            var found = TodoDirectorySeed.Principals.FirstOrDefault(p => p.PrincipalId == new PrincipalId(ulid));
+            if (found is not null)
+                return found.DisplayName;
+        }
+        return ShortId(principalId);
+    }
+
+    private static bool TryParseUlid(string? text, out Ulid ulid)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            try
+            {
+                ulid = Ulid.Parse(text);
+                return true;
+            }
+            catch (FormatException) { }
+        }
+        ulid = default;
+        return false;
+    }
+
+    private static string ShortId(string id) => id.Length > 10 ? $"{id[..10]}…" : id;
+
+    private static IReadOnlyList<TodoAuditEntry> ParseAudits(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<TodoAuditEntry>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<TodoAuditEntry>>(json, JsonOptions) ?? [];
+        }
+        catch
+        {
+            return Array.Empty<TodoAuditEntry>();
+        }
+    }
+}

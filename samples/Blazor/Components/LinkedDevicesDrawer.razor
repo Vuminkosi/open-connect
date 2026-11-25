@@ -1,0 +1,448 @@
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using OpenConnect.Abstractions
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+@using OpenConnect.Hosting.AspNetCore.Messaging
+@using OpenConnect.Samples.Blazor.Models
+@implements IDisposable
+@inject IServiceProvider Services
+@inject NavigationManager Navigation
+@inject IOptions<MessagingHostingOptions> HostingOptions
+@inject TodoDevelopmentPersonaState PersonaState
+@inject ISnackbar Snackbar
+
+@if (IsOpen)
+{
+    <div class="oc-sheet-backdrop" @onclick="OnBackdropClick" @onkeydown="OnKeyDown">
+        <MudFocusTrap>
+            <section class="oc-sheet-panel"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="oc-linked-devices-drawer-title"
+                     @onclick:stopPropagation="true">
+                <header class="oc-sheet-header">
+                    <div>
+                        <MudText id="oc-linked-devices-drawer-title" Typo="Typo.h6" Class="font-weight-bold">
+                            Linked Devices
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @PersonaState.Current.DisplayName · @TenantDisplayName
+                        </MudText>
+                    </div>
+                    <div class="d-flex align-center gap-2">
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                       Class="oc-touch-target"
+                                       Disabled="@_busy"
+                                       aria-label="Refresh linked devices"
+                                       OnClick="RefreshDevicesAsync" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                       Class="oc-touch-target"
+                                       aria-label="Close linked devices"
+                                       OnClick="CloseAsync" />
+                    </div>
+                </header>
+
+                @if (!HostingOptions.Value.Enabled)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                        Device enrollment is disabled. Enable <code>OpenConnect:Messaging:Enabled=true</code> or run in SameHostGateway Development mode.
+                    </MudAlert>
+                }
+                else
+                {
+                    <LinkedDevices CompanyDisplayName="@CompanyDisplayName"
+                                   Devices="@_devices"
+                                   ActivePairing="@_activePairing"
+                                   IsLoading="@_loading"
+                                   IsBusy="@_busy"
+                                   ErrorMessage="@_error"
+                                   UtcNow="@_utcNow"
+                                   OnStartPairing="StartPairingAsync"
+                                   OnConfirmPairing="ApprovePairingAsync"
+                                   OnDenyPairing="DenyPairingAsync"
+                                   OnCancelPairing="CancelPairingAsync"
+                                   OnRevokeDevice="RevokeDeviceAsync"
+                                   OnRefresh="RefreshDevicesAsync" />
+                }
+            </section>
+        </MudFocusTrap>
+    </div>
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<MessagingLinkedDeviceSummary> _devices = Array.Empty<MessagingLinkedDeviceSummary>();
+    private MessagingPairingSession? _activePairing;
+    private EnrollmentId? _activeEnrollmentId;
+    private string? _activeQrPayloadJson;
+    private bool _loading;
+    private bool _busy;
+    private string? _error;
+    private DateTimeOffset _utcNow = DateTimeOffset.UtcNow;
+    private Timer? _pollTimer;
+    private bool _wasOpen;
+
+    private string CompanyDisplayName => HostingOptions.Value.CompanyDisplayName;
+    private string TenantDisplayName => TodoDirectorySeed.FindTenant(PersonaState.Current.TenantId)?.DisplayName ?? PersonaState.Current.TenantKey;
+
+    protected override void OnInitialized()
+    {
+        PersonaState.Changed += OnPersonaChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _wasOpen = true;
+            await RefreshDevicesAsync();
+            StartPollingTimer();
+        }
+        else if (!IsOpen && _wasOpen)
+        {
+            _wasOpen = false;
+            StopPollingTimer();
+        }
+    }
+
+    private void OnPersonaChanged()
+    {
+        _activePairing = null;
+        _activeEnrollmentId = null;
+        _activeQrPayloadJson = null;
+        if (IsOpen)
+        {
+            _ = InvokeAsync(RefreshDevicesAsync);
+        }
+    }
+
+    private void StartPollingTimer()
+    {
+        StopPollingTimer();
+        _pollTimer = new Timer(_ => _ = InvokeAsync(PollActivePairingAsync), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void StopPollingTimer()
+    {
+        _pollTimer?.Dispose();
+        _pollTimer = null;
+    }
+
+    private async Task PollActivePairingAsync()
+    {
+        if (!IsOpen)
+            return;
+
+        _utcNow = DateTimeOffset.UtcNow;
+        if (_activeEnrollmentId is { } enrollmentId && _activePairing is not null)
+        {
+            var store = Services.GetService<IDeviceEnrollmentStore>();
+            if (store is not null)
+            {
+                try
+                {
+                    var latest = await store.GetEnrollmentAsync(PersonaState.Current.TenantId, enrollmentId);
+                    if (latest is not null)
+                    {
+                        var mappedState = MapPairingState(latest.State);
+                        var changed = mappedState != _activePairing.State || latest.ClaimedDeviceName != _activePairing.ClaimedDeviceName;
+                        _activePairing = new MessagingPairingSession(
+                            EnrollmentId: latest.EnrollmentId.Value.ToString(),
+                            CompanyDisplayName: CompanyDisplayName,
+                            ApplicationDisplayName: HostingOptions.Value.ApplicationId,
+                            QrPayloadJson: _activeQrPayloadJson ?? string.Empty,
+                            VerificationCode: latest.VerificationCode,
+                            State: mappedState,
+                            ExpiresAtUtc: latest.ExpiresAt,
+                            ClaimedDeviceName: latest.ClaimedDeviceName,
+                            ClaimedDevicePlatform: latest.ClaimedPlatform?.ToString());
+
+                        if (changed && mappedState is MessagingPairingState.Approved or MessagingPairingState.Consumed)
+                        {
+                            await RefreshDevicesAsync();
+                        }
+                    }
+                }
+                catch
+                {
+                    // Keep last known pairing state while polling.
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RefreshDevicesAsync()
+    {
+        var store = Services.GetService<IDeviceEnrollmentStore>();
+        if (store is null)
+        {
+            _devices = Array.Empty<MessagingLinkedDeviceSummary>();
+            return;
+        }
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var persona = PersonaState.Current;
+            var records = await store.ListDevicesAsync(persona.TenantId, persona.PrincipalId);
+            _devices = records
+                .OrderByDescending(d => d.LastSeenAt)
+                .Select(d => new MessagingLinkedDeviceSummary(
+                    DeviceId: d.DeviceId.Value.ToString(),
+                    DisplayName: d.DisplayName,
+                    Platform: d.Platform.ToString(),
+                    KeyFingerprint: d.KeyFingerprint,
+                    Status: d.Status.ToString(),
+                    IsCurrentSession: false,
+                    IsRevoked: d.Status == DeviceStatus.Revoked || d.RevokedAt.HasValue,
+                    LastSeenAtUtc: d.LastSeenAt))
+                .ToArray();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to load linked devices: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartPairingAsync()
+    {
+        var coordinator = Services.GetService<IDeviceEnrollmentCoordinator>();
+        if (coordinator is null)
+        {
+            _error = "Device enrollment coordinator is not registered.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var baseUri = new Uri(Navigation.BaseUri.TrimEnd('/'));
+            var result = await coordinator.InitiateEnrollmentAsync(
+                tenantId: persona.TenantId,
+                applicationId: HostingOptions.Value.ApplicationId,
+                initiatingPrincipalId: persona.PrincipalId,
+                issuer: HostingOptions.Value.Issuer,
+                subject: persona.PrincipalId.Value.ToString(),
+                baseGatewayUrl: baseUri);
+
+            _activeEnrollmentId = result.Record.EnrollmentId;
+            _activeQrPayloadJson = JsonSerializer.Serialize(result.QrPayload, JsonOptions);
+            _utcNow = DateTimeOffset.UtcNow;
+            _activePairing = new MessagingPairingSession(
+                EnrollmentId: result.Record.EnrollmentId.Value.ToString(),
+                CompanyDisplayName: CompanyDisplayName,
+                ApplicationDisplayName: HostingOptions.Value.ApplicationId,
+                QrPayloadJson: _activeQrPayloadJson,
+                VerificationCode: result.Record.VerificationCode,
+                State: MapPairingState(result.Record.State),
+                ExpiresAtUtc: result.Record.ExpiresAt);
+            Snackbar.Add("Single-use mobile pairing code generated.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to generate pairing code: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ApprovePairingAsync(string enrollmentIdText)
+    {
+        var coordinator = Services.GetService<IDeviceEnrollmentCoordinator>();
+        if (coordinator is null || !TryParseUlid(enrollmentIdText, out var ulid))
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var updated = await coordinator.ApproveEnrollmentAsync(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                persona.PrincipalId,
+                new EnrollmentId(ulid));
+
+            _activePairing = _activePairing is null
+                ? null
+                : _activePairing with { State = MapPairingState(updated.State) };
+            Snackbar.Add("Mobile device approved.", Severity.Success);
+            await RefreshDevicesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to approve pairing: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DenyPairingAsync(string enrollmentIdText)
+    {
+        var coordinator = Services.GetService<IDeviceEnrollmentCoordinator>();
+        if (coordinator is null || !TryParseUlid(enrollmentIdText, out var ulid))
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var updated = await coordinator.DenyOrCancelEnrollmentAsync(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                persona.PrincipalId,
+                new EnrollmentId(ulid),
+                isDenial: true);
+
+            _activePairing = _activePairing is null
+                ? null
+                : _activePairing with { State = MapPairingState(updated.State) };
+            Snackbar.Add("Device pairing denied.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to deny pairing: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CancelPairingAsync()
+    {
+        if (_activeEnrollmentId is { } enrollmentId)
+        {
+            var coordinator = Services.GetService<IDeviceEnrollmentCoordinator>();
+            if (coordinator is not null && _activePairing?.State is MessagingPairingState.Pending or MessagingPairingState.Claimed)
+            {
+                try
+                {
+                    var persona = PersonaState.Current;
+                    await coordinator.DenyOrCancelEnrollmentAsync(
+                        persona.TenantId,
+                        HostingOptions.Value.ApplicationId,
+                        persona.PrincipalId,
+                        enrollmentId,
+                        isDenial: false);
+                }
+                catch
+                {
+                    // Enrollment may already have expired or completed.
+                }
+            }
+        }
+
+        _activePairing = null;
+        _activeEnrollmentId = null;
+        _activeQrPayloadJson = null;
+    }
+
+    private async Task RevokeDeviceAsync(string deviceIdText)
+    {
+        var coordinator = Services.GetService<IDeviceEnrollmentCoordinator>();
+        if (coordinator is null || !TryParseUlid(deviceIdText, out var ulid))
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var deviceId = new DeviceId(ulid);
+            await coordinator.RevokeDeviceAsync(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                persona.PrincipalId,
+                deviceId);
+
+            var realtimeHub = Services.GetService<IMessagingRealtimeHub>();
+            if (realtimeHub is not null)
+            {
+                await realtimeHub.CloseDeviceConnectionsAsync(persona.TenantId, deviceId, "device_revoked");
+            }
+
+            Snackbar.Add("Device revoked and active sessions terminated.", Severity.Warning);
+            await RefreshDevicesAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to revoke device: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private Task OnBackdropClick() => CloseAsync();
+
+    private Task OnKeyDown(KeyboardEventArgs args) =>
+        args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+
+    private async Task CloseAsync()
+    {
+        StopPollingTimer();
+        if (OnClose.HasDelegate)
+            await OnClose.InvokeAsync();
+    }
+
+    private static MessagingPairingState MapPairingState(EnrollmentState state) => state switch
+    {
+        EnrollmentState.Pending => MessagingPairingState.Pending,
+        EnrollmentState.Claimed => MessagingPairingState.Claimed,
+        EnrollmentState.Approved => MessagingPairingState.Approved,
+        EnrollmentState.Consumed => MessagingPairingState.Consumed,
+        EnrollmentState.Expired => MessagingPairingState.Expired,
+        EnrollmentState.Cancelled => MessagingPairingState.Cancelled,
+        EnrollmentState.Denied => MessagingPairingState.Denied,
+        _ => MessagingPairingState.Expired
+    };
+
+    private static bool TryParseUlid(string? text, out Ulid ulid)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            try
+            {
+                ulid = Ulid.Parse(text);
+                return true;
+            }
+            catch (FormatException) { }
+        }
+        ulid = default;
+        return false;
+    }
+
+    public void Dispose()
+    {
+        PersonaState.Changed -= OnPersonaChanged;
+        StopPollingTimer();
+    }
+}

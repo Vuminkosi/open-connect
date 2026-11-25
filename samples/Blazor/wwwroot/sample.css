@@ -1,7 +1,24 @@
 /*
  * Production Grade Surface & Design Tokens for OpenConnect.Samples.Blazor.
+ * Linear visual identity with Stripe/Vercel restraint.
  * Inherits and responds dynamically to MudBlazor theme changes (Light/Dark).
  */
+
+:root {
+    --oc-space-1: 4px;
+    --oc-space-2: 8px;
+    --oc-space-3: 12px;
+    --oc-space-4: 16px;
+    --oc-space-6: 24px;
+    --oc-space-8: 32px;
+    --oc-radius-sm: 6px;
+    --oc-radius-md: 8px;
+    --oc-radius-lg: 12px;
+    --oc-radius-pill: 9999px;
+    --oc-touch-min: 44px;
+    --oc-font-sans: "Inter", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --oc-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
 
 *,
 *::before,
@@ -19,10 +36,33 @@ body {
 body {
     background-color: var(--mud-palette-background, #f8fafc);
     color: var(--mud-palette-text-primary, #0f172a);
-    font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--oc-font-sans);
     font-size: 0.875rem;
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
+}
+
+/* WCAG 2.2 AA visible focus ring */
+:focus-visible {
+    outline: 2px solid var(--mud-palette-primary, #2563eb);
+    outline-offset: 2px;
+}
+
+.oc-skip-link {
+    position: absolute;
+    left: -9999px;
+    top: var(--oc-space-2);
+    z-index: 100000;
+    padding: var(--oc-space-2) var(--oc-space-4);
+    background-color: var(--mud-palette-primary, #2563eb);
+    color: #ffffff;
+    border-radius: var(--oc-radius-sm);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.oc-skip-link:focus {
+    left: var(--oc-space-4);
 }
 
 .mud-layout {
@@ -30,25 +70,256 @@ body {
     min-height: 100vh;
 }
 
-/* Production-grade card & surface utilities */
+/* Restrained surface cards (borders and whitespace over heavy shadows) */
 .oc-surface-card {
     background-color: var(--mud-palette-surface) !important;
     border: 1px solid var(--mud-palette-lines-default) !important;
-    border-radius: 12px !important;
-    transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+    border-radius: var(--oc-radius-lg) !important;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .oc-surface-card:hover {
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--mud-palette-action-default, #94a3b8) !important;
 }
 
 .oc-stat-card {
-    border-radius: 12px;
-    padding: 1.25rem;
+    border-radius: var(--oc-radius-lg);
+    padding: var(--oc-space-4);
     display: flex;
     align-items: center;
     background-color: var(--mud-palette-surface);
     border: 1px solid var(--mud-palette-lines-default);
+}
+
+.oc-tabular {
+    font-variant-numeric: tabular-nums;
+}
+
+.oc-mono {
+    font-family: var(--oc-font-mono);
+}
+
+.oc-touch-target {
+    min-width: var(--oc-touch-min);
+    min-height: var(--oc-touch-min);
+}
+
+/* Status badges with color-independent text & icon support */
+.oc-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--oc-space-1);
+    padding: 2px var(--oc-space-2);
+    border-radius: var(--oc-radius-pill);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    border: 1px solid var(--mud-palette-lines-default);
+    background-color: var(--mud-palette-background);
+    color: var(--mud-palette-text-primary);
+    white-space: nowrap;
+}
+
+.oc-status-badge--success {
+    border-color: var(--mud-palette-success);
+    color: var(--mud-palette-success);
+}
+
+.oc-status-badge--warning {
+    border-color: var(--mud-palette-warning);
+    color: var(--mud-palette-warning);
+}
+
+.oc-status-badge--error {
+    border-color: var(--mud-palette-error);
+    color: var(--mud-palette-error);
+}
+
+.oc-status-badge--info {
+    border-color: var(--mud-palette-info);
+    color: var(--mud-palette-info);
+}
+
+.oc-overdue-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--oc-space-1);
+    padding: 2px var(--oc-space-2);
+    border-radius: var(--oc-radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--mud-palette-error);
+    color: var(--mud-palette-error);
+    background-color: color-mix(in srgb, var(--mud-palette-error) 10%, transparent);
+}
+
+.oc-audit-panel {
+    margin-top: var(--oc-space-3);
+    padding: var(--oc-space-3) var(--oc-space-4);
+    border-radius: var(--oc-radius-md);
+    border: 1px solid var(--mud-palette-lines-default);
+    background-color: var(--mud-palette-background);
+}
+
+.oc-audit-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--oc-space-2);
+}
+
+.oc-audit-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--oc-space-2);
+    font-size: 0.8125rem;
+    padding-bottom: var(--oc-space-2);
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+.oc-audit-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Native form controls styled consistently with Linear/Stripe restraint */
+.oc-native-input,
+.oc-native-select,
+.oc-native-textarea {
+    min-height: 38px;
+    padding: var(--oc-space-2) var(--oc-space-3);
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: var(--oc-radius-sm);
+    background-color: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.oc-native-textarea {
+    min-height: 72px;
+    resize: vertical;
+}
+
+/* Header navigation & persona chip */
+.oc-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--oc-space-1);
+    min-height: var(--oc-touch-min);
+    padding: 0 var(--oc-space-3);
+    border-radius: var(--oc-radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--mud-palette-text-secondary);
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+
+.oc-nav-link:hover,
+.oc-nav-link.active {
+    color: var(--mud-palette-text-primary);
+    background-color: var(--mud-palette-action-default-hover, rgba(37, 99, 235, 0.08));
+}
+
+.oc-persona-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--oc-space-2);
+    min-height: 36px;
+    padding: 0 var(--oc-space-3);
+    border-radius: var(--oc-radius-pill);
+    border: 1px solid var(--mud-palette-lines-default);
+    background-color: var(--mud-palette-background);
+    color: var(--mud-palette-text-primary);
+    font-size: 0.8125rem;
+}
+
+/* Modal / sheet overlay for Linked Devices & Messaging Inbox */
+.oc-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    background-color: rgba(15, 23, 42, 0.45);
+    display: flex;
+    justify-content: flex-end;
+    align-items: stretch;
+}
+
+.oc-sheet-panel {
+    width: min(100vw, 860px);
+    max-width: 100vw;
+    height: 100vh;
+    overflow-y: auto;
+    background-color: var(--mud-palette-surface);
+    color: var(--mud-palette-text-primary);
+    border-left: 1px solid var(--mud-palette-lines-default);
+    padding: var(--oc-space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--oc-space-4);
+}
+
+.oc-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--oc-space-3);
+    padding-bottom: var(--oc-space-3);
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+}
+
+/* Diagnostics console grid & evidence table */
+.oc-diag-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--oc-space-4);
+}
+
+.oc-diag-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-radius: var(--oc-radius-md);
+}
+
+.oc-diag-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+}
+
+.oc-diag-table th,
+.oc-diag-table td {
+    text-align: left;
+    padding: var(--oc-space-2) var(--oc-space-3);
+    border-bottom: 1px solid var(--mud-palette-lines-default);
+    vertical-align: top;
+}
+
+.oc-diag-table th {
+    font-weight: 600;
+    color: var(--mud-palette-text-secondary);
+    background-color: var(--mud-palette-background);
+    white-space: nowrap;
+}
+
+.oc-diag-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.oc-encryption-disclosure {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--oc-space-3);
+    padding: var(--oc-space-4);
+    border-radius: var(--oc-radius-md);
+    border: 1px solid var(--mud-palette-warning);
+    background-color: color-mix(in srgb, var(--mud-palette-warning) 8%, var(--mud-palette-surface));
 }
 
 .oc-pulse-dot {
@@ -105,7 +376,29 @@ body {
     transition: outline 120ms ease, box-shadow 120ms ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .oc-pulse-dot {
+        animation: none;
+    }
+    .oc-surface-card,
+    .oc-nav-link,
+    .oc-navigator-highlight {
+        transition: none;
+    }
+}
+
 @media (max-width: 599px) {
+    .oc-native-input,
+    .oc-native-select,
+    .oc-native-textarea {
+        font-size: 1rem;
+        min-height: var(--oc-touch-min);
+    }
+
+    .oc-sheet-panel {
+        padding: var(--oc-space-4);
+    }
+
     .oc-surface-card .mud-tabs {
         flex: 1 1 0;
         min-width: 0;

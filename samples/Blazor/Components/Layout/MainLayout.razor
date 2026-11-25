@@ -1,11 +1,20 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @using MudBlazor
 @using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Blazor.Messaging
 @using OpenConnect.Components.Contracts
+@using OpenConnect.Hosting.AspNetCore.Messaging
 @using OpenConnect.LiveUI.Blazor
+@using OpenConnect.Samples.Blazor.Models
 @using Microsoft.Extensions.Configuration
+@using Microsoft.Extensions.Options
 @using Microsoft.JSInterop
 @inject IConfiguration Configuration
+@inject IHostEnvironment HostEnvironment
+@inject IOptions<MessagingHostingOptions> MessagingHostingOptions
+@inject TodoDevelopmentPersonaState PersonaState
+@inject ISnackbar Snackbar
 @inject IJSRuntime JS
 
 <MudThemeProvider @ref="_mudThemeProvider" Theme="_theme" @bind-IsDarkMode="_isDarkMode" ObserveSystemThemeChange="true" />
@@ -13,45 +22,128 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
+<a class="oc-skip-link" href="#main-content">Skip to main content</a>
+
 <MudLayout Style="min-height: 100vh;">
-    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="true" Dense="false">
-        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3">
-            <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
-        </MudAvatar>
-        <div>
-            <MudText Typo="Typo.h6" Class="font-weight-bold" Color="Color.Primary">OpenConnect</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary" Style="margin-top: -4px; display: block;">Task Management Platform</MudText>
+    <MudAppBar Elevation="0" Color="Color.Surface" Fixed="true" Dense="false"
+               Style="border-bottom: 1px solid var(--mud-palette-lines-default);">
+        <div class="d-flex align-center gap-3">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.TaskAlt" aria-hidden="true" />
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.h6" Class="font-weight-bold" Color="Color.Primary" Style="line-height: 1.2;">OpenConnect</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Style="display: block; line-height: 1.2;">Task Management Platform</MudText>
+            </div>
         </div>
+
+        <nav aria-label="Primary navigation" class="d-none d-md-flex align-center gap-1 ml-6">
+            <NavLink href="/" Match="NavLinkMatch.All" class="oc-nav-link">
+                <MudIcon Icon="@Icons.Material.Outlined.Checklist" Size="Size.Small" aria-hidden="true" />
+                <span>Tasks</span>
+            </NavLink>
+            @if (HostEnvironment.IsDevelopment())
+            {
+                <NavLink href="/diagnostics" class="oc-nav-link">
+                    <MudIcon Icon="@Icons.Material.Outlined.MonitorHeart" Size="Size.Small" aria-hidden="true" />
+                    <span>Diagnostics</span>
+                </NavLink>
+            }
+        </nav>
 
         <MudSpacer />
 
-        <div class="d-none d-sm-flex align-center px-3 py-1 rounded-pill mr-3"
+        @if (HostEnvironment.IsDevelopment())
+        {
+            <div class="oc-persona-chip mr-2" title="Development authenticated persona switcher">
+                <MudIcon Icon="@Icons.Material.Outlined.Badge" Size="Size.Small" Color="Color.Primary" aria-hidden="true" />
+                <label for="oc-dev-persona-select" class="sr-only">Active development persona</label>
+                <select id="oc-dev-persona-select"
+                        aria-label="Active development persona"
+                        style="border: none; background: transparent; color: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; outline: none;"
+                        value="@PersonaState.Current.Key"
+                        @onchange="OnPersonaSelectedAsync">
+                    @foreach (var persona in TodoDirectorySeed.Principals)
+                    {
+                        <option value="@persona.Key">@persona.DisplayName</option>
+                    }
+                </select>
+            </div>
+        }
+
+        @if (_messagingEnabled)
+        {
+            <MudTooltip Text="Encrypted Messaging Inbox">
+                <MudIconButton Icon="@Icons.Material.Outlined.Forum"
+                               Color="Color.Default"
+                               Class="oc-touch-target"
+                               aria-label="Open encrypted messaging inbox"
+                               OnClick="OpenMessaging" />
+            </MudTooltip>
+            <MudTooltip Text="Linked Mobile Devices">
+                <MudIconButton Icon="@Icons.Material.Outlined.Devices"
+                               Color="Color.Default"
+                               Class="oc-touch-target"
+                               aria-label="Open linked mobile devices"
+                               OnClick="OpenLinkedDevices" />
+            </MudTooltip>
+        }
+
+        <div class="d-none d-lg-flex align-center px-3 py-1 rounded-pill mr-2"
              style="background-color: var(--mud-palette-background); border: 1px solid var(--mud-palette-lines-default);">
-            <span class="oc-pulse-dot mr-2"></span>
+            <span class="oc-pulse-dot mr-2" aria-hidden="true"></span>
             <MudText Typo="Typo.caption" Class="font-weight-medium">Agent Active</MudText>
         </div>
 
         <MudTooltip Text="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
             <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
                            Color="Color.Default"
+                           Class="oc-touch-target"
+                           aria-label="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")"
                            OnClick="@ToggleThemeAsync" />
         </MudTooltip>
         <LiveUIInferenceModelSetup />
     </MudAppBar>
 
-    <MudMainContent Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
-        <OpenConnectProvider>
-          <OpenConnectLiveUIProvider>
-            @Body
-            <MiniComposer Placement="ComposerPlacement.BottomRight"
-                          AssistantName="Ellai"
-                          FabIcon="@Icons.Material.Filled.SmartToy"
-                          Placeholder="Ask Ellai..."
-                          EnableContinuousVoice="@_enableContinuousVoice"
-                          CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
-            <OpenConnectNavigatorProvider />
-          </OpenConnectLiveUIProvider>
-        </OpenConnectProvider>
+    <MudMainContent id="main-content" Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
+        @if (_messagingEnabled)
+        {
+            <MessagingProvider IsAuthenticated="true">
+                <OpenConnectProvider>
+                    <OpenConnectLiveUIProvider>
+                        @Body
+                        <MiniComposer Placement="ComposerPlacement.BottomRight"
+                                      AssistantName="Ellai"
+                                      FabIcon="@Icons.Material.Filled.SmartToy"
+                                      Placeholder="Ask Ellai..."
+                                      EnableContinuousVoice="@_enableContinuousVoice"
+                                      EnableLinkedDevices="true"
+                                      EnableMessaging="true"
+                                      OnOpenLinkedDevices="OpenLinkedDevices"
+                                      OnOpenMessaging="OpenMessaging"
+                                      CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
+                        <OpenConnectNavigatorProvider />
+                    </OpenConnectLiveUIProvider>
+                </OpenConnectProvider>
+                <LinkedDevicesDrawer IsOpen="@_showLinkedDevices" OnClose="CloseLinkedDevices" />
+                <MessagingWorkspaceDrawer IsOpen="@_showMessaging" OnClose="CloseMessaging" />
+            </MessagingProvider>
+        }
+        else
+        {
+            <OpenConnectProvider>
+                <OpenConnectLiveUIProvider>
+                    @Body
+                    <MiniComposer Placement="ComposerPlacement.BottomRight"
+                                  AssistantName="Ellai"
+                                  FabIcon="@Icons.Material.Filled.SmartToy"
+                                  Placeholder="Ask Ellai..."
+                                  EnableContinuousVoice="@_enableContinuousVoice"
+                                  CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
+                    <OpenConnectNavigatorProvider />
+                </OpenConnectLiveUIProvider>
+            </OpenConnectProvider>
+        }
     </MudMainContent>
 </MudLayout>
 
@@ -60,10 +152,53 @@
     private bool _isDarkMode = false;
     private bool _userExplicitlySetTheme = false;
     private bool _enableContinuousVoice;
+    private bool _messagingEnabled;
+    private bool _showLinkedDevices;
+    private bool _showMessaging;
 
     protected override void OnInitialized()
     {
         _enableContinuousVoice = Configuration.GetValue<bool>("OpenConnect:Voice:EnableContinuousConversation");
+        _messagingEnabled = MessagingHostingOptions.Value.Enabled;
+        PersonaState.Changed += OnPersonaStateChanged;
+    }
+
+    private void OnPersonaStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OpenLinkedDevices()
+    {
+        _showMessaging = false;
+        _showLinkedDevices = true;
+    }
+
+    private void CloseLinkedDevices() => _showLinkedDevices = false;
+
+    private void OpenMessaging()
+    {
+        _showLinkedDevices = false;
+        _showMessaging = true;
+    }
+
+    private void CloseMessaging() => _showMessaging = false;
+
+    private async Task OnPersonaSelectedAsync(ChangeEventArgs args)
+    {
+        var key = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(key) || !PersonaState.TrySelectByKey(key))
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "eval",
+                $"fetch('/__diagnostics/acceptance/persona/{Uri.EscapeDataString(key)}', {{ method: 'POST', credentials: 'same-origin' }})");
+        }
+        catch
+        {
+            // Scoped circuit persona remains updated even if browser fetch is unavailable.
+        }
+
+        Snackbar.Add($"Switched active persona to {PersonaState.Current.DisplayName}.", Severity.Info);
     }
 
     private readonly MudTheme _theme = new()
@@ -74,7 +209,7 @@
             PrimaryDarken = "#1D4ED8",
             PrimaryLighten = "#3B82F6",
             Secondary = "#0D9488",
-            Background = "#F1F5F9",
+            Background = "#F8FAFC",
             Surface = "#FFFFFF",
             AppbarBackground = "#FFFFFF",
             AppbarText = "#0F172A",
@@ -164,5 +299,10 @@
         {
             // Theme remains active for the current circuit when storage is unavailable.
         }
+    }
+
+    public void Dispose()
+    {
+        PersonaState.Changed -= OnPersonaStateChanged;
     }
 }
