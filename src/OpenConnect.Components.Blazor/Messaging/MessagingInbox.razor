@@ -61,43 +61,58 @@
         }
         else
         {
-            <ul class="oc-msg-inbox__list">
-                @foreach (var item in filtered)
-                {
-                    var selected = SelectedConversationId == item.ConversationId;
-                    <li @key="item.ConversationId">
-                        <button type="button"
-                                class="oc-msg-inbox__item @(selected ? "oc-msg-inbox__item--selected" : "")"
-                                aria-current="@(selected ? "true" : null)"
-                                @onclick="@(() => OnSelectConversation.InvokeAsync(item.ConversationId))">
-                            <div class="oc-msg-inbox__item-top">
-                                <span class="oc-msg-inbox__item-title">@item.Title</span>
-                                <span class="oc-msg-inbox__item-time">
-                                    @(item.LastMessageAtUtc?.ToString("HH:mm") ?? string.Empty)
-                                </span>
+            <MudPaper Elevation="0" Outlined="true" Class="oc-msg-inbox__surface">
+                <MudList T="string" Dense="false" Class="pa-1">
+                    @foreach (var item in filtered)
+                    {
+                        var selected = SelectedConversationId == item.ConversationId;
+                        <MudListItem @key="item.ConversationId"
+                                     Value="@item.ConversationId"
+                                     Class="@($"oc-msg-inbox__item {(selected ? "oc-msg-inbox__item--selected" : "")}")"
+                                     OnClick="@(() => OnSelectConversation.InvokeAsync(item.ConversationId))">
+                            <div class="d-flex align-start gap-3 w-100">
+                                <MudAvatar Size="Size.Medium"
+                                           Color="@(item.SecurityProfile == MessagingSecurityProfileKind.AgentE2EE ? Color.Secondary : Color.Primary)"
+                                           Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                           aria-hidden="true">
+                                    @GetInitials(item.Title)
+                                </MudAvatar>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="oc-msg-inbox__item-top">
+                                        <MudText Typo="Typo.subtitle2" Class="font-weight-semibold text-truncate">@item.Title</MudText>
+                                        <span class="oc-msg-inbox__item-time">
+                                            @(item.LastMessageAtUtc?.ToString("HH:mm") ?? string.Empty)
+                                        </span>
+                                    </div>
+                                    <div class="oc-msg-inbox__item-mid mt-1">
+                                        <span class="oc-msg-inbox__preview">
+                                            @(!string.IsNullOrWhiteSpace(item.ActiveTypingLabel)
+                                                ? item.ActiveTypingLabel
+                                                : (item.LastMessagePreview ?? "No messages yet"))
+                                        </span>
+                                        <UnreadBadge Count="item.UnreadCount" />
+                                    </div>
+                                    <div class="oc-msg-inbox__item-meta mt-1">
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Color="@(item.SecurityProfile == MessagingSecurityProfileKind.Governed ? Color.Warning : Color.Success)"
+                                                 Icon="@GetSecurityIcon(item.SecurityProfile)"
+                                                 Class="ma-0 oc-msg-security-chip"
+                                                 title="@GetSecurityDescription(item.SecurityProfile)">
+                                            @GetSecurityLabel(item.SecurityProfile)
+                                        </MudChip>
+                                        @if (item.State == MessagingConversationLifecycleState.Closed)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" Class="ma-0">Closed</MudChip>
+                                        }
+                                    </div>
+                                </div>
                             </div>
-                            <div class="oc-msg-inbox__item-mid">
-                                <span class="oc-msg-inbox__preview">
-                                    @(!string.IsNullOrWhiteSpace(item.ActiveTypingLabel)
-                                        ? item.ActiveTypingLabel
-                                        : (item.LastMessagePreview ?? "No messages yet"))
-                                </span>
-                                <UnreadBadge Count="item.UnreadCount" />
-                            </div>
-                            <div class="oc-msg-inbox__item-meta">
-                                <span class="oc-msg-security-tag" title="@GetSecurityDescription(item.SecurityProfile)">
-                                    <MudIcon Icon="@GetSecurityIcon(item.SecurityProfile)" Size="Size.Small" aria-hidden="true" />
-                                    <span>@GetSecurityLabel(item.SecurityProfile)</span>
-                                </span>
-                                @if (item.State == MessagingConversationLifecycleState.Closed)
-                                {
-                                    <span class="oc-msg-closed-tag">Closed</span>
-                                }
-                            </div>
-                        </button>
-                    </li>
-                }
-            </ul>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
         }
     }
 </section>
@@ -118,25 +133,21 @@
         border-color: var(--mud-palette-error, #dc2626);
         color: var(--mud-palette-error, #dc2626);
     }
-    .oc-msg-inbox__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+    .oc-msg-inbox__surface {
+        border-radius: 10px;
+        background-color: var(--mud-palette-surface);
+        border-color: var(--mud-palette-lines-default);
+    }
     .oc-msg-inbox__item {
-        width: 100%;
-        min-height: 44px;
-        text-align: left;
-        padding: 12px 14px;
-        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
         border-radius: 8px;
-        background-color: var(--mud-palette-surface, #ffffff);
-        color: inherit;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        min-height: 56px;
+        transition: background-color 120ms ease;
     }
     .oc-msg-inbox__item--selected {
-        border-color: var(--mud-palette-primary, #5e6ad2);
-        background-color: var(--mud-palette-action-default-hover, rgba(94, 106, 210, 0.08));
+        background-color: var(--mud-palette-action-default-hover);
+        box-shadow: inset 3px 0 0 var(--mud-palette-primary);
     }
+    .oc-msg-security-chip { height: 22px; font-size: 0.7rem; }
     .oc-msg-inbox__item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .oc-msg-inbox__item-title { font-weight: 600; font-size: 0.9375rem; }
     .oc-msg-inbox__item-time { font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--mud-palette-text-secondary, #64748b); }
@@ -214,6 +225,16 @@
         MessagingConnectionState.Error => "Realtime stream unavailable — showing last synced state.",
         _ => string.Empty
     };
+
+    private static string GetInitials(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return "?";
+        var parts = title.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}"
+            : title[..Math.Min(2, title.Length)].ToUpperInvariant();
+    }
 
     private static string GetSecurityLabel(MessagingSecurityProfileKind profile) => profile switch
     {

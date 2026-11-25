@@ -102,6 +102,9 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     [CascadingParameter(Name = "MessagingProvider")] private Messaging.MessagingProvider? MessagingProvider { get; set; }
 
+    private bool _showBuiltInLinkedDevices;
+    private bool _showBuiltInMessaging;
+
     private int MessagingUnreadCount => MessagingProvider?.TotalUnreadCount ?? 0;
 
     private async Task OpenLinkedDevicesAsync()
@@ -114,6 +117,12 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (OnOpenLinkedDevices.HasDelegate)
         {
             await OnOpenLinkedDevices.InvokeAsync();
+        }
+        else
+        {
+            _showBuiltInMessaging = false;
+            _showBuiltInLinkedDevices = !_showBuiltInLinkedDevices;
+            StateHasChanged();
         }
     }
 
@@ -128,6 +137,18 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             await OnOpenMessaging.InvokeAsync();
         }
+        else
+        {
+            _showBuiltInLinkedDevices = false;
+            _showBuiltInMessaging = !_showBuiltInMessaging;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseBuiltInMessagingPanels()
+    {
+        _showBuiltInLinkedDevices = false;
+        _showBuiltInMessaging = false;
     }
 
     private bool VoiceInputBlocked => VoiceInputChecking || VoiceInputAvailable == false;
