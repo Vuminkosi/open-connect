@@ -38,8 +38,37 @@ public sealed class PlaywrightToolAllowlistTests
     [Fact]
     public void CredentialFillAndUnscopedClickAreDenied()
     {
-        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args("{\"target\":\"email\",\"password\":\"x\"}"), null, false, out _, out _));
-        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Click, Args("{}"), null, false, out _, out _));
+        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args("{\"target\":\"email\",\"password\":\"x\"}"), null, false, out _, out _, out var fillDenial));
+        Assert.Equal("invalid_arguments", fillDenial);
+        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Click, Args("{}"), null, false, out _, out _, out var clickDenial));
+        Assert.Equal("explicit_target_required", clickDenial);
+    }
+
+    [Theory]
+    [InlineData("Password")]
+    [InlineData("secret")]
+    [InlineData("API token")]
+    [InlineData("Private key")]
+    [InlineData("api_key")]
+    [InlineData("One-time code")]
+    [InlineData("apiKey")]
+    [InlineData("Enter OTP")]
+    [InlineData("  CVV  ")]
+    public void FillWithCredentialLikeTargetIsDenied(string target)
+    {
+        var json = JsonSerializer.Serialize(new { target, value = "x" });
+        Assert.False(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args(json), null, false, out _, out _, out var denial));
+        Assert.Equal("sensitive_input_denied", denial);
+    }
+
+    [Fact]
+    public void FillWithBenignTargetResolvesAndSelectIsUnaffected()
+    {
+        Assert.True(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args("{\"target\":\"Email\",\"value\":\"a@b.c\"}"), null, false, out var tool, out _, out var denial));
+        Assert.Equal("browser_type", tool);
+        Assert.Equal(string.Empty, denial);
+        Assert.True(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Fill, Args("{\"target\":\"Carbon footprint\",\"value\":\"1\"}"), null, false, out _, out _, out _));
+        Assert.True(PlaywrightToolAllowlist.TryResolve(NavigatorActionType.Select, Args("{\"target\":\"Password hint\",\"value\":\"x\"}"), null, false, out _, out _, out _));
     }
 
     [Fact]
