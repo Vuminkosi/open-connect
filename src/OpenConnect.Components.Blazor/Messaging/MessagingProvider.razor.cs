@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions.Messaging;
 using OpenConnect.Client.Messaging;
 using OpenConnect.Components.Contracts.Messaging;
@@ -19,7 +20,9 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
     private string? _boundProfileId;
     private bool _disposed;
 
-    [Inject] private IMessagingProfileManager? ProfileManager { get; set; }
+    private IMessagingProfileManager? _profileManager;
+
+    [Inject] private IServiceProvider Services { get; set; } = null!;
 
     /// <summary>Host content rendered inside the messaging provider boundary.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
@@ -59,10 +62,19 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
 
     protected override void OnInitialized()
     {
-        if (ProfileManager is not null)
+        _profileManager = Services.GetService<IMessagingProfileManager>();
+        if (_profileManager is not null)
         {
-            ProfileManager.ActiveProfileChanged += OnActiveProfileChanged;
-            BindToProfile(ProfileManager.ActiveProfile, ProfileManager.CurrentEpoch);
+            _profileManager.ActiveProfileChanged += OnActiveProfileChanged;
+            BindToProfile(_profileManager.ActiveProfile, _profileManager.CurrentEpoch);
+        }
+        else if (IsAuthenticated)
+        {
+            // Single-company web host mode: bound directly to the authenticated company web session
+            // without multi-company mobile profile switching.
+            _boundEpoch = 1;
+            _boundProfileId = "host-web-session";
+            ConnectionState = MessagingConnectionState.Connected;
         }
     }
 
@@ -165,7 +177,7 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
         }
 
         ActiveCall = activeCall;
-        ProfileManager?.SetActiveCallState(activeCall is not null, endCallCallback);
+        _profileManager?.SetActiveCallState(activeCall is not null, endCallCallback);
         NotifyStateChanged();
         return true;
     }
@@ -183,9 +195,9 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
     /// <summary>Disposes active session state on explicit logout.</summary>
     public async ValueTask LogoutAsync(CancellationToken cancellationToken = default)
     {
-        if (ProfileManager is not null)
+        if (_profileManager is not null)
         {
-            await ProfileManager.DeactivateCurrentProfileAsync(cancellationToken).ConfigureAwait(false);
+            await _profileManager.DeactivateCurrentProfileAsync(cancellationToken).ConfigureAwait(false);
         }
 
         ClearSessionState(MessagingConnectionState.Disconnected, null);
@@ -198,7 +210,7 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
             return false;
         }
 
-        if (ProfileManager is not null && !ProfileManager.IsCurrentEpoch(epoch, profileId))
+        if (_profileManager is not null && !_profileManager.IsCurrentEpoch(epoch, profileId))
         {
             return false;
         }
@@ -268,9 +280,9 @@ public partial class MessagingProvider : ComponentBase, IAsyncDisposable
         }
 
         _disposed = true;
-        if (ProfileManager is not null)
+        if (_profileManager is not null)
         {
-            ProfileManager.ActiveProfileChanged -= OnActiveProfileChanged;
+            _profileManager.ActiveProfileChanged -= OnActiveProfileChanged;
         }
 
         ClearSessionState(MessagingConnectionState.Disconnected, null);
