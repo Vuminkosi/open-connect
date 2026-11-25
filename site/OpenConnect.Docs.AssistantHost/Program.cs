@@ -10,6 +10,7 @@ using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Core;
+using OpenConnect.Core.Configuration;
 using OpenConnect.Docs.AssistantHost.Execution;
 using OpenConnect.Docs.AssistantHost.Identity;
 using OpenConnect.Docs.AssistantHost.LiveUI;
@@ -55,6 +56,12 @@ builder.Services.AddHttpClient("openconnect-kokoro", client => client.Timeout = 
 builder.Services.AddHttpClient<DocumentationVoiceReadiness>()
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
 builder.Services.AddOpenConnect(options => options.Privacy.Enabled = true);
+builder.Services.Configure<OpenConnectVoiceOptions>(options =>
+{
+    var enabled = builder.Configuration.GetValue<bool>("OpenConnect:Assistant:EnableContinuousVoice");
+    options.EnableContinuousConversation = enabled;
+    options.EnableStreamingSpeechOutput = enabled;
+});
 builder.Services.AddOpenConnectSpeechToText(builder.Configuration);
 builder.Services.AddOpenConnectAgent("documentation-assistant");
 builder.Services.AddOpenConnectTaskExecution(options => { options.Capacity = 32; options.MaxRetainedTasks = 2048; });

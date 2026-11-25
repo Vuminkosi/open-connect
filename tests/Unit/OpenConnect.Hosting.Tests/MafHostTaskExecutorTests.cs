@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
@@ -9,12 +10,35 @@ using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.LiveUI.Hosting;
+using OpenConnect.Privacy;
+using OpenConnect.Privacy.Gates;
+using OpenConnect.Privacy.Policy;
+using OpenConnect.Privacy.Rules;
 using Xunit;
 
 namespace OpenConnect.Hosting.Tests;
 
 public sealed class MafHostTaskExecutorTests
 {
+    [Fact]
+    public async Task LiveUI_tool_declarations_pass_the_default_privacy_gate()
+    {
+        var tenant = new TenantId(Ulid.NewUlid());
+        var principal = new PrincipalId(Ulid.NewUlid());
+        var session = new SessionId(Ulid.NewUlid());
+        var gate = new EgressGate(new PrivacyFirewall(Options.Create(new PrivacyOptions()),
+            new PolicyEngine(new RulesSecurityDetector())));
+        var client = new FirewallGuardedChatClient(new Client(), gate,
+            new FixedEgressContextProvider(new EgressContext(tenant, principal, session, EgressDestination.ExternalModel)));
+
+        foreach (var tool in LiveUIClientAgentToolFactory.CreateToolsForConnection(new Broker(), session, "connection"))
+        {
+            var error = await Record.ExceptionAsync(() => client.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, "Hi")], new ChatOptions { Tools = [tool] }));
+            Assert.True(error is null, $"Tool {tool.Name} failed privacy screening: {error?.GetType().Name}");
+        }
+    }
+
     [Fact]
     public async Task Generic_liveui_factory_executes_and_publishes_for_accepted_connection()
     {

@@ -107,6 +107,34 @@ public sealed class ComposerSessionTests
     }
 
     [Fact]
+    public void Streamed_reply_followed_by_identical_final_message_is_not_repeated()
+    {
+        var session = new ComposerSession();
+        session.AttachSession("S1");
+        session.BeginSend("Hi");
+        session.ApplyEvent(Event(1, "message.delta", "Hel"));
+        session.ApplyEvent(Event(2, "message.delta", "lo"));
+        session.ApplyEvent(Event(3, "message", "Hello"));
+        session.ApplyEvent(Event(4, "message.completed", string.Empty));
+
+        Assert.Equal("Hello", session.Messages.Last().Text);
+    }
+
+    [Fact]
+    public void Early_streamed_reply_and_final_message_are_reconciled_after_task_binding()
+    {
+        var session = new ComposerSession();
+        var task = new TaskId(Ulid.NewUlid());
+        session.AttachSession("S1");
+        session.BeginTrackedSend("Hi");
+        session.ApplyEvent(Event(1, "message.delta", "Hello") with { TaskId = task.Value.ToString() });
+        session.ApplyEvent(Event(2, "message", "Hello") with { TaskId = task.Value.ToString() });
+        session.BindTrackedTask(task);
+
+        Assert.Equal("Hello", session.StreamingText);
+    }
+
+    [Fact]
     public void Failure_records_error_and_failed_message()
     {
         var session = new ComposerSession();

@@ -35,6 +35,7 @@ public sealed class ComposerSession
     private readonly List<string> _errors = new();
     private string? _streamingRole;
     private string _streamingText = string.Empty;
+    private bool _streamingHasDeltas;
     private bool _trackingTask;
     private bool _trackedTerminalHandled;
     private string? _trackedTaskId;
@@ -145,6 +146,7 @@ public sealed class ComposerSession
             _proposals.Clear();
             _errors.Clear();
             _streamingText = string.Empty;
+            _streamingHasDeltas = false;
             _streamingRole = pendingInitialUserMessage is null ? null : "assistant";
             _trackingTask = false;
             _trackedTerminalHandled = false;
@@ -185,6 +187,7 @@ public sealed class ComposerSession
             _messages.Add(new ComposerMessage("user", text.Trim(), LastSequence, ComposerMessageState.Received));
             _streamingRole = "assistant";
             _streamingText = string.Empty;
+            _streamingHasDeltas = false;
             _trackingTask = tracked;
             _trackedTerminalHandled = false;
             _trackedTaskId = null;
@@ -205,6 +208,7 @@ public sealed class ComposerSession
             if (!_trackingTask || _trackedTaskId is not null)
             {
                 _streamingText = string.Empty;
+                _streamingHasDeltas = false;
                 _trackingTask = true;
                 _trackedTerminalHandled = false;
                 _trackedTaskId = null;
@@ -239,7 +243,7 @@ public sealed class ComposerSession
             {
                 if (string.Equals(message.TaskId, _trackedTaskId, StringComparison.OrdinalIgnoreCase))
                 {
-                    _streamingText += message.Data ?? string.Empty;
+                    AppendMessageCore(message);
                     Connection = ComposerConnectionState.Streaming;
                 }
             }
@@ -271,6 +275,7 @@ public sealed class ComposerSession
                 _errors.Add("The assistant could not complete the request. Some actions may have completed; check the current state before retrying.");
             _messages.Add(new ComposerMessage("assistant", _streamingText, sequence, ComposerMessageState.Failed));
             _streamingText = string.Empty;
+            _streamingHasDeltas = false;
             _streamingRole = null;
             Connection = ComposerConnectionState.Error;
             return;
@@ -278,6 +283,7 @@ public sealed class ComposerSession
         if (_streamingText.Length > 0)
             _messages.Add(new ComposerMessage(_streamingRole ?? "assistant", _streamingText, sequence));
         _streamingText = string.Empty;
+        _streamingHasDeltas = false;
         _streamingRole = null;
         if (Connection == ComposerConnectionState.Streaming)
             Connection = ComposerConnectionState.Idle;
@@ -371,6 +377,7 @@ public sealed class ComposerSession
             _messages.Add(new ComposerMessage("user", finalTranscript.Trim(), LastSequence, ComposerMessageState.Received));
             _streamingRole = "assistant";
             _streamingText = string.Empty;
+            _streamingHasDeltas = false;
             Connection = ComposerConnectionState.Streaming;
         }
 
@@ -661,6 +668,7 @@ public sealed class ComposerSession
             _messages.Add(new ComposerMessage("user", finalTranscript.Trim(), LastSequence, ComposerMessageState.Received));
             _streamingRole = "assistant";
             _streamingText = string.Empty;
+            _streamingHasDeltas = false;
             Connection = ComposerConnectionState.Streaming;
         }
 
@@ -781,7 +789,7 @@ public sealed class ComposerSession
                     notify = false;
                 else
                 {
-                    _streamingText += record.Data ?? string.Empty;
+                    AppendMessageCore(record);
                     Connection = ComposerConnectionState.Streaming;
                 }
             }
@@ -838,6 +846,7 @@ public sealed class ComposerSession
                 }
 
                 _streamingText = string.Empty;
+                _streamingHasDeltas = false;
                 _streamingRole = null;
 
                 if (Connection == ComposerConnectionState.Streaming)
@@ -851,6 +860,7 @@ public sealed class ComposerSession
                 _errors.Add(string.IsNullOrWhiteSpace(record.Data) ? "The assistant could not complete the request." : record.Data);
                 _messages.Add(new ComposerMessage("assistant", _streamingText, record.Sequence, ComposerMessageState.Failed));
                 _streamingText = string.Empty;
+                _streamingHasDeltas = false;
                 _streamingRole = null;
                 Connection = ComposerConnectionState.Error;
             }
@@ -878,6 +888,18 @@ public sealed class ComposerSession
         }
 
         return notify;
+    }
+
+    private void AppendMessageCore(EventRecord record)
+    {
+        var text = record.Data ?? string.Empty;
+        if (record.Type?.Equals("message", StringComparison.OrdinalIgnoreCase) == true &&
+            _streamingHasDeltas && string.Equals(_streamingText, text, StringComparison.Ordinal))
+            return;
+
+        _streamingText += text;
+        if (record.Type?.EndsWith("delta", StringComparison.OrdinalIgnoreCase) == true)
+            _streamingHasDeltas = true;
     }
 
     /// <summary>
@@ -1006,6 +1028,7 @@ public sealed class ComposerSession
         }
 
         _streamingText = string.Empty;
+        _streamingHasDeltas = false;
         _streamingRole = null;
         if (Connection == ComposerConnectionState.Streaming)
         {

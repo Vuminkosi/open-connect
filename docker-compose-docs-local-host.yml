@@ -2,6 +2,7 @@ services:
   documentation-site:
     environment:
       OpenConnect__Assistant__Enabled: "true"
+      OpenConnect__Assistant__EnableContinuousVoice: ${OC_DOCS_ASSISTANT_CONTINUOUS_VOICE:-true}
       OpenConnect__Assistant__GatewayUrl: https://localhost:8098/
       OpenConnect__Assistant__GatewayBearer: ""
       OpenConnect__Assistant__VisitorTenant: ${OC_DOCS_ASSISTANT_TENANT:?Set OC_DOCS_ASSISTANT_TENANT}

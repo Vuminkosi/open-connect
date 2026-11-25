@@ -309,7 +309,7 @@
 
             <!-- Status Row (SwiftAidv2 StatusLine + Voice Toggles matching Reference Image) -->
             <div class="oc-bubble__status-row">
-                <div class="oc-status__line">
+                <div class="oc-status__line" role="status" aria-live="@(_duplexVoiceActive ? "off" : "polite")" aria-atomic="true">
                     <span class="oc-status__dots" aria-hidden="true"><i class="oc-status__dot"></i><i class="oc-status__dot"></i><i class="oc-status__dot"></i></span>
                     <span class="oc-status__text">@StatusText</span>
                 </div>

@@ -94,6 +94,7 @@ public sealed class MiniComposerContinuousVoiceTests : OpenConnectBunitContext
         Assert.True(session.IsContinuousVoiceActive);
         Assert.Contains(session.Messages, m => m.Role == "user" && m.Text == "Show my tasks for this week");
         Assert.Equal("Thinking", cut.Find(".oc-live-voice-status").TextContent.Trim());
+        Assert.Equal("Thinking…", cut.Find(".oc-status__text").TextContent.Trim());
 
         // Speaking state shows Interrupt button
         await composer.InvokeAsync(() => composer.Instance.OnDuplexVoiceStateChanged("speaking", session.SpeechEpoch + 1, null));

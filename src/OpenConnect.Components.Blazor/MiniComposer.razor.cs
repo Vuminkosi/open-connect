@@ -214,13 +214,15 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                     _ => "Coordinating live page actions…"
                 };
             }
+            if (_duplexVoiceActive && string.Equals(_duplexStatus, "thinking", StringComparison.Ordinal))
+                return "Thinking…";
             if (Session.Connection == ComposerConnectionState.Streaming || _sending)
             {
                 if (!string.IsNullOrWhiteSpace(Session.StreamingText))
                     return "Replying…";
                 return _planningAckStage switch
                 {
-                    0 => "Planning the steps for your request…",
+                    0 => "Thinking…",
                     1 => "Still working — checking the page structure and relevant sections…",
                     2 => "Still planning — verifying details and preparing your guided walkthrough…",
                     _ => "Almost ready — finishing up the walkthrough and highlights…"
