@@ -13,6 +13,8 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 
 from openconnect_security import engine_mode
 from openconnect_security.config import DETECTOR_CAPABILITY_ID_MAP, Settings
+from openconnect_security.detectors.base import QueueTimeoutError
+from openconnect_security.detectors.registry import DetectorRegistry
 from openconnect_security.detectors.rules import scan as scan_text
 from openconnect_security.malware import MALWARE_DETECTOR_VERSION, SecurityMalwareInspector
 from openconnect_security.media import (
@@ -38,16 +40,17 @@ from openconnect_security.schemas import (
     MalwareFinding,
     ScanRequest,
     ScanResponse,
+    ScanSpan,
     TextSpanFinding,
 )
 
 logger = logging.getLogger("openconnect_security")
 app = FastAPI(title="OpenConnect Security Worker", docs_url=None, redoc_url=None)
 settings = Settings.from_environment()
+detector_registry = DetectorRegistry()
 RULES_DETECTOR_VERSION = "1.1.0"
 
-# Injectable detector hooks for model-backed detectors (wired in Phase 2 / tests).
-# Each entry maps detector_id -> (version, callable).
+# Injectable detector hooks for tests / custom adapters.
 _text_detectors: dict[str, tuple[str, Callable[[str], list[TextSpanFinding]]]] = {}
 _prompt_detectors: dict[str, tuple[str, Callable[[str], list[InjectionFinding]]]] = {}
 _image_detectors: dict[str, tuple[str, Callable[[ValidatedImage], list[ImageRegionFinding]]]] = {}
@@ -68,17 +71,20 @@ def _get_malware_inspector() -> SecurityMalwareInspector:
 
 
 def _detector_version(detector_id: str) -> str | None:
-    if detector_id == "rules" and settings.rules_enabled:
+    enabled = settings.enabled_detectors()
+    if detector_id not in enabled:
+        return None
+    if detector_id == "rules":
         return RULES_DETECTOR_VERSION
-    if detector_id == "malware" and settings.malware_enabled:
+    if detector_id == "malware":
         return MALWARE_DETECTOR_VERSION if _get_malware_inspector().is_ready() else None
-    if detector_id in _text_detectors and detector_id in settings.enabled_detectors():
+    if detector_id in _text_detectors:
         return _text_detectors[detector_id][0]
-    if detector_id in _prompt_detectors and detector_id in settings.enabled_detectors():
+    if detector_id in _prompt_detectors:
         return _prompt_detectors[detector_id][0]
-    if detector_id in _image_detectors and detector_id in settings.enabled_detectors():
+    if detector_id in _image_detectors:
         return _image_detectors[detector_id][0]
-    return None
+    return detector_registry.version_if_ready(detector_id)
 
 
 def _ready_detectors() -> list[tuple[str, str]]:
@@ -195,25 +201,67 @@ def capabilities() -> CapabilitiesResponse:
 @app.post("/scan", response_model=ScanResponse, dependencies=[Depends(authenticate)])
 def scan(request: ScanRequest) -> ScanResponse:
     _enforce_engine_mode()
-    enabled = set(settings.enabled_detectors())
-    for detector in request.detectors:
-        if detector not in enabled or detector != "rules":
+    unique_detectors = list(dict.fromkeys(request.detectors))
+    if len(unique_detectors) == 1 and unique_detectors[0] == "rules":
+        if not settings.rules_enabled:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="detector unavailable"
             )
-    try:
-        spans = scan_text(request.text)
-    except Exception:
-        logger.exception("Security scan failed request_id=%s", request.requestId)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="scanner unavailable"
-        ) from None
-    return ScanResponse(
-        schemaVersion="openconnect.v1",
-        requestId=request.requestId,
-        detectorId="rules",
-        detectorVersion=RULES_DETECTOR_VERSION,
-        spans=spans,
+        try:
+            spans = scan_text(request.text)
+        except Exception:
+            logger.exception("Security scan failed request_id=%s", request.requestId)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="scanner unavailable"
+            ) from None
+        return ScanResponse(
+            schemaVersion="openconnect.v1",
+            requestId=request.requestId,
+            detectorId="rules",
+            detectorVersion=RULES_DETECTOR_VERSION,
+            spans=spans,
+        )
+
+    if len(unique_detectors) == 1 and unique_detectors[0] == "gliner-pii":
+        version = _detector_version("gliner-pii")
+        if version is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="detector unavailable"
+            )
+        try:
+            if "gliner-pii" in _text_detectors:
+                findings = _text_detectors["gliner-pii"][1](request.text)
+            else:
+                findings = detector_registry.run_gliner(request.text)
+            spans = [
+                ScanSpan(
+                    entityType=f.category,
+                    start=f.start,
+                    end=f.end,
+                    confidence=f.confidence,
+                    decision=f.recommendedAction,
+                )
+                for f in findings
+            ]
+        except QueueTimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="worker_overloaded"
+            ) from None
+        except Exception:
+            logger.exception("GLiNER legacy scan failed request_id=%s", request.requestId)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="scanner unavailable"
+            ) from None
+        return ScanResponse(
+            schemaVersion="openconnect.v1",
+            requestId=request.requestId,
+            detectorId="gliner-pii",
+            detectorVersion=version,
+            spans=spans,
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="detector unavailable"
     )
 
 
@@ -266,8 +314,10 @@ def inspect_text(request: InspectionRequest) -> InspectionResponse:
                         )
                     )
             else:
-                _, runner = _text_detectors[detector_id]
-                det_findings = runner(text)
+                if detector_id in _text_detectors:
+                    det_findings = _text_detectors[detector_id][1](text)
+                else:
+                    det_findings = detector_registry.run_gliner(text)
                 for item in det_findings:
                     if item.start < 0 or item.end > text_len or item.start >= item.end:
                         raise ValueError("invalid_span_offsets")
@@ -275,10 +325,17 @@ def inspect_text(request: InspectionRequest) -> InspectionResponse:
             detector_statuses.append(
                 DetectorExecutionStatus(id=detector_id, version=version, status="completed")
             )
+        except QueueTimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="worker_overloaded",
+            ) from None
         except HTTPException:
             raise
         except Exception:
-            logger.exception("Text inspection failed request_id=%s detector=%s", request.requestId, detector_id)
+            logger.exception(
+                "Text inspection failed request_id=%s detector=%s", request.requestId, detector_id
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="inspection_failed",
@@ -327,13 +384,29 @@ def inspect_prompt(request: InspectionRequest) -> InspectionResponse:
                 detail=f"detector_unavailable:{detector_id}",
             )
         try:
-            _, runner = _prompt_detectors[detector_id]
-            findings.extend(runner(request.text))
+            if detector_id in _prompt_detectors:
+                findings.extend(_prompt_detectors[detector_id][1](request.text))
+            elif detector_id == "deberta-injection":
+                findings.extend(detector_registry.run_deberta(request.text))
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"detector_unavailable:{detector_id}",
+                )
             detector_statuses.append(
                 DetectorExecutionStatus(id=detector_id, version=version, status="completed")
             )
+        except QueueTimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="worker_overloaded",
+            ) from None
+        except HTTPException:
+            raise
         except Exception:
-            logger.exception("Prompt inspection failed request_id=%s detector=%s", request.requestId, detector_id)
+            logger.exception(
+                "Prompt inspection failed request_id=%s detector=%s", request.requestId, detector_id
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="inspection_failed",
@@ -444,7 +517,14 @@ async def inspect_file(
     digest = sha256_bytes(data)
     _verify_expected_sha256(digest, expectedSha256)
     mime = sniff_mime(data)
-    outcome = _get_malware_inspector().scan_bytes(data)
+    try:
+        with detector_registry.malware_queue.acquire():
+            outcome = _get_malware_inspector().scan_bytes(data)
+    except QueueTimeoutError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="worker_overloaded",
+        ) from None
     duration_ms = int((time.perf_counter() - started) * 1000)
 
     if outcome.outcome in ("clean", "detected"):
@@ -583,8 +663,17 @@ async def inspect_image(
                 detail=f"detector_unavailable:{det_id}",
             )
         try:
-            _, runner = _image_detectors[det_id]
-            regions = runner(validated)
+            if det_id in _image_detectors:
+                regions = _image_detectors[det_id][1](validated)
+            elif det_id == "paddle-ocr":
+                regions = detector_registry.run_paddle_ocr(validated)
+            elif det_id == "yunet":
+                regions = detector_registry.run_yunet(validated)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"detector_unavailable:{det_id}",
+                )
             for region in regions:
                 if (
                     region.x + region.width > validated.width
@@ -599,6 +688,13 @@ async def inspect_image(
                     status="completed",
                 )
             )
+        except QueueTimeoutError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="worker_overloaded",
+            ) from None
+        except HTTPException:
+            raise
         except Exception:
             logger.exception("Image inspection failed request_id=%s detector=%s", requestId, det_id)
             raise HTTPException(
