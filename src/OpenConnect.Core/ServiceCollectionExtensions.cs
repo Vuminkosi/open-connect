@@ -677,9 +677,9 @@ public sealed class CoreToolRegistry : IToolCatalog
 
     public IReadOnlyList<ToolDescriptor> GetAuthorized(AgentId agentId, PrincipalId principal, TenantId tenant)
     {
-        if (principal.Value == default || tenant.Value == default)
-            return Array.Empty<ToolDescriptor>();
-        return GetForAgent(agentId);
+        // Fail closed: this registry holds no per-principal policy, so it never grants tools by itself.
+        // Use an IToolDiscovery implementation (for example ToolCatalog) for policy-filtered discovery.
+        return Array.Empty<ToolDescriptor>();
     }
 }
 
