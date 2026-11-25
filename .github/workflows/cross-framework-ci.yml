@@ -286,6 +286,23 @@ jobs:
           }
           'Privacy-token PostgreSQL upgrades: VERIFIED clean upgrade/rollback and duplicate rejection without row loss.' >> $env:GITHUB_STEP_SUMMARY
 
+      - name: Run long event-journal replay on PostgreSQL
+        env:
+          OPENCONNECT_REQUIRE_EVENT_REPLAY_POSTGRES: 'true'
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=EventJournalReplayPostgres"
+          --logger "trx;LogFileName=event-replay-pg.trx" --results-directory artifacts/event-replay-pg
+      - name: Require executed PostgreSQL replay with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/event-replay-pg/event-replay-pg.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 1 -or [int]$counts.executed -ne 1 -or [int]$counts.passed -ne 1 -or [int]$counts.failed -ne 0) {
+            throw 'The PostgreSQL long replay regression must execute and pass; empty or skipped coverage is not accepted.'
+          }
+          'Event journal replay on PostgreSQL: VERIFIED 457 events from zero and 438 after cursor 19.' >> $env:GITHUB_STEP_SUMMARY
+
 
   privacy-migrations-sqlserver:
     name: SQL Server privacy-token upgrades (isolated LocalDB)
@@ -322,6 +339,23 @@ jobs:
             throw 'All three SQL Server provider tests must execute and pass; skipped coverage is not accepted.'
           }
           'SQL Server LocalDB: VERIFIED clean token upgrade/rollback, duplicate rejection without row loss and collation-sensitive scope isolation.' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Run long event-journal replay on SQL Server LocalDB
+        env:
+          OPENCONNECT_REQUIRE_EVENT_REPLAY_SQLSERVER: 'true'
+        run: >-
+          dotnet test tests/Unit/OpenConnect.Persistence.EFCore.Tests/OpenConnect.Persistence.EFCore.Tests.csproj
+          -c Release -f net10.0 --no-restore --filter "Category=EventJournalReplaySqlServer"
+          --logger "trx;LogFileName=event-replay-sqlserver.trx" --results-directory artifacts/event-replay-sqlserver
+      - name: Require executed SQL Server LocalDB replay with no skips
+        shell: pwsh
+        run: |
+          [xml]$trx = Get-Content artifacts/event-replay-sqlserver/event-replay-sqlserver.trx -Raw
+          $counts = $trx.SelectSingleNode("//*[local-name()='Counters']")
+          if ($null -eq $counts -or [int]$counts.total -ne 1 -or [int]$counts.executed -ne 1 -or [int]$counts.passed -ne 1 -or [int]$counts.failed -ne 0) {
+            throw 'The SQL Server LocalDB long replay regression must execute and pass; empty or skipped coverage is not accepted.'
+          }
+          'Event journal replay on SQL Server LocalDB: VERIFIED 457 events from zero and 438 after cursor 19.' >> $env:GITHUB_STEP_SUMMARY
       - name: Stop isolated LocalDB instance
         if: always()
         shell: pwsh
