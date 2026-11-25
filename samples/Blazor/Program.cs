@@ -10,6 +10,7 @@ using MudBlazor.Services;
 using OpenConnect.Abstractions.Messaging;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Client;
+using OpenConnect.Client.Messaging;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
@@ -278,11 +279,17 @@ builder.Services.AddOpenConnectMessaging(options =>
         options.WorkerEndpoint = messagingWorkerEndpoint;
         options.UnixSocketPath = messagingWorkerSocket;
         options.BearerToken = messagingWorkerToken;
-        var keyBytes = Encoding.UTF8.GetBytes(messagingWorkerSigningKeyRaw!);
+        var rawKey = messagingWorkerSigningKeyRaw!.Trim();
+        byte[] keyBytes;
+        if (rawKey.Length >= 64 && rawKey.Length % 2 == 0 && rawKey.All(Uri.IsHexDigit))
+            keyBytes = Convert.FromHexString(rawKey);
+        else
+            keyBytes = Encoding.UTF8.GetBytes(rawKey);
         options.SigningKey = keyBytes.Length >= MessagingWorkerOptions.MinSigningKeyBytes ? keyBytes : SHA256.HashData(keyBytes);
         options.AllowInsecureLoopbackHttpInDevelopment = builder.Environment.IsDevelopment();
     }
 });
+builder.Services.AddOpenConnectMessagingClient();
 builder.Services.AddOpenConnectMessagingPersistence<BlazorDbContext>();
 builder.Services.AddOpenConnectMessagingHosting(options =>
 {
