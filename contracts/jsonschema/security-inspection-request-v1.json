@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.security-inspection.v1/security-inspection-request-v1.json",
+  "title": "Security inspection request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "modality", "detectors"],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.security-inspection.v1"
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "policyRevision": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "modality": {
+      "type": "string",
+      "enum": ["text", "prompt", "image", "file"]
+    },
+    "detectors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "rules",
+          "gliner-pii",
+          "deberta-injection",
+          "qwen3guard",
+          "paddle-ocr",
+          "yunet",
+          "malware"
+        ]
+      }
+    },
+    "text": {
+      "type": ["string", "null"],
+      "maxLength": 65536
+    },
+    "contentSha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "contentType": {
+      "type": ["string", "null"],
+      "maxLength": 128
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "modality": { "enum": ["text", "prompt"] } },
+        "required": ["modality"]
+      },
+      "then": {
+        "required": ["text"],
+        "properties": { "text": { "type": "string", "maxLength": 65536 } }
+      }
+    }
+  ]
+}

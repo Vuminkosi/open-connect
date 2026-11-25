@@ -1,13 +1,19 @@
 [project]
 name = "openconnect-security-worker"
 version = "0.1.0"
-description = "Local rules-based privacy scanning worker for OpenConnect"
+description = "Local privacy, malware, and AI firewall scanning worker for OpenConnect"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi==0.162.5",
+  "openconnect-worker-common",
+  "pillow==11.2.1",
   "pydantic==2.11.3",
+  "python-multipart==0.0.20",
   "uvicorn[standard]==0.54.0",
 ]
+
+[tool.uv.sources]
+openconnect-worker-common = { path = "../common" }
 
 [dependency-groups]
 dev = ["httpx==0.28.1", "jsonschema==4.26.0", "pytest==9.2.0", "ruff==0.17.5"]

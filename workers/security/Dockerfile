@@ -6,26 +6,26 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HF_HUB_OFFLINE=1 \
-    TRANSFORMERS_OFFLINE=1 \
     OC_MODEL_CACHE_DIR=/models \
     MODEL_DIR=/models
 
-WORKDIR /app
+WORKDIR /app/workers/security
 
 FROM base AS dependencies
-COPY pyproject.toml uv.lock ./
+COPY workers/common/pyproject.toml /app/workers/common/pyproject.toml
+COPY workers/common/src/ /app/workers/common/src/
+COPY workers/security/pyproject.toml workers/security/uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
 FROM base AS runtime
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH=/app/src \
+ENV PATH="/app/workers/security/.venv/bin:$PATH" \
+    PYTHONPATH=/app/workers/security/src \
     OC_MODEL_CACHE_DIR=/models \
     MODEL_DIR=/models \
-    HF_HUB_OFFLINE=1 \
-    TRANSFORMERS_OFFLINE=1
-COPY --from=dependencies /app/.venv /app/.venv
-COPY src/ /app/src/
+    OC_MODEL_OFFLINE=false \
+    OC_MODEL_PROVISIONING=first-start-if-missing
+COPY --from=dependencies /app/workers/security/.venv ./.venv
+COPY workers/security/src/ ./src/
 RUN mkdir -p /models && chown -R 10001:10001 /app /models
 USER 10001:10001
 
@@ -33,4 +33,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=2)"]
 
-CMD ["uvicorn", "openconnect_security.app:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "openconnect_security.app:app", "--host", "0.0.0.0", "--port", "8080", "--limit-concurrency", "16"]

@@ -24,6 +24,7 @@ DETECTOR_FLAG_MAP: tuple[tuple[str, str, bool], ...] = (
     ("qwen3guard", "OC_SECURITY_QWEN3GUARD_ENABLED", False),
     ("paddle-ocr", "OC_SECURITY_PADDLEOCR_ENABLED", False),
     ("yunet", "OC_SECURITY_YUNET_ENABLED", False),
+    ("malware", "OC_SECURITY_MALWARE_ENABLED", False),
 )
 
 MODEL_BACKED_DETECTORS: dict[str, str] = {
@@ -34,11 +35,31 @@ MODEL_BACKED_DETECTORS: dict[str, str] = {
     "yunet": "opencv/face_detection_yunet",
 }
 
+DETECTOR_CAPABILITY_ID_MAP: dict[str, str] = {
+    "rules": "security.rules",
+    "gliner-pii": "security.gliner-pii",
+    "deberta-injection": "security.deberta-injection",
+    "qwen3guard": "security.qwen3-guard",
+    "paddle-ocr": "security.paddle-ocr",
+    "yunet": "security.yunet",
+    "malware": "security.malware",
+}
+
 
 def _as_bool(raw: str | None, default: bool) -> bool:
     if raw is None or raw.strip() == "":
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _as_float(raw: str | None, default: float) -> float:
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw.strip())
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 @dataclass(frozen=True)
@@ -60,6 +81,9 @@ class Settings:
     qwen3guard_enabled: bool = False
     paddleocr_enabled: bool = False
     yunet_enabled: bool = False
+    malware_enabled: bool = False
+    clamav_socket_path: Path | None = None
+    clamav_timeout_seconds: float = 30.0
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -71,6 +95,8 @@ class Settings:
         cache_dir = Path(
             resolve_cache_dir(os.environ.get("OC_MODEL_CACHE_DIR"), os.environ.get("MODEL_DIR"))
         )
+        raw_socket = os.environ.get("OC_SECURITY_CLAMAV_SOCKET", "").strip()
+        clamav_socket = Path(raw_socket) if raw_socket else None
         return cls(
             scan_token=token if token else None,
             model_dir=cache_dir,
@@ -87,6 +113,11 @@ class Settings:
             qwen3guard_enabled=_as_bool(os.environ.get("OC_SECURITY_QWEN3GUARD_ENABLED"), False),
             paddleocr_enabled=_as_bool(os.environ.get("OC_SECURITY_PADDLEOCR_ENABLED"), False),
             yunet_enabled=_as_bool(os.environ.get("OC_SECURITY_YUNET_ENABLED"), False),
+            malware_enabled=_as_bool(os.environ.get("OC_SECURITY_MALWARE_ENABLED"), False),
+            clamav_socket_path=clamav_socket,
+            clamav_timeout_seconds=_as_float(
+                os.environ.get("OC_SECURITY_CLAMAV_TIMEOUT_SECONDS"), 30.0
+            ),
         )
 
     def enabled_detectors(self) -> list[str]:
@@ -103,7 +134,9 @@ class Settings:
             enabled.append("paddle-ocr")
         if self.yunet_enabled:
             enabled.append("yunet")
+        if self.malware_enabled:
+            enabled.append("malware")
         return enabled
 
     def enabled_model_detectors(self) -> list[str]:
-        return [d for d in self.enabled_detectors() if d != "rules"]
+        return [d for d in self.enabled_detectors() if d in MODEL_BACKED_DETECTORS]

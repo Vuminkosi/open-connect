@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "openconnect.security-inspection.v1",
+  "requestId": "7f30d6aa-3c44-4d91-9e08-8f2a9032e101",
+  "modality": "prompt",
+  "status": "completed",
+  "detectors": [
+    {
+      "id": "deberta-injection",
+      "version": "rev-deberta-1",
+      "status": "completed",
+      "reasonCode": null
+    }
+  ],
+  "findings": [
+    {
+      "kind": "injection",
+      "detectorId": "deberta-injection",
+      "label": "injection",
+      "score": 0.96,
+      "threshold": 0.85,
+      "modelRevision": "rev-deberta-1"
+    }
+  ],
+  "offsetUnit": "unicode-scalar",
+  "contentSha256": null,
+  "contentType": null,
+  "imageMetadata": null,
+  "durationMs": 19
+}

@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.security-inspection.v1/security-inspection-response-v1.json",
+  "title": "Security inspection response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "modality",
+    "status",
+    "detectors",
+    "findings",
+    "durationMs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.security-inspection.v1"
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "modality": {
+      "type": "string",
+      "enum": ["text", "prompt", "image", "file"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "partial", "unavailable", "unsupported", "limit_exceeded"]
+    },
+    "detectors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "rules",
+              "gliner-pii",
+              "deberta-injection",
+              "qwen3guard",
+              "paddle-ocr",
+              "yunet",
+              "malware"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "unavailable", "unsupported", "limit_exceeded", "error"]
+          },
+          "reasonCode": {
+            "type": ["string", "null"],
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "detectorId",
+              "category",
+              "start",
+              "end",
+              "confidence",
+              "recommendedAction"
+            ],
+            "properties": {
+              "kind": { "const": "text_span" },
+              "detectorId": {
+                "type": "string",
+                "enum": ["rules", "gliner-pii", "deberta-injection", "qwen3guard", "paddle-ocr"]
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "PERSON",
+                  "EMAIL",
+                  "PHONE",
+                  "ADDRESS",
+                  "DATE_OF_BIRTH",
+                  "GOVERNMENT_ID",
+                  "ACCOUNT_NUMBER",
+                  "PAYMENT_CARD",
+                  "IP_ADDRESS",
+                  "SECRET",
+                  "ORG_SENSITIVE",
+                  "CUSTOM"
+                ]
+              },
+              "start": { "type": "integer", "minimum": 0 },
+              "end": { "type": "integer", "minimum": 1 },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "recommendedAction": {
+                "type": "string",
+                "enum": ["allow", "mask", "redact", "block", "review"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "detectorId",
+              "category",
+              "x",
+              "y",
+              "width",
+              "height",
+              "confidence",
+              "recommendedAction"
+            ],
+            "properties": {
+              "kind": { "const": "image_region" },
+              "detectorId": {
+                "type": "string",
+                "enum": ["paddle-ocr", "yunet"]
+              },
+              "category": {
+                "type": "string",
+                "enum": [
+                  "FACE",
+                  "TEXT_PII",
+                  "PERSON",
+                  "EMAIL",
+                  "PHONE",
+                  "ADDRESS",
+                  "DATE_OF_BIRTH",
+                  "GOVERNMENT_ID",
+                  "ACCOUNT_NUMBER",
+                  "PAYMENT_CARD",
+                  "SECRET",
+                  "CUSTOM"
+                ]
+              },
+              "x": { "type": "integer", "minimum": 0 },
+              "y": { "type": "integer", "minimum": 0 },
+              "width": { "type": "integer", "minimum": 1 },
+              "height": { "type": "integer", "minimum": 1 },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "recommendedAction": {
+                "type": "string",
+                "enum": ["allow", "mask", "redact", "block", "review"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "detectorId", "outcome", "reasonCode"],
+            "properties": {
+              "kind": { "const": "malware" },
+              "detectorId": { "const": "malware" },
+              "outcome": {
+                "type": "string",
+                "enum": ["clean", "detected", "unavailable", "unsupported", "limit_exceeded"]
+              },
+              "reasonCode": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "signatureVersion": { "type": ["string", "null"], "maxLength": 128 }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "detectorId",
+              "label",
+              "score",
+              "threshold",
+              "modelRevision"
+            ],
+            "properties": {
+              "kind": { "const": "injection" },
+              "detectorId": {
+                "type": "string",
+                "enum": ["deberta-injection", "qwen3guard"]
+              },
+              "label": {
+                "type": "string",
+                "enum": ["benign", "injection", "uncertain"]
+              },
+              "score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+              "modelRevision": { "type": "string", "minLength": 1, "maxLength": 128 }
+            }
+          }
+        ]
+      }
+    },
+    "offsetUnit": {
+      "type": ["string", "null"],
+      "enum": ["unicode-scalar", null]
+    },
+    "contentSha256": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "contentType": {
+      "type": ["string", "null"],
+      "maxLength": 128
+    },
+    "imageMetadata": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["width", "height", "coordinateSpace", "orientationNormalized"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "coordinateSpace": { "const": "top-left-pixels" },
+        "orientationNormalized": { "type": "boolean" }
+      }
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}
