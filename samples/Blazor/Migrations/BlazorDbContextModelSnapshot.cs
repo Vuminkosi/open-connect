@@ -27,6 +27,17 @@ namespace OpenConnect.Samples.Blazor.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CommandDigest")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommandId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("TEXT");
 
@@ -60,6 +71,8 @@ namespace OpenConnect.Samples.Blazor.Migrations
                     b.HasKey("ApprovalId");
 
                     b.HasIndex("TenantScope", "TaskId");
+
+                    b.HasIndex("TenantScope", "PrincipalScope", "TaskId", "CommandId");
 
                     b.ToTable("oc_approvals", (string)null);
                 });
@@ -533,6 +546,13 @@ namespace OpenConnect.Samples.Blazor.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ReceiptPayload")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ResultRef")
                         .HasColumnType("TEXT");
 
@@ -610,6 +630,970 @@ namespace OpenConnect.Samples.Blazor.Migrations
                     b.ToTable("oc_turns", (string)null);
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AttachmentId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EncryptedDigestSha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("EncryptedSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ObjectVersion")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "AttachmentId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "State");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ObjectKey", "ObjectVersion")
+                        .IsUnique();
+
+                    b.ToTable("oc_messagingattachments", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CallId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcceptedDeviceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AcceptedPrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdmissionTokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AllowedHumanRecipientsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CallerAgentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CallerKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CallerPrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MediaSecurityMode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VoiceSessionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "CallId");
+
+                    b.HasIndex("TenantId", "CallId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "State");
+
+                    b.ToTable("oc_messagingcalls", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContinuationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExecutionIdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LeaseFence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecipientPrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaskId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TriggeringEventId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "ContinuationId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ExecutionIdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "Status");
+
+                    b.ToTable("oc_messagingcontinuations", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CryptoEpoch")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("MembershipVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("NextSequence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SecurityProfile")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "ConversationId");
+
+                    b.HasIndex("TenantId", "ConversationId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "State");
+
+                    b.ToTable("oc_messagingconversations", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublicKeyBase64")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "DeviceId");
+
+                    b.HasIndex("TenantId", "DeviceId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "PrincipalId", "Status");
+
+                    b.ToTable("oc_messagingdevices", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EnrollmentId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChallengeNonceBase64")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ClaimedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimedDeviceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimedDeviceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimedDevicePublicKeyBase64")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimedPlatform")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InitiatingPrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Issuer")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHashSha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VerificationCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId", "ApplicationId", "EnrollmentId");
+
+                    b.HasIndex("TokenHashSha256")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "EnrollmentId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "InitiatingPrincipalId", "State");
+
+                    b.ToTable("oc_messagingenrollments", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FollowUpId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CausalEventId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DueAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastDispatchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LeaseFence")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("QuietHoursEndUtc")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QuietHoursStartUtc")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecipientPrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaskId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "FollowUpId");
+
+                    b.HasIndex("TenantId", "FollowUpId")
+                        .IsUnique();
+
+                    b.HasIndex("State", "DueAtUtc", "LeaseExpiresAtUtc");
+
+                    b.HasIndex("TenantId", "ApplicationId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "RecipientPrincipalId", "State");
+
+                    b.ToTable("oc_messagingfollowups", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("KeyPackageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Consumed")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerAgentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerPrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Protocol")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublicPackageBase64")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "KeyPackageId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "DeviceId", "Consumed", "ExpiresAtUtc");
+
+                    b.ToTable("oc_messagingkeypackages", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AssociatedDataBase64")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthTagBase64")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CiphertextBase64")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClientOperationId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CryptoEpoch")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NonceBase64")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadDigestSha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Protocol")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderAgentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderDeviceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderKeyId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SenderPrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId", "ApplicationId", "ConversationId", "MessageId");
+
+                    b.HasIndex("TenantId", "ConversationId", "ClientOperationId");
+
+                    b.HasIndex("TenantId", "ConversationId", "MessageId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "SenderKey", "ClientOperationId")
+                        .IsUnique();
+
+                    b.ToTable("oc_messagingmessages", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("JoinVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("JoinedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("LeaveVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ParticipantKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "ApplicationId", "AgentId", "Status");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "ParticipantKey")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "PrincipalId", "Status");
+
+                    b.ToTable("oc_messagingparticipants", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegistrationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ConsentGranted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProtectedTokenHandle")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "ApplicationId", "RegistrationId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "DeviceId", "Status");
+
+                    b.HasIndex("TenantId", "ApplicationId", "PrincipalId", "Status");
+
+                    b.ToTable("oc_messagingpushregistrations", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeliveredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ReadAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId", "ApplicationId", "MessageId", "DeviceId");
+
+                    b.HasIndex("TenantId", "MessageId", "DeviceId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "MessageId");
+
+                    b.HasIndex("TenantId", "ApplicationId", "ConversationId", "PrincipalId");
+
+                    b.ToTable("oc_messagingreceipts", (string)null);
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApplicationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GrantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FamilyId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("IssuedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Issuer")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrincipalId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RotatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TokenHashSha256")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId", "ApplicationId", "GrantId");
+
+                    b.HasIndex("TokenHashSha256")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ApplicationId", "DeviceId", "Status");
+
+                    b.HasIndex("TenantId", "ApplicationId", "FamilyId", "Status");
+
+                    b.ToTable("oc_messagingrefreshgrants", (string)null);
+                });
+
             modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoItem", b =>
                 {
                     b.Property<string>("Scope")
@@ -617,6 +1601,19 @@ namespace OpenConnect.Samples.Blazor.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApprovalsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AssignedPrincipalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuditHistoryJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommentsJson")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("CompletedAtUtc")
@@ -631,6 +1628,10 @@ namespace OpenConnect.Samples.Blazor.Migrations
                     b.Property<DateTime?>("DueDateUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EscalationPolicy")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("INTEGER");
 
@@ -641,6 +1642,15 @@ namespace OpenConnect.Samples.Blazor.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0L);
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -663,6 +1673,83 @@ namespace OpenConnect.Samples.Blazor.Migrations
                     b.ToTable("todo_scopes", (string)null);
                 });
 
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", "Conversation")
+                        .WithMany("Participants")
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity", b =>
+                {
+                    b.HasOne("OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity", "Message")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "ApplicationId", "ConversationId", "MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+                });
+
             modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoItem", b =>
                 {
                     b.HasOne("OpenConnect.Samples.Blazor.PersistedTodoScope", "ScopeRecord")
@@ -672,6 +1759,11 @@ namespace OpenConnect.Samples.Blazor.Migrations
                         .IsRequired();
 
                     b.Navigation("ScopeRecord");
+                });
+
+            modelBuilder.Entity("OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity", b =>
+                {
+                    b.Navigation("Participants");
                 });
 
             modelBuilder.Entity("OpenConnect.Samples.Blazor.PersistedTodoScope", b =>

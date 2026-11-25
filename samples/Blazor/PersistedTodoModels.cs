@@ -20,5 +20,12 @@ internal sealed class PersistedTodoItem
     public DateTime? DueDateUtc { get; set; }
     public DateTime? CompletedAtUtc { get; set; }
     public long Revision { get; set; }
+    public string? TenantId { get; set; }
+    public string? AssignedPrincipalId { get; set; }
+    public TodoStatus Status { get; set; } = TodoStatus.Open;
+    public string? EscalationPolicy { get; set; }
+    public string? CommentsJson { get; set; }
+    public string? ApprovalsJson { get; set; }
+    public string? AuditHistoryJson { get; set; }
     public PersistedTodoScope ScopeRecord { get; set; } = null!;
 }

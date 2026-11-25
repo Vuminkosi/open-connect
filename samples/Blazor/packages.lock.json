@@ -603,6 +603,13 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.imessaging": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.knowledge": {
         "type": "Project",
         "dependencies": {
