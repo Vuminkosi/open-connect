@@ -1,0 +1,51 @@
+# OpenConnect IMessaging private worker compose profile.
+#
+# Security defaults:
+# - Private internal network only (no public host ports exposed).
+# - Non-root UID/GID 10001, read-only root filesystem, bounded CPU/memory/PIDs.
+# - No model volume; model provisioning is permanently disabled.
+# - Fail-closed by default: set OC_IMESSAGING_ENABLED=true and supply secrets via env/secret store.
+name: openconnect-imessaging
+
+services:
+  imessaging:
+    build:
+      context: ../..
+      dockerfile: workers/imessaging/Dockerfile
+    image: vuminkosimatibe/openconnect-worker-imessaging:${OC_IMAGE_TAG:-e2e-local}
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid,nodev
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+    environment:
+      OC_IMESSAGING_ENABLED: ${OC_IMESSAGING_ENABLED:-false}
+      OC_IMESSAGING_PUSH_MODE: ${OC_IMESSAGING_PUSH_MODE:-disabled}
+      OC_IMESSAGING_RELAY_ENABLED: ${OC_IMESSAGING_RELAY_ENABLED:-false}
+      OC_IMESSAGING_NATS_REQUIRED: ${OC_IMESSAGING_NATS_REQUIRED:-false}
+      OPENCONNECT_WORKER_TOKEN: ${OPENCONNECT_WORKER_TOKEN:?Set OPENCONNECT_WORKER_TOKEN}
+      OPENCONNECT_WORKER_SIGNING_KEY: ${OPENCONNECT_WORKER_SIGNING_KEY:?Set OPENCONNECT_WORKER_SIGNING_KEY}
+      OPENCONNECT_WORKER_SIGNING_KEYS: ${OPENCONNECT_WORKER_SIGNING_KEYS:-}
+      OPENCONNECT_NATS_URL: ${OPENCONNECT_NATS_URL:-nats://nats:4222}
+      OC_IMESSAGING_FCM_PROJECT_ID: ${OC_IMESSAGING_FCM_PROJECT_ID:-}
+      OC_IMESSAGING_FCM_CREDENTIALS_PATH: ${OC_IMESSAGING_FCM_CREDENTIALS_PATH:-}
+      OC_IMESSAGING_MAX_BODY_BYTES: ${OC_IMESSAGING_MAX_BODY_BYTES:-524288}
+      OC_IMESSAGING_MAX_QUEUE_DEPTH: ${OC_IMESSAGING_MAX_QUEUE_DEPTH:-1024}
+    networks:
+      - imessaging_internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health/live', timeout=2)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+networks:
+  imessaging_internal:
+    internal: true

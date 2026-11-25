@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "task-push-0001",
+  "kind": "messaging.push.dispatch",
+  "tenantId": "tenant-acme-01",
+  "nonce": "00112233445566778899aabbccddeeff",
+  "issuedAt": "2026-11-25T12:00:00Z",
+  "expiresAt": "2026-11-25T12:02:00Z",
+  "payload": {
+    "eventId": "evt-push-0001",
+    "provider": "fcm",
+    "registrationHandle": "reg-opaque-0001",
+    "pushPayload": {
+      "schemaVersion": 1,
+      "notificationId": "notif-0001",
+      "profileHandle": "prof-opaque-0001",
+      "eventClass": "message",
+      "displayTitle": "New message",
+      "displayBody": "Open app to view",
+      "ttlSeconds": 300,
+      "collapseKey": "msg-wake"
+    }
+  }
+}

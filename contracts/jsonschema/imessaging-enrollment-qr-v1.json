@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/imessaging-enrollment-qr-v1.json",
+  "title": "IMessaging Device Enrollment QR Payload v1",
+  "description": "Single-use high-entropy desktop-to-mobile enrollment QR payload. Never contains desktop access or refresh tokens.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "type",
+    "baseGatewayUrl",
+    "tenantId",
+    "applicationId",
+    "pairingId",
+    "enrollmentToken",
+    "expiresAt"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "type": {
+      "const": "openconnect.device.enrollment"
+    },
+    "baseGatewayUrl": {
+      "type": "string",
+      "format": "uri",
+      "minLength": 10,
+      "maxLength": 512,
+      "pattern": "^https://[^\\s@#?]+$"
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "applicationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "pairingId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "enrollmentToken": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]{32,256}$"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

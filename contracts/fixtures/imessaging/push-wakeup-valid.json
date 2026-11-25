@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "notificationId": "notif-0001",
+  "profileHandle": "prof-opaque-0001",
+  "eventClass": "message",
+  "displayTitle": "New message",
+  "displayBody": "Open app to view",
+  "ttlSeconds": 300,
+  "collapseKey": "msg-wake"
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/imessaging-push-wakeup-v1.json",
+  "title": "IMessaging Opaque Push Wake-Up Payload v1",
+  "description": "Strict allowlisted opaque push wake-up payload. Plaintext message content, task titles, participant identities, tokens, URLs, and keys are strictly forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "notificationId",
+    "profileHandle",
+    "eventClass",
+    "displayTitle",
+    "displayBody",
+    "ttlSeconds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "notificationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "profileHandle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "eventClass": {
+      "type": "string",
+      "enum": ["message", "call", "approval", "system"]
+    },
+    "displayTitle": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "displayBody": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "ttlSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400
+    },
+    "collapseKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"
+    }
+  }
+}

@@ -74,6 +74,21 @@ services:
     entrypoint: ["/bin/sh", "/bootstrap.sh"]
     restart: "no"
 
+  bootstrap-messaging-stream:
+    image: natsio/nats-box:0.19.7
+    depends_on:
+      nats: { condition: service_healthy }
+    env_file: [.env]
+    environment:
+      NATS_URL: nats://nats:4222
+      NATS_MESSAGING_STREAM: ${NATS_MESSAGING_STREAM:-OC_MESSAGING}
+      NATS_MESSAGING_SUBJECT: ${NATS_MESSAGING_SUBJECT:-oc.v1.messaging.durable.>}
+      OPENCONNECT_NATS_OPTIONS_FILE: ${OPENCONNECT_NATS_OPTIONS_FILE:-}
+    volumes:
+      - ./nats/bootstrap-messaging-stream.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+    restart: "no"
+
 volumes:
   pgdata:
   qdrantdata:

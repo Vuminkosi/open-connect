@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "task-route-0001",
+  "kind": "messaging.route",
+  "tenantId": "tenant-acme-01",
+  "status": "accepted",
+  "result": {
+    "eventId": "evt-msg-0001",
+    "dispatchedCount": 1,
+    "failedTargets": [],
+    "providerStatus": "sent",
+    "processedAt": "2026-11-25T12:00:01Z"
+  }
+}

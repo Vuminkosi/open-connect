@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/imessaging-execute-request-v1.json",
+  "title": "IMessaging Worker Execute Request v1",
+  "description": "Signed gateway-to-worker execution envelope for POST /internal/v1/execute.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "kind",
+    "tenantId",
+    "nonce",
+    "issuedAt",
+    "expiresAt",
+    "payload"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.v1"
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "messaging.route",
+        "messaging.presence",
+        "messaging.signal",
+        "messaging.push.dispatch"
+      ]
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9._:-]{16,128}$"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "messaging.route" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/routePayload" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "messaging.presence" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/presencePayload" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "messaging.signal" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/signalPayload" } } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "messaging.push.dispatch" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/pushDispatchPayload" } } }
+    }
+  ],
+  "$defs": {
+    "opaqueId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "routePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "conversationId",
+        "sequence",
+        "targetGateways",
+        "targetDeviceIds",
+        "securityProfile",
+        "protocol",
+        "epoch",
+        "ciphertextBase64",
+        "occurredAt"
+      ],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/opaqueId" },
+        "conversationId": { "$ref": "#/$defs/opaqueId" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "targetGateways": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "targetDeviceIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "securityProfile": {
+          "type": "string",
+          "enum": ["PrivateE2EE", "AgentE2EE", "Governed"]
+        },
+        "protocol": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "epoch": { "type": "integer", "minimum": 0 },
+        "ciphertextBase64": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 262144
+        },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "ttlSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+      }
+    },
+    "presencePayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "principalId",
+        "deviceId",
+        "gatewayId",
+        "status",
+        "conversationIds",
+        "ttlSeconds",
+        "occurredAt"
+      ],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/opaqueId" },
+        "principalId": { "$ref": "#/$defs/opaqueId" },
+        "deviceId": { "$ref": "#/$defs/opaqueId" },
+        "gatewayId": { "$ref": "#/$defs/opaqueId" },
+        "status": {
+          "type": "string",
+          "enum": ["online", "away", "offline"]
+        },
+        "conversationIds": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "ttlSeconds": { "type": "integer", "minimum": 10, "maximum": 300 },
+        "occurredAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "signalPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "callId",
+        "conversationId",
+        "signalType",
+        "targetGateways",
+        "targetDeviceIds",
+        "occurredAt"
+      ],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/opaqueId" },
+        "callId": { "$ref": "#/$defs/opaqueId" },
+        "conversationId": { "$ref": "#/$defs/opaqueId" },
+        "signalType": {
+          "type": "string",
+          "enum": ["invite", "ringing", "accept", "decline", "cancel", "end", "missed", "ice", "sdp"]
+        },
+        "targetGateways": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "targetDeviceIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/opaqueId" }
+        },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "opaquePayloadBase64": { "type": "string", "maxLength": 65536 },
+        "occurredAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "pushDispatchPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "provider",
+        "registrationHandle",
+        "pushPayload"
+      ],
+      "properties": {
+        "eventId": { "$ref": "#/$defs/opaqueId" },
+        "provider": {
+          "type": "string",
+          "enum": ["fcm", "webpush"]
+        },
+        "registrationHandle": { "$ref": "#/$defs/opaqueId" },
+        "targetToken": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 4096
+        },
+        "pushPayload": {
+          "$ref": "https://openconnect.dev/contracts/openconnect.v1/imessaging-push-wakeup-v1.json"
+        }
+      }
+    }
+  }
+}

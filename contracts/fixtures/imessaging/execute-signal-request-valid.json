@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "task-signal-0001",
+  "kind": "messaging.signal",
+  "tenantId": "tenant-acme-01",
+  "nonce": "aabbccddeeff00112233445566778899",
+  "issuedAt": "2026-11-25T12:00:00Z",
+  "expiresAt": "2026-11-25T12:02:00Z",
+  "payload": {
+    "eventId": "evt-sig-0001",
+    "callId": "call-0001",
+    "conversationId": "conv-0001",
+    "signalType": "invite",
+    "targetGateways": ["gw-eu-01"],
+    "targetDeviceIds": ["dev-human-01"],
+    "expiresAt": "2026-11-25T12:01:00Z",
+    "occurredAt": "2026-11-25T12:00:00Z"
+  }
+}
