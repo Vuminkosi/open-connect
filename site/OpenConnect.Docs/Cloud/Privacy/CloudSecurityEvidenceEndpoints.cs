@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 using OpenConnect.Abstractions;
 
 namespace OpenConnect.Docs.Cloud;
@@ -40,7 +41,7 @@ public static class CloudSecurityEvidenceEndpoints
             int? take,
             ClaimsPrincipal principal,
             HttpContext context,
-            CloudSecurityEvidenceQueryService queryService,
+            [FromServices] CloudSecurityEvidenceQueryService queryService,
             CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
@@ -80,7 +81,7 @@ public static class CloudSecurityEvidenceEndpoints
             Guid eventId,
             ClaimsPrincipal principal,
             HttpContext context,
-            CloudSecurityEvidenceQueryService queryService,
+            [FromServices] CloudSecurityEvidenceQueryService queryService,
             CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
