@@ -272,7 +272,7 @@ else if (_snapshot is not null)
                         {
                             var isOverdue = !task.IsCompleted && task.DueDateUtc is { } d && d < DateTime.UtcNow;
                             var audits = ParseAudits(task.AuditHistoryJson);
-                            <tr @key="task.Id">
+                            <tr @key="@($"{task.TenantId}:{task.Id}")">
                                 <td>@(string.IsNullOrWhiteSpace(task.TenantId) ? "local" : ResolveTenantLabel(task.TenantId))</td>
                                 <td>
                                     <strong>@task.Title</strong>
