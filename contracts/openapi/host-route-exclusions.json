@@ -1,0 +1,11 @@
+[
+  { "method": "GET", "path": "/tasks/{id}/tools/{invocationId}", "reason": "Host operational tool status; not called by the two core SDK HTTP clients." },
+  { "method": "GET", "path": "/components", "reason": "Optional host component discovery; no core SDK HTTP method." },
+  { "method": "GET", "path": "/health", "reason": "Deployment liveness probe, not a core SDK operation." },
+  { "method": "GET", "path": "/health/ready", "reason": "Deployment readiness probe, not a core SDK operation." },
+  { "method": "GET", "path": "/voice/status", "reason": "Optional voice host status; independent of the core SDK HTTP contract." },
+  { "method": "POST", "path": "/voice/audio", "reason": "Optional voice host operation; no core SDK HTTP method." },
+  { "method": "UPGRADE", "path": "/voice/realtime/{sessionId}", "reason": "Realtime voice WebSocket handshake, not an OpenAPI HTTP operation." },
+  { "method": "GET", "path": "/navigator/status", "reason": "Optional Navigator deployment status; no core SDK HTTP method." },
+  { "method": "GET", "path": "/mcp/tools", "reason": "Separate optional MCP discovery surface; no core SDK HTTP method." }
+]
