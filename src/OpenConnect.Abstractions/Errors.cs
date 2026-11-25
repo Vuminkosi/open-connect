@@ -29,4 +29,8 @@ public static class ErrorCodes
     public const string WorkerUnavailable = "worker_unavailable";
     public const string WorkerHostingConflict = "worker_hosting_conflict";
     public const string VoiceEgressDenied = "voice_egress_denied";
+    public const string MalwareDetected = "malware_detected";
+    public const string PromptInjectionDetected = "prompt_injection_detected";
+    public const string ServiceFencingDenied = "service_fencing_denied";
+    public const string DatabaseFencingDenied = "database_fencing_denied";
 }

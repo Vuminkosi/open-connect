@@ -58,6 +58,8 @@ public static class PrivacyServiceCollectionExtensions
         services.TryAddSingleton<ITokenRestorationService, TokenRestorationService>();
         services.TryAddSingleton<OutgoingContentScanner>();
         services.TryAddSingleton<ModalityEgressGate>();
+        services.TryAddSingleton<Image.HostImageRedactor>();
+        services.TryAddSingleton<ISecurityEvidenceSink, InMemorySecurityEvidenceSink>();
         return services;
     }
 

@@ -26,6 +26,29 @@ internal sealed class KebabCaseNamingPolicy : JsonNamingPolicy
     }
 }
 
+/// <summary>Converts enum member names to strict snake_case JSON strings.</summary>
+public sealed class SnakeCaseStringEnumConverter<TEnum> : JsonStringEnumConverter<TEnum> where TEnum : struct, Enum
+{
+    public SnakeCaseStringEnumConverter() : base(SnakeCaseNamingPolicy.Instance, allowIntegerValues: false) { }
+}
+
+internal sealed class SnakeCaseNamingPolicy : JsonNamingPolicy
+{
+    public static SnakeCaseNamingPolicy Instance { get; } = new();
+    public override string ConvertName(string name)
+    {
+        var result = new System.Text.StringBuilder(name.Length + 4);
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (char.IsUpper(c) && i > 0 && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1])))
+                result.Append('_');
+            result.Append(char.ToLowerInvariant(c));
+        }
+        return result.ToString();
+    }
+}
+
 [JsonConverter(typeof(KebabCaseStringEnumConverter<OpenConnectTransportMode>))]
 public enum OpenConnectTransportMode { JetStream, InMemoryDevelopment }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<AgentExecutionMode>))]
@@ -48,7 +71,7 @@ public enum FirewallMode { StrictLocal, LocalOnly, PolicyControlled, Disabled }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<FirewallFailureAction>))]
 public enum FirewallFailureAction { Deny, LocalOnlyIfVerified }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityDetectorKind>))]
-public enum SecurityDetectorKind { Rules, GlinerPii, DebertaInjection, Qwen3Guard, PaddleOcr, YuNet }
+public enum SecurityDetectorKind { Rules, GlinerPii, DebertaInjection, Qwen3Guard, PaddleOcr, YuNet, Malware }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<DetectorLoadPolicy>))]
 public enum DetectorLoadPolicy { Startup, LazyOnFirstUse }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<DetectorDevice>))]
@@ -56,7 +79,7 @@ public enum DetectorDevice { Auto, Cpu, Cuda }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<DetectorState>))]
 public enum DetectorState { Disabled, Loading, Ready, Degraded, Failed }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityCoverage>))]
-public enum SecurityCoverage { StructuredPii, SemanticPii, PromptInjection, ContentSafety, ImageText, FaceDetection }
+public enum SecurityCoverage { StructuredPii, SemanticPii, PromptInjection, ContentSafety, ImageText, FaceDetection, Malware }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityPolicyAction>))]
 public enum SecurityPolicyAction { Allow, Mask, Redact, Block, Review }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<SecurityCoverageUnavailableAction>))]
@@ -105,7 +128,7 @@ public enum WorkerEngine { Real, Fake }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<WorkerHostingMode>))]
 public enum WorkerHostingMode { Disabled, Embedded, Standalone }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<WorkerReadiness>))]
-public enum WorkerReadiness { Disabled, Provisioning, Loading, Ready, Degraded, Unavailable }
+public enum WorkerReadiness { Disabled, Provisioning, Loading, Ready, Degraded, Unavailable, Configured }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<McpToolAccess>))]
 public enum McpToolAccess { Deny, AllowListed }
 [JsonConverter(typeof(KebabCaseStringEnumConverter<McpAuthorizationMode>))]

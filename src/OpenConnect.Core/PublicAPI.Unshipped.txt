@@ -351,6 +351,7 @@ OpenConnect.Core.Configuration.PlaywrightWorkerOptions.RequireAuthenticatedTrans
 OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Required.get -> bool
 OpenConnect.Core.Configuration.PlaywrightWorkerOptions.Required.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions
+OpenConnect.Core.Configuration.PrivacyOptions.AgentTools.get -> OpenConnect.Core.Configuration.SecurityAgentToolsOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.get -> bool
@@ -361,6 +362,9 @@ OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.ImageRedaction.get -> OpenConnect.Core.Configuration.SecurityImageRedactionOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Limits.get -> OpenConnect.Core.Configuration.SecurityTransportLimitsOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Malware.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Mode.get -> OpenConnect.Abstractions.FirewallMode
 OpenConnect.Core.Configuration.PrivacyOptions.Mode.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.OnFailure.get -> OpenConnect.Abstractions.FirewallFailureAction
@@ -368,9 +372,11 @@ OpenConnect.Core.Configuration.PrivacyOptions.OnFailure.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.PaddleOcr.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Policies.get -> OpenConnect.Core.Configuration.SecurityPolicyOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.PrivacyOptions() -> void
+OpenConnect.Core.Configuration.PrivacyOptions.PromptInjection.get -> OpenConnect.Core.Configuration.SecurityPromptInjectionOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.RequiredCoverage.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.SecurityCoverage>!
 OpenConnect.Core.Configuration.PrivacyOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions
@@ -393,6 +399,25 @@ OpenConnect.Core.Configuration.RuntimeOptions
 OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.get -> string?
 OpenConnect.Core.Configuration.RuntimeOptions.InstructionsPath.set -> void
 OpenConnect.Core.Configuration.RuntimeOptions.RuntimeOptions() -> void
+OpenConnect.Core.Configuration.SecurityAgentToolsOptions
+OpenConnect.Core.Configuration.SecurityAgentToolsOptions.AllowedToolIds.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Core.Configuration.SecurityAgentToolsOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.SecurityAgentToolsOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.SecurityAgentToolsOptions.SecurityAgentToolsOptions() -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.MaxImageBytes.get -> int
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.MaxImageBytes.set -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.MaxImageMegapixels.get -> int
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.MaxImageMegapixels.set -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.RecheckRedactedOutput.get -> bool
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.RecheckRedactedOutput.set -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.RegionPaddingPixels.get -> int
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.RegionPaddingPixels.set -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.SecurityImageRedactionOptions() -> void
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.StripMetadata.get -> bool
+OpenConnect.Core.Configuration.SecurityImageRedactionOptions.StripMetadata.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions
 OpenConnect.Core.Configuration.SecurityPolicyOptions.ContentSafety.get -> OpenConnect.Abstractions.SecurityPolicyAction?
 OpenConnect.Core.Configuration.SecurityPolicyOptions.ContentSafety.set -> void
@@ -400,6 +425,8 @@ OpenConnect.Core.Configuration.SecurityPolicyOptions.FaceDetection.get -> OpenCo
 OpenConnect.Core.Configuration.SecurityPolicyOptions.FaceDetection.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions.ImageText.get -> OpenConnect.Abstractions.SecurityPolicyAction?
 OpenConnect.Core.Configuration.SecurityPolicyOptions.ImageText.set -> void
+OpenConnect.Core.Configuration.SecurityPolicyOptions.Malware.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Core.Configuration.SecurityPolicyOptions.Malware.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions.PromptInjection.get -> OpenConnect.Abstractions.SecurityPolicyAction?
 OpenConnect.Core.Configuration.SecurityPolicyOptions.PromptInjection.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions.SecurityPolicyOptions() -> void
@@ -409,7 +436,40 @@ OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.get -> OpenCo
 OpenConnect.Core.Configuration.SecurityPolicyOptions.StructuredPii.set -> void
 OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.get -> OpenConnect.Abstractions.SecurityCoverageUnavailableAction
 OpenConnect.Core.Configuration.SecurityPolicyOptions.UnsupportedRequiredCoverage.set -> void
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Action.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Action.set -> void
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Enabled.set -> void
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.MarkUntrustedContent.get -> bool
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.MarkUntrustedContent.set -> void
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.SecurityPromptInjectionOptions() -> void
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Threshold.get -> double
+OpenConnect.Core.Configuration.SecurityPromptInjectionOptions.Threshold.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxConcurrentRequests.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxConcurrentRequests.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxFileBytes.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxFileBytes.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxImageBytes.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxImageBytes.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxImageMegapixels.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxImageMegapixels.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxResponseBytes.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxResponseBytes.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxTextBytes.get -> int
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.MaxTextBytes.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.RequestTimeout.get -> System.TimeSpan
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.RequestTimeout.set -> void
+OpenConnect.Core.Configuration.SecurityTransportLimitsOptions.SecurityTransportLimitsOptions() -> void
 OpenConnect.Core.Configuration.SecurityWorkerOptions
+OpenConnect.Core.Configuration.SecurityWorkerOptions.AgentTools.get -> OpenConnect.Core.Configuration.SecurityAgentToolsOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.AllowInsecureLoopbackHttpInDevelopment.get -> bool
+OpenConnect.Core.Configuration.SecurityWorkerOptions.AllowInsecureLoopbackHttpInDevelopment.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.BearerToken.get -> string?
+OpenConnect.Core.Configuration.SecurityWorkerOptions.BearerToken.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.CredentialReference.get -> string?
+OpenConnect.Core.Configuration.SecurityWorkerOptions.CredentialReference.set -> void
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Endpoint.get -> System.Uri?
@@ -420,12 +480,17 @@ OpenConnect.Core.Configuration.SecurityWorkerOptions.Environment.get -> string!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Environment.set -> void
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.ImageRedaction.get -> OpenConnect.Core.Configuration.SecurityImageRedactionOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Limits.get -> OpenConnect.Core.Configuration.SecurityTransportLimitsOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.Malware.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.PaddleOcr.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.SecurityWorkerOptions.PromptInjection.get -> OpenConnect.Core.Configuration.SecurityPromptInjectionOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.RequireAuthenticatedTransport.get -> bool
 OpenConnect.Core.Configuration.SecurityWorkerOptions.RequireAuthenticatedTransport.set -> void
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Required.get -> bool
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Required.set -> void
+OpenConnect.Core.Configuration.SecurityWorkerOptions.RequiredCapabilities.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.SecurityWorkerOptions.SecurityWorkerOptions() -> void
 OpenConnect.Core.Configuration.SecurityWorkerOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!

@@ -414,6 +414,14 @@ OpenConnect.Abstractions.IRateLimitGate.TryAcquire(OpenConnect.Abstractions.Rate
 OpenConnect.Abstractions.IRateLimitGate.Verify(OpenConnect.Abstractions.RateLimitAuditRecord! record) -> bool
 OpenConnect.Abstractions.IScreenedClientPageBroker
 OpenConnect.Abstractions.IScreenedClientPageBroker.RequestScreenedPageAsync(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.ClientInteractionRequest! request, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.ClientInteractionResponse?>!
+OpenConnect.Abstractions.ISecurityEvidenceSink
+OpenConnect.Abstractions.ISecurityEvidenceSink.RecordAsync(OpenConnect.Abstractions.SecurityEvidenceEvent! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityEvidenceRecordResult!>
+OpenConnect.Abstractions.ISecurityWorkerClient
+OpenConnect.Abstractions.ISecurityWorkerClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityCapabilitiesSnapshot!>
+OpenConnect.Abstractions.ISecurityWorkerClient.InspectFileAsync(OpenConnect.Abstractions.SecurityFileInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Abstractions.ISecurityWorkerClient.InspectImageAsync(OpenConnect.Abstractions.SecurityImageInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Abstractions.ISecurityWorkerClient.InspectPromptAsync(OpenConnect.Abstractions.SecurityPromptInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Abstractions.ISecurityWorkerClient.InspectTextAsync(OpenConnect.Abstractions.SecurityTextInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
 OpenConnect.Abstractions.ITaskStore
 OpenConnect.Abstractions.ITaskStore.AcceptAsync(OpenConnect.Abstractions.TaskAcceptance! acceptance, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord!>!
 OpenConnect.Abstractions.ITaskStore.GetAsync(OpenConnect.Abstractions.TaskId taskId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
@@ -802,10 +810,51 @@ OpenConnect.Abstractions.RunState.Waiting = 4 -> OpenConnect.Abstractions.RunSta
 OpenConnect.Abstractions.SchedulingMisfirePolicy
 OpenConnect.Abstractions.SchedulingMisfirePolicy.RunOnce = 1 -> OpenConnect.Abstractions.SchedulingMisfirePolicy
 OpenConnect.Abstractions.SchedulingMisfirePolicy.Skip = 0 -> OpenConnect.Abstractions.SchedulingMisfirePolicy
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.<Clone>$() -> OpenConnect.Abstractions.SecurityCapabilitiesSnapshot!
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.Capabilities.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityCapabilityStatus!>!
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.Capabilities.init -> void
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.Deconstruct(out System.DateTimeOffset VerifiedAt, out System.DateTimeOffset ExpiresAt, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityCapabilityStatus!>! Capabilities) -> void
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.Equals(OpenConnect.Abstractions.SecurityCapabilitiesSnapshot? other) -> bool
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.ExpiresAt.init -> void
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.SecurityCapabilitiesSnapshot(System.DateTimeOffset VerifiedAt, System.DateTimeOffset ExpiresAt, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityCapabilityStatus!>! Capabilities) -> void
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.VerifiedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.VerifiedAt.init -> void
+OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Configured = 1 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Degraded = 4 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Disabled = 0 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Provisioning = 2 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Ready = 3 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityState.Unavailable = 5 -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityStatus
+OpenConnect.Abstractions.SecurityCapabilityStatus.<Clone>$() -> OpenConnect.Abstractions.SecurityCapabilityStatus!
+OpenConnect.Abstractions.SecurityCapabilityStatus.CheckedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.SecurityCapabilityStatus.CheckedAt.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.Deconstruct(out string! Id, out string! Kind, out OpenConnect.Abstractions.SecurityCapabilityState State, out string! Version, out bool LocalOnly, out System.Collections.Generic.IReadOnlySet<string!>? Modalities, out System.DateTimeOffset? CheckedAt, out string? ReasonCode) -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.Equals(OpenConnect.Abstractions.SecurityCapabilityStatus? other) -> bool
+OpenConnect.Abstractions.SecurityCapabilityStatus.Id.get -> string!
+OpenConnect.Abstractions.SecurityCapabilityStatus.Id.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.Kind.get -> string!
+OpenConnect.Abstractions.SecurityCapabilityStatus.Kind.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.LocalOnly.get -> bool
+OpenConnect.Abstractions.SecurityCapabilityStatus.LocalOnly.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.Modalities.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Abstractions.SecurityCapabilityStatus.Modalities.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.ReasonCode.get -> string?
+OpenConnect.Abstractions.SecurityCapabilityStatus.ReasonCode.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.SecurityCapabilityStatus(string! Id, string! Kind, OpenConnect.Abstractions.SecurityCapabilityState State, string! Version, bool LocalOnly, System.Collections.Generic.IReadOnlySet<string!>? Modalities = null, System.DateTimeOffset? CheckedAt = null, string? ReasonCode = null) -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.State.get -> OpenConnect.Abstractions.SecurityCapabilityState
+OpenConnect.Abstractions.SecurityCapabilityStatus.State.init -> void
+OpenConnect.Abstractions.SecurityCapabilityStatus.Version.get -> string!
+OpenConnect.Abstractions.SecurityCapabilityStatus.Version.init -> void
+OpenConnect.Abstractions.SecurityContractVersions
 OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.ContentSafety = 3 -> OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.FaceDetection = 5 -> OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.ImageText = 4 -> OpenConnect.Abstractions.SecurityCoverage
+OpenConnect.Abstractions.SecurityCoverage.Malware = 6 -> OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.PromptInjection = 2 -> OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.SemanticPii = 1 -> OpenConnect.Abstractions.SecurityCoverage
 OpenConnect.Abstractions.SecurityCoverage.StructuredPii = 0 -> OpenConnect.Abstractions.SecurityCoverage
@@ -816,16 +865,253 @@ OpenConnect.Abstractions.SecurityCoverageUnavailableAction.Review = 1 -> OpenCon
 OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.DebertaInjection = 2 -> OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.GlinerPii = 1 -> OpenConnect.Abstractions.SecurityDetectorKind
+OpenConnect.Abstractions.SecurityDetectorKind.Malware = 6 -> OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.PaddleOcr = 4 -> OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.Qwen3Guard = 3 -> OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.Rules = 0 -> OpenConnect.Abstractions.SecurityDetectorKind
 OpenConnect.Abstractions.SecurityDetectorKind.YuNet = 5 -> OpenConnect.Abstractions.SecurityDetectorKind
+OpenConnect.Abstractions.SecurityDetectorStatus
+OpenConnect.Abstractions.SecurityDetectorStatus.<Clone>$() -> OpenConnect.Abstractions.SecurityDetectorStatus!
+OpenConnect.Abstractions.SecurityDetectorStatus.Deconstruct(out string! Id, out string! Version, out OpenConnect.Abstractions.SecurityInspectionStatus Status, out string? ReasonCode) -> void
+OpenConnect.Abstractions.SecurityDetectorStatus.Equals(OpenConnect.Abstractions.SecurityDetectorStatus? other) -> bool
+OpenConnect.Abstractions.SecurityDetectorStatus.Id.get -> string!
+OpenConnect.Abstractions.SecurityDetectorStatus.Id.init -> void
+OpenConnect.Abstractions.SecurityDetectorStatus.ReasonCode.get -> string?
+OpenConnect.Abstractions.SecurityDetectorStatus.ReasonCode.init -> void
+OpenConnect.Abstractions.SecurityDetectorStatus.SecurityDetectorStatus(string! Id, string! Version, OpenConnect.Abstractions.SecurityInspectionStatus Status, string? ReasonCode = null) -> void
+OpenConnect.Abstractions.SecurityDetectorStatus.Status.get -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityDetectorStatus.Status.init -> void
+OpenConnect.Abstractions.SecurityDetectorStatus.Version.get -> string!
+OpenConnect.Abstractions.SecurityDetectorStatus.Version.init -> void
+OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEnforcementOutcome.Executed = 1 -> OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEnforcementOutcome.NotExecuted = 0 -> OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEnforcementOutcome.Prevented = 2 -> OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEnforcementOutcome.Unknown = 3 -> OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Allow = 0 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Block = 3 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Mask = 1 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Quarantine = 5 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Redact = 2 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Review = 4 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceDecision.Unavailable = 6 -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceEvent
+OpenConnect.Abstractions.SecurityEvidenceEvent.ApplicationId.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.Boundary.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.Capability.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.CategoryCounts.get -> System.Collections.Generic.IReadOnlyDictionary<string!, int>!
+OpenConnect.Abstractions.SecurityEvidenceEvent.Decision.get -> OpenConnect.Abstractions.SecurityEvidenceDecision
+OpenConnect.Abstractions.SecurityEvidenceEvent.DetectorId.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.DetectorVersion.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.DurationMs.get -> long
+OpenConnect.Abstractions.SecurityEvidenceEvent.EnforcementOutcome.get -> OpenConnect.Abstractions.SecurityEnforcementOutcome
+OpenConnect.Abstractions.SecurityEvidenceEvent.EventId.get -> System.Guid
+OpenConnect.Abstractions.SecurityEvidenceEvent.InspectionStatus.get -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityEvidenceEvent.IntegrityDigest.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.SecurityEvidenceEvent.PolicyRevision.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.ReasonCode.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.SchemaVersion.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.TenantId.get -> string!
+OpenConnect.Abstractions.SecurityEvidenceEvent.TraceId.get -> string?
+OpenConnect.Abstractions.SecurityEvidenceRecordResult
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.<Clone>$() -> OpenConnect.Abstractions.SecurityEvidenceRecordResult!
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Deconstruct(out bool Recorded, out bool Deduplicated, out string? ReasonCode) -> void
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Deduplicated.get -> bool
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Deduplicated.init -> void
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Equals(OpenConnect.Abstractions.SecurityEvidenceRecordResult? other) -> bool
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.ReasonCode.get -> string?
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.ReasonCode.init -> void
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Recorded.get -> bool
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.Recorded.init -> void
+OpenConnect.Abstractions.SecurityEvidenceRecordResult.SecurityEvidenceRecordResult(bool Recorded, bool Deduplicated, string? ReasonCode = null) -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest
+OpenConnect.Abstractions.SecurityFileInspectionRequest.<Clone>$() -> OpenConnect.Abstractions.SecurityFileInspectionRequest!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.ContentType.get -> string!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.ContentType.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Deconstruct(out string! RequestId, out string! PolicyRevision, out System.Collections.Generic.IReadOnlyList<string!>! Detectors, out System.ReadOnlyMemory<byte> FileBytes, out string! ContentType, out string! Sha256Digest, out System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors) -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Detectors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Detectors.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Equals(OpenConnect.Abstractions.SecurityFileInspectionRequest? other) -> bool
+OpenConnect.Abstractions.SecurityFileInspectionRequest.FileBytes.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Abstractions.SecurityFileInspectionRequest.FileBytes.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.PolicyRevision.get -> string!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.PolicyRevision.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.RequestId.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.RequiredDetectors.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Abstractions.SecurityFileInspectionRequest.RequiredDetectors.init -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.SecurityFileInspectionRequest(string! RequestId, string! PolicyRevision, System.Collections.Generic.IReadOnlyList<string!>! Detectors, System.ReadOnlyMemory<byte> FileBytes, string! ContentType, string! Sha256Digest, System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors = null) -> void
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Sha256Digest.get -> string!
+OpenConnect.Abstractions.SecurityFileInspectionRequest.Sha256Digest.init -> void
+OpenConnect.Abstractions.SecurityFinding
+OpenConnect.Abstractions.SecurityFinding.<Clone>$() -> OpenConnect.Abstractions.SecurityFinding!
+OpenConnect.Abstractions.SecurityFinding.Category.get -> string!
+OpenConnect.Abstractions.SecurityFinding.Category.init -> void
+OpenConnect.Abstractions.SecurityFinding.Confidence.get -> double
+OpenConnect.Abstractions.SecurityFinding.Confidence.init -> void
+OpenConnect.Abstractions.SecurityFinding.Deconstruct(out OpenConnect.Abstractions.SecurityFindingKind Kind, out string! DetectorId, out string! Category, out double Confidence, out int? Start, out int? End, out OpenConnect.Abstractions.SecurityImageRegion? Region, out string? Label, out OpenConnect.Abstractions.SecurityMalwareStatus? MalwareStatus, out string? ReasonCode, out OpenConnect.Abstractions.SecurityPolicyAction? RecommendedAction, out double? Threshold, out string? ModelRevision, out string? SignatureVersion) -> void
+OpenConnect.Abstractions.SecurityFinding.DetectorId.get -> string!
+OpenConnect.Abstractions.SecurityFinding.DetectorId.init -> void
+OpenConnect.Abstractions.SecurityFinding.End.get -> int?
+OpenConnect.Abstractions.SecurityFinding.End.init -> void
+OpenConnect.Abstractions.SecurityFinding.Equals(OpenConnect.Abstractions.SecurityFinding? other) -> bool
+OpenConnect.Abstractions.SecurityFinding.Kind.get -> OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityFinding.Kind.init -> void
+OpenConnect.Abstractions.SecurityFinding.Label.get -> string?
+OpenConnect.Abstractions.SecurityFinding.Label.init -> void
+OpenConnect.Abstractions.SecurityFinding.MalwareStatus.get -> OpenConnect.Abstractions.SecurityMalwareStatus?
+OpenConnect.Abstractions.SecurityFinding.MalwareStatus.init -> void
+OpenConnect.Abstractions.SecurityFinding.ModelRevision.get -> string?
+OpenConnect.Abstractions.SecurityFinding.ModelRevision.init -> void
+OpenConnect.Abstractions.SecurityFinding.ReasonCode.get -> string?
+OpenConnect.Abstractions.SecurityFinding.ReasonCode.init -> void
+OpenConnect.Abstractions.SecurityFinding.RecommendedAction.get -> OpenConnect.Abstractions.SecurityPolicyAction?
+OpenConnect.Abstractions.SecurityFinding.RecommendedAction.init -> void
+OpenConnect.Abstractions.SecurityFinding.Region.get -> OpenConnect.Abstractions.SecurityImageRegion?
+OpenConnect.Abstractions.SecurityFinding.Region.init -> void
+OpenConnect.Abstractions.SecurityFinding.SecurityFinding(OpenConnect.Abstractions.SecurityFindingKind Kind, string! DetectorId, string! Category, double Confidence, int? Start = null, int? End = null, OpenConnect.Abstractions.SecurityImageRegion? Region = null, string? Label = null, OpenConnect.Abstractions.SecurityMalwareStatus? MalwareStatus = null, string? ReasonCode = null, OpenConnect.Abstractions.SecurityPolicyAction? RecommendedAction = null, double? Threshold = null, string? ModelRevision = null, string? SignatureVersion = null) -> void
+OpenConnect.Abstractions.SecurityFinding.SignatureVersion.get -> string?
+OpenConnect.Abstractions.SecurityFinding.SignatureVersion.init -> void
+OpenConnect.Abstractions.SecurityFinding.Start.get -> int?
+OpenConnect.Abstractions.SecurityFinding.Start.init -> void
+OpenConnect.Abstractions.SecurityFinding.Threshold.get -> double?
+OpenConnect.Abstractions.SecurityFinding.Threshold.init -> void
+OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityFindingKind.ImageRegion = 1 -> OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityFindingKind.Injection = 3 -> OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityFindingKind.Malware = 2 -> OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityFindingKind.TextSpan = 0 -> OpenConnect.Abstractions.SecurityFindingKind
+OpenConnect.Abstractions.SecurityImageDimensions
+OpenConnect.Abstractions.SecurityImageDimensions.<Clone>$() -> OpenConnect.Abstractions.SecurityImageDimensions!
+OpenConnect.Abstractions.SecurityImageDimensions.CoordinateSpace.get -> string!
+OpenConnect.Abstractions.SecurityImageDimensions.CoordinateSpace.init -> void
+OpenConnect.Abstractions.SecurityImageDimensions.Deconstruct(out int Width, out int Height, out string! CoordinateSpace, out bool OrientationNormalized) -> void
+OpenConnect.Abstractions.SecurityImageDimensions.Equals(OpenConnect.Abstractions.SecurityImageDimensions? other) -> bool
+OpenConnect.Abstractions.SecurityImageDimensions.Height.get -> int
+OpenConnect.Abstractions.SecurityImageDimensions.Height.init -> void
+OpenConnect.Abstractions.SecurityImageDimensions.OrientationNormalized.get -> bool
+OpenConnect.Abstractions.SecurityImageDimensions.OrientationNormalized.init -> void
+OpenConnect.Abstractions.SecurityImageDimensions.SecurityImageDimensions(int Width, int Height, string! CoordinateSpace = "top-left-pixels", bool OrientationNormalized = true) -> void
+OpenConnect.Abstractions.SecurityImageDimensions.Width.get -> int
+OpenConnect.Abstractions.SecurityImageDimensions.Width.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest
+OpenConnect.Abstractions.SecurityImageInspectionRequest.<Clone>$() -> OpenConnect.Abstractions.SecurityImageInspectionRequest!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.ContentType.get -> string!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.ContentType.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Deconstruct(out string! RequestId, out string! PolicyRevision, out System.Collections.Generic.IReadOnlyList<string!>! Detectors, out System.ReadOnlyMemory<byte> ImageBytes, out string! ContentType, out string! Sha256Digest, out System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors) -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Detectors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Detectors.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Equals(OpenConnect.Abstractions.SecurityImageInspectionRequest? other) -> bool
+OpenConnect.Abstractions.SecurityImageInspectionRequest.ImageBytes.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Abstractions.SecurityImageInspectionRequest.ImageBytes.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.PolicyRevision.get -> string!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.PolicyRevision.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.RequestId.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.RequiredDetectors.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Abstractions.SecurityImageInspectionRequest.RequiredDetectors.init -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.SecurityImageInspectionRequest(string! RequestId, string! PolicyRevision, System.Collections.Generic.IReadOnlyList<string!>! Detectors, System.ReadOnlyMemory<byte> ImageBytes, string! ContentType, string! Sha256Digest, System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors = null) -> void
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Sha256Digest.get -> string!
+OpenConnect.Abstractions.SecurityImageInspectionRequest.Sha256Digest.init -> void
+OpenConnect.Abstractions.SecurityImageRegion
+OpenConnect.Abstractions.SecurityImageRegion.<Clone>$() -> OpenConnect.Abstractions.SecurityImageRegion!
+OpenConnect.Abstractions.SecurityImageRegion.Deconstruct(out int X, out int Y, out int Width, out int Height) -> void
+OpenConnect.Abstractions.SecurityImageRegion.Equals(OpenConnect.Abstractions.SecurityImageRegion? other) -> bool
+OpenConnect.Abstractions.SecurityImageRegion.Height.get -> int
+OpenConnect.Abstractions.SecurityImageRegion.Height.init -> void
+OpenConnect.Abstractions.SecurityImageRegion.SecurityImageRegion(int X, int Y, int Width, int Height) -> void
+OpenConnect.Abstractions.SecurityImageRegion.Width.get -> int
+OpenConnect.Abstractions.SecurityImageRegion.Width.init -> void
+OpenConnect.Abstractions.SecurityImageRegion.X.get -> int
+OpenConnect.Abstractions.SecurityImageRegion.X.init -> void
+OpenConnect.Abstractions.SecurityImageRegion.Y.get -> int
+OpenConnect.Abstractions.SecurityImageRegion.Y.init -> void
+OpenConnect.Abstractions.SecurityInspectionModality
+OpenConnect.Abstractions.SecurityInspectionModality.File = 2 -> OpenConnect.Abstractions.SecurityInspectionModality
+OpenConnect.Abstractions.SecurityInspectionModality.Image = 1 -> OpenConnect.Abstractions.SecurityInspectionModality
+OpenConnect.Abstractions.SecurityInspectionModality.Prompt = 3 -> OpenConnect.Abstractions.SecurityInspectionModality
+OpenConnect.Abstractions.SecurityInspectionModality.Text = 0 -> OpenConnect.Abstractions.SecurityInspectionModality
+OpenConnect.Abstractions.SecurityInspectionResponse
+OpenConnect.Abstractions.SecurityInspectionResponse.<Clone>$() -> OpenConnect.Abstractions.SecurityInspectionResponse!
+OpenConnect.Abstractions.SecurityInspectionResponse.ContentDigest.get -> string?
+OpenConnect.Abstractions.SecurityInspectionResponse.ContentDigest.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.Deconstruct(out string! SchemaVersion, out string! RequestId, out OpenConnect.Abstractions.SecurityInspectionStatus Status, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityDetectorStatus!>! Detectors, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityFinding!>! Findings, out string? OffsetUnit, out long DurationMs, out string? ContentDigest, out OpenConnect.Abstractions.SecurityImageDimensions? ImageDimensions, out OpenConnect.Abstractions.SecurityMalwareStatus? MalwareStatus, out string? ReasonCode) -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.Detectors.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityDetectorStatus!>!
+OpenConnect.Abstractions.SecurityInspectionResponse.Detectors.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.DurationMs.get -> long
+OpenConnect.Abstractions.SecurityInspectionResponse.DurationMs.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.Equals(OpenConnect.Abstractions.SecurityInspectionResponse? other) -> bool
+OpenConnect.Abstractions.SecurityInspectionResponse.Findings.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityFinding!>!
+OpenConnect.Abstractions.SecurityInspectionResponse.Findings.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.ImageDimensions.get -> OpenConnect.Abstractions.SecurityImageDimensions?
+OpenConnect.Abstractions.SecurityInspectionResponse.ImageDimensions.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.MalwareStatus.get -> OpenConnect.Abstractions.SecurityMalwareStatus?
+OpenConnect.Abstractions.SecurityInspectionResponse.MalwareStatus.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.OffsetUnit.get -> string?
+OpenConnect.Abstractions.SecurityInspectionResponse.OffsetUnit.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.ReasonCode.get -> string?
+OpenConnect.Abstractions.SecurityInspectionResponse.ReasonCode.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityInspectionResponse.RequestId.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.SchemaVersion.get -> string!
+OpenConnect.Abstractions.SecurityInspectionResponse.SchemaVersion.init -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.SecurityInspectionResponse(string! SchemaVersion, string! RequestId, OpenConnect.Abstractions.SecurityInspectionStatus Status, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityDetectorStatus!>! Detectors, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityFinding!>! Findings, string? OffsetUnit = null, long DurationMs = 0, string? ContentDigest = null, OpenConnect.Abstractions.SecurityImageDimensions? ImageDimensions = null, OpenConnect.Abstractions.SecurityMalwareStatus? MalwareStatus = null, string? ReasonCode = null) -> void
+OpenConnect.Abstractions.SecurityInspectionResponse.Status.get -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionResponse.Status.init -> void
+OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Completed = 0 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Degraded = 2 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Failed = 4 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.LimitExceeded = 5 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.NotRun = 7 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Partial = 1 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Unavailable = 3 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityInspectionStatus.Unsupported = 6 -> OpenConnect.Abstractions.SecurityInspectionStatus
+OpenConnect.Abstractions.SecurityMalwareStatus
+OpenConnect.Abstractions.SecurityMalwareStatus.Clean = 0 -> OpenConnect.Abstractions.SecurityMalwareStatus
+OpenConnect.Abstractions.SecurityMalwareStatus.Detected = 1 -> OpenConnect.Abstractions.SecurityMalwareStatus
+OpenConnect.Abstractions.SecurityMalwareStatus.LimitExceeded = 4 -> OpenConnect.Abstractions.SecurityMalwareStatus
+OpenConnect.Abstractions.SecurityMalwareStatus.Unavailable = 2 -> OpenConnect.Abstractions.SecurityMalwareStatus
+OpenConnect.Abstractions.SecurityMalwareStatus.Unsupported = 3 -> OpenConnect.Abstractions.SecurityMalwareStatus
 OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Abstractions.SecurityPolicyAction.Allow = 0 -> OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Abstractions.SecurityPolicyAction.Block = 3 -> OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Abstractions.SecurityPolicyAction.Mask = 1 -> OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Abstractions.SecurityPolicyAction.Redact = 2 -> OpenConnect.Abstractions.SecurityPolicyAction
 OpenConnect.Abstractions.SecurityPolicyAction.Review = 4 -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Abstractions.SecurityPromptInspectionRequest
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.<Clone>$() -> OpenConnect.Abstractions.SecurityPromptInspectionRequest!
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Deconstruct(out string! RequestId, out string! PolicyRevision, out System.Collections.Generic.IReadOnlyList<string!>! Detectors, out string! Prompt, out System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors) -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Detectors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Detectors.init -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Equals(OpenConnect.Abstractions.SecurityPromptInspectionRequest? other) -> bool
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.PolicyRevision.get -> string!
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.PolicyRevision.init -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Prompt.get -> string!
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.Prompt.init -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.RequestId.init -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.RequiredDetectors.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.RequiredDetectors.init -> void
+OpenConnect.Abstractions.SecurityPromptInspectionRequest.SecurityPromptInspectionRequest(string! RequestId, string! PolicyRevision, System.Collections.Generic.IReadOnlyList<string!>! Detectors, string! Prompt, System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors = null) -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest
+OpenConnect.Abstractions.SecurityTextInspectionRequest.<Clone>$() -> OpenConnect.Abstractions.SecurityTextInspectionRequest!
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Deconstruct(out string! RequestId, out string! PolicyRevision, out System.Collections.Generic.IReadOnlyList<string!>! Detectors, out string! Text, out System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors) -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Detectors.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Detectors.init -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Equals(OpenConnect.Abstractions.SecurityTextInspectionRequest? other) -> bool
+OpenConnect.Abstractions.SecurityTextInspectionRequest.PolicyRevision.get -> string!
+OpenConnect.Abstractions.SecurityTextInspectionRequest.PolicyRevision.init -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.RequestId.get -> string!
+OpenConnect.Abstractions.SecurityTextInspectionRequest.RequestId.init -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.RequiredDetectors.get -> System.Collections.Generic.IReadOnlySet<string!>?
+OpenConnect.Abstractions.SecurityTextInspectionRequest.RequiredDetectors.init -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.SecurityTextInspectionRequest(string! RequestId, string! PolicyRevision, System.Collections.Generic.IReadOnlyList<string!>! Detectors, string! Text, System.Collections.Generic.IReadOnlySet<string!>? RequiredDetectors = null) -> void
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Text.get -> string!
+OpenConnect.Abstractions.SecurityTextInspectionRequest.Text.init -> void
 OpenConnect.Abstractions.Serialization.OpenConnectHttpJson
 OpenConnect.Abstractions.Serialization.UlidIdentifierJsonConverterFactory
 OpenConnect.Abstractions.Serialization.UlidIdentifierJsonConverterFactory.UlidIdentifierJsonConverterFactory() -> void
@@ -842,6 +1128,8 @@ OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.Queue = 1 -> OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.RejectConflict = 2 -> OpenConnect.Abstractions.SessionTurnConcurrency
 OpenConnect.Abstractions.SessionTurnConcurrency.Serialize = 0 -> OpenConnect.Abstractions.SessionTurnConcurrency
+OpenConnect.Abstractions.SnakeCaseStringEnumConverter<TEnum>
+OpenConnect.Abstractions.SnakeCaseStringEnumConverter<TEnum>.SnakeCaseStringEnumConverter() -> void
 OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient
 OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient.IsConfigured.get -> bool
 OpenConnect.Abstractions.Speech.IRealtimeSpeechToTextClient.TranscribePcmAsync(System.IO.Stream! pcm24kMono16Bit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), System.Func<OpenConnect.Abstractions.Speech.RealtimePartialTranscript!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onPartialTranscript = null, System.Func<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onFinalTranscript = null) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!>!
@@ -1297,6 +1585,7 @@ OpenConnect.Abstractions.WorkerHostingMode.Disabled = 0 -> OpenConnect.Abstracti
 OpenConnect.Abstractions.WorkerHostingMode.Embedded = 1 -> OpenConnect.Abstractions.WorkerHostingMode
 OpenConnect.Abstractions.WorkerHostingMode.Standalone = 2 -> OpenConnect.Abstractions.WorkerHostingMode
 OpenConnect.Abstractions.WorkerReadiness
+OpenConnect.Abstractions.WorkerReadiness.Configured = 6 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Degraded = 4 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Disabled = 0 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Loading = 2 -> OpenConnect.Abstractions.WorkerReadiness
@@ -1310,6 +1599,7 @@ const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.re
 const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
 const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
 const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.DatabaseFencingDenied = "database_fencing_denied" -> string!
 const OpenConnect.Abstractions.ErrorCodes.EfConcurrencyConflict = "ef_concurrency_conflict" -> string!
 const OpenConnect.Abstractions.ErrorCodes.EfContextMissing = "ef_context_missing" -> string!
 const OpenConnect.Abstractions.ErrorCodes.EfInmemoryNotDurable = "ef_inmemory_not_durable" -> string!
@@ -1323,9 +1613,12 @@ const OpenConnect.Abstractions.ErrorCodes.EfSchemaMismatch = "ef_schema_mismatch
 const OpenConnect.Abstractions.ErrorCodes.EfSchemaMissing = "ef_schema_missing" -> string!
 const OpenConnect.Abstractions.ErrorCodes.EfTransactionUnavailable = "ef_transaction_unavailable" -> string!
 const OpenConnect.Abstractions.ErrorCodes.InvalidRequest = "invalid_request" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MalwareDetected = "malware_detected" -> string!
 const OpenConnect.Abstractions.ErrorCodes.PrivacyBlocked = "privacy_blocked" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PromptInjectionDetected = "prompt_injection_detected" -> string!
 const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
 const OpenConnect.Abstractions.ErrorCodes.RateLimited = "rate_limited" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ServiceFencingDenied = "service_fencing_denied" -> string!
 const OpenConnect.Abstractions.ErrorCodes.SessionNotFound = "session_not_found" -> string!
 const OpenConnect.Abstractions.ErrorCodes.TaskNotFound = "task_not_found" -> string!
 const OpenConnect.Abstractions.ErrorCodes.ToolNotAllowed = "tool_not_allowed" -> string!
@@ -1335,6 +1628,9 @@ const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hostin
 const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
 const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
 const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.EvidenceV1 = "openconnect.security-evidence.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.InspectionV1 = "openconnect.security-inspection.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.OffsetUnitUnicodeScalar = "unicode-scalar" -> string!
 const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
 const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
 const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
@@ -1447,6 +1743,42 @@ override OpenConnect.Abstractions.RateLimitDecision.ToString() -> string!
 override OpenConnect.Abstractions.RateLimitKey.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.RateLimitKey.GetHashCode() -> int
 override OpenConnect.Abstractions.RateLimitKey.ToString() -> string!
+override OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.ToString() -> string!
+override OpenConnect.Abstractions.SecurityCapabilityStatus.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityCapabilityStatus.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityCapabilityStatus.ToString() -> string!
+override OpenConnect.Abstractions.SecurityDetectorStatus.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityDetectorStatus.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityDetectorStatus.ToString() -> string!
+override OpenConnect.Abstractions.SecurityEvidenceRecordResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityEvidenceRecordResult.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityEvidenceRecordResult.ToString() -> string!
+override OpenConnect.Abstractions.SecurityFileInspectionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityFileInspectionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityFileInspectionRequest.ToString() -> string!
+override OpenConnect.Abstractions.SecurityFinding.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityFinding.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityFinding.ToString() -> string!
+override OpenConnect.Abstractions.SecurityImageDimensions.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityImageDimensions.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityImageDimensions.ToString() -> string!
+override OpenConnect.Abstractions.SecurityImageInspectionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityImageInspectionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityImageInspectionRequest.ToString() -> string!
+override OpenConnect.Abstractions.SecurityImageRegion.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityImageRegion.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityImageRegion.ToString() -> string!
+override OpenConnect.Abstractions.SecurityInspectionResponse.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityInspectionResponse.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityInspectionResponse.ToString() -> string!
+override OpenConnect.Abstractions.SecurityPromptInspectionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityPromptInspectionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityPromptInspectionRequest.ToString() -> string!
+override OpenConnect.Abstractions.SecurityTextInspectionRequest.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.SecurityTextInspectionRequest.GetHashCode() -> int
+override OpenConnect.Abstractions.SecurityTextInspectionRequest.ToString() -> string!
 override OpenConnect.Abstractions.Serialization.UlidIdentifierJsonConverterFactory.CanConvert(System.Type! typeToConvert) -> bool
 override OpenConnect.Abstractions.Serialization.UlidIdentifierJsonConverterFactory.CreateConverter(System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> System.Text.Json.Serialization.JsonConverter!
 override OpenConnect.Abstractions.Serialization.UlidJsonConverter.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> OpenConnect.Abstractions.Ulid
@@ -1594,6 +1926,32 @@ static OpenConnect.Abstractions.RateLimitDecision.operator ==(OpenConnect.Abstra
 static OpenConnect.Abstractions.RateLimitKey.operator !=(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
 static OpenConnect.Abstractions.RateLimitKey.operator ==(OpenConnect.Abstractions.RateLimitKey? left, OpenConnect.Abstractions.RateLimitKey? right) -> bool
 static OpenConnect.Abstractions.RateLimitKeyComparer.Instance.get -> OpenConnect.Abstractions.RateLimitKeyComparer!
+static OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.operator !=(OpenConnect.Abstractions.SecurityCapabilitiesSnapshot? left, OpenConnect.Abstractions.SecurityCapabilitiesSnapshot? right) -> bool
+static OpenConnect.Abstractions.SecurityCapabilitiesSnapshot.operator ==(OpenConnect.Abstractions.SecurityCapabilitiesSnapshot? left, OpenConnect.Abstractions.SecurityCapabilitiesSnapshot? right) -> bool
+static OpenConnect.Abstractions.SecurityCapabilityStatus.operator !=(OpenConnect.Abstractions.SecurityCapabilityStatus? left, OpenConnect.Abstractions.SecurityCapabilityStatus? right) -> bool
+static OpenConnect.Abstractions.SecurityCapabilityStatus.operator ==(OpenConnect.Abstractions.SecurityCapabilityStatus? left, OpenConnect.Abstractions.SecurityCapabilityStatus? right) -> bool
+static OpenConnect.Abstractions.SecurityDetectorStatus.operator !=(OpenConnect.Abstractions.SecurityDetectorStatus? left, OpenConnect.Abstractions.SecurityDetectorStatus? right) -> bool
+static OpenConnect.Abstractions.SecurityDetectorStatus.operator ==(OpenConnect.Abstractions.SecurityDetectorStatus? left, OpenConnect.Abstractions.SecurityDetectorStatus? right) -> bool
+static OpenConnect.Abstractions.SecurityEvidenceEvent.ComputeIntegrityDigest(System.Guid eventId, string! requestId, string? traceId, string! tenantId, string! applicationId, System.DateTimeOffset occurredAt, string! capability, string! boundary, string! detectorId, string! detectorVersion, string! policyRevision, OpenConnect.Abstractions.SecurityInspectionStatus inspectionStatus, OpenConnect.Abstractions.SecurityEvidenceDecision decision, OpenConnect.Abstractions.SecurityEnforcementOutcome enforcementOutcome, string! reasonCode, System.Collections.Generic.IReadOnlyDictionary<string!, int>! categoryCounts, long durationMs) -> string!
+static OpenConnect.Abstractions.SecurityEvidenceEvent.Create(System.Guid eventId, string! requestId, string! tenantId, string! applicationId, System.DateTimeOffset occurredAt, string! capability, string! boundary, string! detectorId, string! detectorVersion, string! policyRevision, OpenConnect.Abstractions.SecurityInspectionStatus inspectionStatus, OpenConnect.Abstractions.SecurityEvidenceDecision decision, OpenConnect.Abstractions.SecurityEnforcementOutcome enforcementOutcome, string! reasonCode, System.Collections.Generic.IReadOnlyDictionary<string!, int>? categoryCounts = null, long durationMs = 0, string? traceId = null) -> OpenConnect.Abstractions.SecurityEvidenceEvent!
+static OpenConnect.Abstractions.SecurityEvidenceRecordResult.operator !=(OpenConnect.Abstractions.SecurityEvidenceRecordResult? left, OpenConnect.Abstractions.SecurityEvidenceRecordResult? right) -> bool
+static OpenConnect.Abstractions.SecurityEvidenceRecordResult.operator ==(OpenConnect.Abstractions.SecurityEvidenceRecordResult? left, OpenConnect.Abstractions.SecurityEvidenceRecordResult? right) -> bool
+static OpenConnect.Abstractions.SecurityFileInspectionRequest.operator !=(OpenConnect.Abstractions.SecurityFileInspectionRequest? left, OpenConnect.Abstractions.SecurityFileInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityFileInspectionRequest.operator ==(OpenConnect.Abstractions.SecurityFileInspectionRequest? left, OpenConnect.Abstractions.SecurityFileInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityFinding.operator !=(OpenConnect.Abstractions.SecurityFinding? left, OpenConnect.Abstractions.SecurityFinding? right) -> bool
+static OpenConnect.Abstractions.SecurityFinding.operator ==(OpenConnect.Abstractions.SecurityFinding? left, OpenConnect.Abstractions.SecurityFinding? right) -> bool
+static OpenConnect.Abstractions.SecurityImageDimensions.operator !=(OpenConnect.Abstractions.SecurityImageDimensions? left, OpenConnect.Abstractions.SecurityImageDimensions? right) -> bool
+static OpenConnect.Abstractions.SecurityImageDimensions.operator ==(OpenConnect.Abstractions.SecurityImageDimensions? left, OpenConnect.Abstractions.SecurityImageDimensions? right) -> bool
+static OpenConnect.Abstractions.SecurityImageInspectionRequest.operator !=(OpenConnect.Abstractions.SecurityImageInspectionRequest? left, OpenConnect.Abstractions.SecurityImageInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityImageInspectionRequest.operator ==(OpenConnect.Abstractions.SecurityImageInspectionRequest? left, OpenConnect.Abstractions.SecurityImageInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityImageRegion.operator !=(OpenConnect.Abstractions.SecurityImageRegion? left, OpenConnect.Abstractions.SecurityImageRegion? right) -> bool
+static OpenConnect.Abstractions.SecurityImageRegion.operator ==(OpenConnect.Abstractions.SecurityImageRegion? left, OpenConnect.Abstractions.SecurityImageRegion? right) -> bool
+static OpenConnect.Abstractions.SecurityInspectionResponse.operator !=(OpenConnect.Abstractions.SecurityInspectionResponse? left, OpenConnect.Abstractions.SecurityInspectionResponse? right) -> bool
+static OpenConnect.Abstractions.SecurityInspectionResponse.operator ==(OpenConnect.Abstractions.SecurityInspectionResponse? left, OpenConnect.Abstractions.SecurityInspectionResponse? right) -> bool
+static OpenConnect.Abstractions.SecurityPromptInspectionRequest.operator !=(OpenConnect.Abstractions.SecurityPromptInspectionRequest? left, OpenConnect.Abstractions.SecurityPromptInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityPromptInspectionRequest.operator ==(OpenConnect.Abstractions.SecurityPromptInspectionRequest? left, OpenConnect.Abstractions.SecurityPromptInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityTextInspectionRequest.operator !=(OpenConnect.Abstractions.SecurityTextInspectionRequest? left, OpenConnect.Abstractions.SecurityTextInspectionRequest? right) -> bool
+static OpenConnect.Abstractions.SecurityTextInspectionRequest.operator ==(OpenConnect.Abstractions.SecurityTextInspectionRequest? left, OpenConnect.Abstractions.SecurityTextInspectionRequest? right) -> bool
 static OpenConnect.Abstractions.Serialization.OpenConnectHttpJson.CreateOptions(System.Text.Json.JsonSerializerDefaults defaults = System.Text.Json.JsonSerializerDefaults.Web) -> System.Text.Json.JsonSerializerOptions!
 static OpenConnect.Abstractions.SessionId.operator !=(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
 static OpenConnect.Abstractions.SessionId.operator ==(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool

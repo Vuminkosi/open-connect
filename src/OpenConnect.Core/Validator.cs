@@ -82,6 +82,36 @@ public sealed class OpenConnectOptionsValidator : IValidateOptions<OpenConnectOp
             !options.Privacy.Rules.Enabled && !options.Privacy.GlinerPii.Enabled)
             errors.Add("Strict-local privacy requires at least one PII detector; enable Rules or GLiNER PII.");
 
+        var limits = options.Privacy.Limits;
+        if (limits.MaxTextBytes <= 0)
+            errors.Add("Privacy:Limits:MaxTextBytes must be positive.");
+        if (limits.MaxImageBytes <= 0)
+            errors.Add("Privacy:Limits:MaxImageBytes must be positive.");
+        if (limits.MaxImageMegapixels <= 0)
+            errors.Add("Privacy:Limits:MaxImageMegapixels must be positive.");
+        if (limits.MaxFileBytes <= 0)
+            errors.Add("Privacy:Limits:MaxFileBytes must be positive.");
+        if (limits.MaxResponseBytes <= 0)
+            errors.Add("Privacy:Limits:MaxResponseBytes must be positive.");
+        if (limits.MaxConcurrentRequests < 1)
+            errors.Add("Privacy:Limits:MaxConcurrentRequests must be at least 1.");
+        if (limits.RequestTimeout <= TimeSpan.Zero)
+            errors.Add("Privacy:Limits:RequestTimeout must be positive.");
+
+        var promptInjection = options.Privacy.PromptInjection;
+        if (promptInjection.Threshold is < 0 or > 1 || double.IsNaN(promptInjection.Threshold))
+            errors.Add("Privacy:PromptInjection:Threshold must be between 0 and 1.");
+        if (!Enum.IsDefined(promptInjection.Action))
+            errors.Add("Privacy:PromptInjection:Action is not a supported value.");
+
+        var imageRedaction = options.Privacy.ImageRedaction;
+        if (imageRedaction.RegionPaddingPixels < 0)
+            errors.Add("Privacy:ImageRedaction:RegionPaddingPixels cannot be negative.");
+        if (imageRedaction.MaxImageBytes <= 0)
+            errors.Add("Privacy:ImageRedaction:MaxImageBytes must be positive.");
+        if (imageRedaction.MaxImageMegapixels <= 0)
+            errors.Add("Privacy:ImageRedaction:MaxImageMegapixels must be positive.");
+
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 
@@ -93,5 +123,6 @@ public sealed class OpenConnectOptionsValidator : IValidateOptions<OpenConnectOp
         yield return ("Qwen3Guard", options.Qwen3Guard);
         yield return ("PaddleOcr", options.PaddleOcr);
         yield return ("YuNet", options.YuNet);
+        yield return ("Malware", options.Malware);
     }
 }
