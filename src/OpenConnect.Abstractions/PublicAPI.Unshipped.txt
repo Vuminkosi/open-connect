@@ -1,4 +1,139 @@
 #nullable enable
+~override OpenConnect.Abstractions.AgentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.AgentId.ToString() -> string
+~override OpenConnect.Abstractions.CapabilityId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.CapabilityId.ToString() -> string
+~override OpenConnect.Abstractions.ExecutionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ExecutionId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.AttachmentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.AttachmentId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.CallId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.CallId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ContinuationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ContinuationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ConversationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ConversationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.DeviceId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.DeviceId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.EnrollmentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.EnrollmentId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.FollowUpId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.FollowUpId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.KeyPackageId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.KeyPackageId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.MessageId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.MessageId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.PushRegistrationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.PushRegistrationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.RefreshGrantId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.RefreshGrantId.ToString() -> string
+~override OpenConnect.Abstractions.PrincipalId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
+~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.SessionId.ToString() -> string
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.ToString() -> string
+~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TaskId.ToString() -> string
+~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TenantId.ToString() -> string
+~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ToolId.ToString() -> string
+~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool
+const OpenConnect.Abstractions.CanonicalAgentEvent.CurrentSchemaVersion = "openconnect.v1" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CallInvalidState = "call_invalid_state" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CallNotFound = "call_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ConversationClosed = "conversation_closed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ConversationNotFound = "conversation_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CryptoEpochMismatch = "crypto_epoch_mismatch" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CryptoVerificationFailed = "crypto_verification_failed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.DatabaseFencingDenied = "database_fencing_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.DeviceRevoked = "device_revoked" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfConcurrencyConflict = "ef_concurrency_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfContextMissing = "ef_context_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfInmemoryNotDurable = "ef_inmemory_not_durable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfLeaseExpired = "ef_lease_expired" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfMigrationNotAllowed = "ef_migration_not_allowed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfModelMissing = "ef_model_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfOutboxClaimConflict = "ef_outbox_claim_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfPersistenceUnavailable = "ef_persistence_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfProviderUnsupported = "ef_provider_unsupported" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfSchemaMismatch = "ef_schema_mismatch" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfSchemaMissing = "ef_schema_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfTransactionUnavailable = "ef_transaction_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentExpired = "enrollment_expired" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentInvalidState = "enrollment_invalid_state" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentNotFound = "enrollment_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpMaxAttemptsReached = "followup_max_attempts_reached" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpNotFound = "followup_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpQuietHours = "followup_quiet_hours" -> string!
+const OpenConnect.Abstractions.ErrorCodes.HumanParticipantRequired = "human_participant_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.InvalidRequest = "invalid_request" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MalwareDetected = "malware_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MediaEncryptionRequired = "media_encryption_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MessagingDisabled = "messaging_disabled" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PrivacyBlocked = "privacy_blocked" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PrivateE2EEAgentForbidden = "private_e2ee_agent_forbidden" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PromptInjectionDetected = "prompt_injection_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.RateLimited = "rate_limited" -> string!
+const OpenConnect.Abstractions.ErrorCodes.SecurityProfileImmutable = "security_profile_immutable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ServiceFencingDenied = "service_fencing_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.SessionNotFound = "session_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.TaskNotFound = "task_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.TokenReuseDetected = "token_reuse_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ToolNotAllowed = "tool_not_allowed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.Unauthorized = "unauthorized" -> string!
+const OpenConnect.Abstractions.ErrorCodes.VoiceEgressDenied = "voice_egress_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hosting_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.DeviceEnrollment = "messaging.device.enrollment" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.E2EE = "messaging.e2ee" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppCall = "messaging.inapp.call" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppReceive = "messaging.inapp.receive" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppSend = "messaging.inapp.send" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushFcm = "messaging.push.fcm" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushWeb = "messaging.push.web" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalRequested = "messaging.approval.requested" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalResolved = "messaging.approval.resolved" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallAccepted = "messaging.call.accepted" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallDeclined = "messaging.call.declined" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallEnded = "messaging.call.ended" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallInvited = "messaging.call.invited" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallMissed = "messaging.call.missed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CapabilitiesChanged = "messaging.capabilities.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.DeviceRevoked = "messaging.device.revoked" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.FollowUpDue = "messaging.followup.due" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.KeyCommit = "messaging.key.commit" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MembershipChanged = "messaging.membership.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageCommitted = "messaging.message.committed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageDelivered = "messaging.message.delivered" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageRead = "messaging.message.read" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.PresenceChanged = "messaging.presence.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.TypingChanged = "messaging.typing.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Presence = "messaging.presence" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.PushDispatch = "messaging.push.dispatch" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Route = "messaging.route" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Signal = "messaging.signal" -> string!
+const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
+const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.EvidenceV1 = "openconnect.security-evidence.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.InspectionV1 = "openconnect.security-inspection.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.OffsetUnitUnicodeScalar = "unicode-scalar" -> string!
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxFrameBytes = 98304 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxPayloadBytes = 98272 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.ProtocolVersion = 2 -> byte
 OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.Continuous = 3 -> OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.EventTriggered = 2 -> OpenConnect.Abstractions.AgentActivationMode
@@ -149,8 +284,8 @@ OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Accepted = 0 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.AwaitingApproval = 4 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.AwaitingUser = 3 -> OpenConnect.Abstractions.AgentRunState
-OpenConnect.Abstractions.AgentRunState.CancelRequested = 8 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Cancelled = 9 -> OpenConnect.Abstractions.AgentRunState
+OpenConnect.Abstractions.AgentRunState.CancelRequested = 8 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Completed = 6 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Failed = 7 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.OutcomeUnknown = 10 -> OpenConnect.Abstractions.AgentRunState
@@ -496,6 +631,950 @@ OpenConnect.Abstractions.MemorySearchResult.Equals(OpenConnect.Abstractions.Memo
 OpenConnect.Abstractions.MemorySearchResult.Matches.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.MemorySearchMatch!>!
 OpenConnect.Abstractions.MemorySearchResult.Matches.init -> void
 OpenConnect.Abstractions.MemorySearchResult.MemorySearchResult(System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.MemorySearchMatch!>! Matches) -> void
+OpenConnect.Abstractions.Messaging.ApprovalRequestId
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.ApprovalRequestId() -> void
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.ApprovalRequestId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.Equals(OpenConnect.Abstractions.Messaging.ApprovalRequestId other) -> bool
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.ApprovalRequestId.Value.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentId
+OpenConnect.Abstractions.Messaging.AttachmentId.AttachmentId() -> void
+OpenConnect.Abstractions.Messaging.AttachmentId.AttachmentId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.AttachmentId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.AttachmentId.Equals(OpenConnect.Abstractions.Messaging.AttachmentId other) -> bool
+OpenConnect.Abstractions.Messaging.AttachmentId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.AttachmentId.Value.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord
+OpenConnect.Abstractions.Messaging.AttachmentRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.AttachmentRecord!
+OpenConnect.Abstractions.Messaging.AttachmentRecord.AttachmentId.get -> OpenConnect.Abstractions.Messaging.AttachmentId
+OpenConnect.Abstractions.Messaging.AttachmentRecord.AttachmentId.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.AttachmentRecord(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.AttachmentId AttachmentId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, string! ObjectKey, string! ObjectVersion, long EncryptedSizeBytes, string! EncryptedDigestSha256, OpenConnect.Abstractions.Messaging.AttachmentState State, System.DateTimeOffset CreatedAt, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.AttachmentRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.AttachmentId AttachmentId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out string! ObjectKey, out string! ObjectVersion, out long EncryptedSizeBytes, out string! EncryptedDigestSha256, out OpenConnect.Abstractions.Messaging.AttachmentState State, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.EncryptedDigestSha256.get -> string!
+OpenConnect.Abstractions.Messaging.AttachmentRecord.EncryptedDigestSha256.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.EncryptedSizeBytes.get -> long
+OpenConnect.Abstractions.Messaging.AttachmentRecord.EncryptedSizeBytes.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.Equals(OpenConnect.Abstractions.Messaging.AttachmentRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ObjectKey.get -> string!
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ObjectKey.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ObjectVersion.get -> string!
+OpenConnect.Abstractions.Messaging.AttachmentRecord.ObjectVersion.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.State.get -> OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.AttachmentRecord.State.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.AttachmentRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.AttachmentState.Committed = 1 -> OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.AttachmentState.Deleted = 2 -> OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.AttachmentState.Expired = 3 -> OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.AttachmentState.Reserved = 0 -> OpenConnect.Abstractions.Messaging.AttachmentState
+OpenConnect.Abstractions.Messaging.CallId
+OpenConnect.Abstractions.Messaging.CallId.CallId() -> void
+OpenConnect.Abstractions.Messaging.CallId.CallId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.CallId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.CallId.Equals(OpenConnect.Abstractions.Messaging.CallId other) -> bool
+OpenConnect.Abstractions.Messaging.CallId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.CallId.Value.init -> void
+OpenConnect.Abstractions.Messaging.CallMediaSecurityMode
+OpenConnect.Abstractions.Messaging.CallMediaSecurityMode.EndpointE2EE = 1 -> OpenConnect.Abstractions.Messaging.CallMediaSecurityMode
+OpenConnect.Abstractions.Messaging.CallMediaSecurityMode.TransportOnly = 0 -> OpenConnect.Abstractions.Messaging.CallMediaSecurityMode
+OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Accepted = 2 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Cancelled = 8 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Connected = 4 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Connecting = 3 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Declined = 6 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Ended = 5 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Failed = 9 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Invited = 0 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Missed = 7 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.CallState.Ringing = 1 -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.ContinuationId
+OpenConnect.Abstractions.Messaging.ContinuationId.ContinuationId() -> void
+OpenConnect.Abstractions.Messaging.ContinuationId.ContinuationId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ContinuationId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ContinuationId.Equals(OpenConnect.Abstractions.Messaging.ContinuationId other) -> bool
+OpenConnect.Abstractions.Messaging.ContinuationId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.ContinuationId.Value.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord
+OpenConnect.Abstractions.Messaging.ContinuationRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.ContinuationRecord!
+OpenConnect.Abstractions.Messaging.ContinuationRecord.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Abstractions.Messaging.ContinuationRecord.AgentId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ContinuationId.get -> OpenConnect.Abstractions.Messaging.ContinuationId
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ContinuationId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ContinuationRecord(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.ContinuationId ContinuationId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, string! TriggeringEventId, OpenConnect.Abstractions.AgentId AgentId, OpenConnect.Abstractions.PrincipalId RecipientPrincipalId, OpenConnect.Abstractions.TaskId? TaskId, OpenConnect.Abstractions.SessionId? SessionId, OpenConnect.Abstractions.Messaging.ContinuationStatus Status, string! ExecutionIdempotencyKey, string? LeaseOwner = null, long LeaseFence = 0, System.DateTimeOffset CreatedAt = default(System.DateTimeOffset)) -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.ContinuationRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.ContinuationId ContinuationId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out string! TriggeringEventId, out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.PrincipalId RecipientPrincipalId, out OpenConnect.Abstractions.TaskId? TaskId, out OpenConnect.Abstractions.SessionId? SessionId, out OpenConnect.Abstractions.Messaging.ContinuationStatus Status, out string! ExecutionIdempotencyKey, out string? LeaseOwner, out long LeaseFence, out System.DateTimeOffset CreatedAt) -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.Equals(OpenConnect.Abstractions.Messaging.ContinuationRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ExecutionIdempotencyKey.get -> string!
+OpenConnect.Abstractions.Messaging.ContinuationRecord.ExecutionIdempotencyKey.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.LeaseFence.get -> long
+OpenConnect.Abstractions.Messaging.ContinuationRecord.LeaseFence.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.LeaseOwner.get -> string?
+OpenConnect.Abstractions.Messaging.ContinuationRecord.LeaseOwner.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.RecipientPrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.ContinuationRecord.RecipientPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.SessionId.get -> OpenConnect.Abstractions.SessionId?
+OpenConnect.Abstractions.Messaging.ContinuationRecord.SessionId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.Status.get -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationRecord.Status.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TaskId.get -> OpenConnect.Abstractions.TaskId?
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TaskId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TriggeringEventId.get -> string!
+OpenConnect.Abstractions.Messaging.ContinuationRecord.TriggeringEventId.init -> void
+OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Cancelled = 5 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Claimed = 1 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Completed = 3 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Failed = 4 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Queued = 0 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ContinuationStatus.Running = 2 -> OpenConnect.Abstractions.Messaging.ContinuationStatus
+OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.ConversationId.ConversationId() -> void
+OpenConnect.Abstractions.Messaging.ConversationId.ConversationId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ConversationId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.ConversationId.Equals(OpenConnect.Abstractions.Messaging.ConversationId other) -> bool
+OpenConnect.Abstractions.Messaging.ConversationId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.ConversationId.Value.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant
+OpenConnect.Abstractions.Messaging.ConversationParticipant.<Clone>$() -> OpenConnect.Abstractions.Messaging.ConversationParticipant!
+OpenConnect.Abstractions.Messaging.ConversationParticipant.AgentId.get -> OpenConnect.Abstractions.AgentId?
+OpenConnect.Abstractions.Messaging.ConversationParticipant.AgentId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.ConversationParticipant.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.ConversationParticipant(OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.ParticipantKind Kind, OpenConnect.Abstractions.PrincipalId? PrincipalId, OpenConnect.Abstractions.AgentId? AgentId, OpenConnect.Abstractions.Messaging.ParticipantRole Role, OpenConnect.Abstractions.Messaging.ParticipantStatus Status, long JoinVersion, long? LeaveVersion = null, System.DateTimeOffset JoinedAt = default(System.DateTimeOffset)) -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.ParticipantKind Kind, out OpenConnect.Abstractions.PrincipalId? PrincipalId, out OpenConnect.Abstractions.AgentId? AgentId, out OpenConnect.Abstractions.Messaging.ParticipantRole Role, out OpenConnect.Abstractions.Messaging.ParticipantStatus Status, out long JoinVersion, out long? LeaveVersion, out System.DateTimeOffset JoinedAt) -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Equals(OpenConnect.Abstractions.Messaging.ConversationParticipant? other) -> bool
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinVersion.get -> long
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinVersion.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Kind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Kind.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.LeaveVersion.get -> long?
+OpenConnect.Abstractions.Messaging.ConversationParticipant.LeaveVersion.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.ConversationParticipant.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Role.get -> OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Role.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Status.get -> OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.ConversationParticipant.Status.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord
+OpenConnect.Abstractions.Messaging.ConversationRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.ConversationRecord!
+OpenConnect.Abstractions.Messaging.ConversationRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.ConversationRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.ConversationRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.ConversationRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.ConversationSecurityProfile SecurityProfile, OpenConnect.Abstractions.Messaging.ConversationState State, long MembershipVersion, long CryptoEpoch, long NextSequence, System.DateTimeOffset CreatedAt, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationParticipant!>! Participants) -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.ConversationRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.CryptoEpoch.get -> long
+OpenConnect.Abstractions.Messaging.ConversationRecord.CryptoEpoch.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.ConversationSecurityProfile SecurityProfile, out OpenConnect.Abstractions.Messaging.ConversationState State, out long MembershipVersion, out long CryptoEpoch, out long NextSequence, out System.DateTimeOffset CreatedAt, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationParticipant!>! Participants) -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.Equals(OpenConnect.Abstractions.Messaging.ConversationRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.ConversationRecord.MembershipVersion.get -> long
+OpenConnect.Abstractions.Messaging.ConversationRecord.MembershipVersion.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.NextSequence.get -> long
+OpenConnect.Abstractions.Messaging.ConversationRecord.NextSequence.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.Participants.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationParticipant!>!
+OpenConnect.Abstractions.Messaging.ConversationRecord.Participants.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.SecurityProfile.get -> OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Abstractions.Messaging.ConversationRecord.SecurityProfile.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.State.get -> OpenConnect.Abstractions.Messaging.ConversationState
+OpenConnect.Abstractions.Messaging.ConversationRecord.State.init -> void
+OpenConnect.Abstractions.Messaging.ConversationRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.ConversationRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Abstractions.Messaging.ConversationSecurityProfile.AgentE2EE = 1 -> OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Abstractions.Messaging.ConversationSecurityProfile.Governed = 2 -> OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Abstractions.Messaging.ConversationSecurityProfile.PrivateE2EE = 0 -> OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Abstractions.Messaging.ConversationState
+OpenConnect.Abstractions.Messaging.ConversationState.Active = 0 -> OpenConnect.Abstractions.Messaging.ConversationState
+OpenConnect.Abstractions.Messaging.ConversationState.Archived = 2 -> OpenConnect.Abstractions.Messaging.ConversationState
+OpenConnect.Abstractions.Messaging.ConversationState.Closed = 1 -> OpenConnect.Abstractions.Messaging.ConversationState
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.<Clone>$() -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.Deconstruct(out OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! Record, out string! PlaintextEnrollmentToken, out OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload! QrPayload) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.DeviceEnrollmentCreationResult(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! Record, string! PlaintextEnrollmentToken, OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload! QrPayload) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.Equals(OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult? other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.PlaintextEnrollmentToken.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.PlaintextEnrollmentToken.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.QrPayload.get -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.QrPayload.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.Record.get -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.Record.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.<Clone>$() -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.BaseGatewayUrl.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.BaseGatewayUrl.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Deconstruct(out int Version, out string! Type, out string! BaseGatewayUrl, out string! TenantId, out string! ApplicationId, out string! PairingId, out string! EnrollmentToken, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.DeviceEnrollmentQrPayload(int Version, string! Type, string! BaseGatewayUrl, string! TenantId, string! ApplicationId, string! PairingId, string! EnrollmentToken, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.EnrollmentToken.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.EnrollmentToken.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Equals(OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload? other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.PairingId.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.PairingId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.TenantId.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Type.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Type.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Version.get -> int
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Version.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ApprovedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ApprovedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ChallengeNonceBase64.get -> string?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ChallengeNonceBase64.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDeviceId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDeviceName.get -> string?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDeviceName.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDevicePublicKeyBase64.get -> string?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedDevicePublicKeyBase64.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedPlatform.get -> OpenConnect.Abstractions.Messaging.DevicePlatform?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ClaimedPlatform.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ConsumedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ConsumedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.EnrollmentId EnrollmentId, out OpenConnect.Abstractions.PrincipalId InitiatingPrincipalId, out string! Issuer, out string! Subject, out string! TokenHashSha256, out string! VerificationCode, out OpenConnect.Abstractions.Messaging.EnrollmentState State, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset ExpiresAt, out OpenConnect.Abstractions.Messaging.DeviceId? ClaimedDeviceId, out string? ClaimedDevicePublicKeyBase64, out string? ClaimedDeviceName, out OpenConnect.Abstractions.Messaging.DevicePlatform? ClaimedPlatform, out string? ChallengeNonceBase64, out System.DateTimeOffset? ClaimedAt, out System.DateTimeOffset? ApprovedAt, out System.DateTimeOffset? ConsumedAt) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.DeviceEnrollmentRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.EnrollmentId EnrollmentId, OpenConnect.Abstractions.PrincipalId InitiatingPrincipalId, string! Issuer, string! Subject, string! TokenHashSha256, string! VerificationCode, OpenConnect.Abstractions.Messaging.EnrollmentState State, System.DateTimeOffset CreatedAt, System.DateTimeOffset ExpiresAt, OpenConnect.Abstractions.Messaging.DeviceId? ClaimedDeviceId = null, string? ClaimedDevicePublicKeyBase64 = null, string? ClaimedDeviceName = null, OpenConnect.Abstractions.Messaging.DevicePlatform? ClaimedPlatform = null, string? ChallengeNonceBase64 = null, System.DateTimeOffset? ClaimedAt = null, System.DateTimeOffset? ApprovedAt = null, System.DateTimeOffset? ConsumedAt = null) -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.EnrollmentId.get -> OpenConnect.Abstractions.Messaging.EnrollmentId
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.EnrollmentId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Equals(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.InitiatingPrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.InitiatingPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Issuer.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Issuer.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.State.get -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.State.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Subject.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Subject.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.TokenHashSha256.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.TokenHashSha256.init -> void
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.VerificationCode.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.VerificationCode.init -> void
+OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.DeviceId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.DeviceId.DeviceId() -> void
+OpenConnect.Abstractions.Messaging.DeviceId.DeviceId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.DeviceId.Equals(OpenConnect.Abstractions.Messaging.DeviceId other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.DeviceId.Value.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.<Clone>$() -> OpenConnect.Abstractions.Messaging.DeviceKeyPackage!
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Consumed.get -> bool
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Consumed.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.ConsumedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.ConsumedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.KeyPackageId KeyPackageId, out OpenConnect.Abstractions.PrincipalId? OwnerPrincipalId, out OpenConnect.Abstractions.AgentId? OwnerAgentId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out string! Protocol, out string! PublicPackageBase64, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset ExpiresAt, out bool Consumed, out System.DateTimeOffset? ConsumedAt) -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.DeviceKeyPackage(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.KeyPackageId KeyPackageId, OpenConnect.Abstractions.PrincipalId? OwnerPrincipalId, OpenConnect.Abstractions.AgentId? OwnerAgentId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, string! Protocol, string! PublicPackageBase64, System.DateTimeOffset CreatedAt, System.DateTimeOffset ExpiresAt, bool Consumed = false, System.DateTimeOffset? ConsumedAt = null) -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Equals(OpenConnect.Abstractions.Messaging.DeviceKeyPackage? other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.KeyPackageId.get -> OpenConnect.Abstractions.Messaging.KeyPackageId
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.KeyPackageId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.OwnerAgentId.get -> OpenConnect.Abstractions.AgentId?
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.OwnerAgentId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.OwnerPrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.OwnerPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Protocol.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Protocol.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.PublicPackageBase64.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.PublicPackageBase64.init -> void
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.DeviceKeyPackage.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.AgentEndpoint = 4 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.Android = 2 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.Desktop = 1 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.Ios = 3 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.Other = 5 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DevicePlatform.Web = 0 -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DeviceRecord
+OpenConnect.Abstractions.Messaging.DeviceRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.DeviceRecord!
+OpenConnect.Abstractions.Messaging.DeviceRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out OpenConnect.Abstractions.Messaging.DevicePlatform Platform, out string! DisplayName, out string! PublicKeyBase64, out string! KeyFingerprint, out OpenConnect.Abstractions.Messaging.DeviceStatus Status, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset LastSeenAt, out System.DateTimeOffset? RevokedAt) -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.DeviceRecord.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.DeviceRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, OpenConnect.Abstractions.Messaging.DevicePlatform Platform, string! DisplayName, string! PublicKeyBase64, string! KeyFingerprint, OpenConnect.Abstractions.Messaging.DeviceStatus Status, System.DateTimeOffset CreatedAt, System.DateTimeOffset LastSeenAt, System.DateTimeOffset? RevokedAt = null) -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.DisplayName.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceRecord.DisplayName.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.Equals(OpenConnect.Abstractions.Messaging.DeviceRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.DeviceRecord.KeyFingerprint.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceRecord.KeyFingerprint.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.LastSeenAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.DeviceRecord.LastSeenAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.Platform.get -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Abstractions.Messaging.DeviceRecord.Platform.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.DeviceRecord.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.PublicKeyBase64.get -> string!
+OpenConnect.Abstractions.Messaging.DeviceRecord.PublicKeyBase64.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.RevokedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.DeviceRecord.RevokedAt.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.Status.get -> OpenConnect.Abstractions.Messaging.DeviceStatus
+OpenConnect.Abstractions.Messaging.DeviceRecord.Status.init -> void
+OpenConnect.Abstractions.Messaging.DeviceRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.DeviceRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.DeviceStatus
+OpenConnect.Abstractions.Messaging.DeviceStatus.PendingVerification = 0 -> OpenConnect.Abstractions.Messaging.DeviceStatus
+OpenConnect.Abstractions.Messaging.DeviceStatus.Revoked = 2 -> OpenConnect.Abstractions.Messaging.DeviceStatus
+OpenConnect.Abstractions.Messaging.DeviceStatus.Verified = 1 -> OpenConnect.Abstractions.Messaging.DeviceStatus
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.<Clone>$() -> OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope!
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.AssociatedDataBase64.get -> string?
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.AssociatedDataBase64.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.AuthTagBase64.get -> string!
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.AuthTagBase64.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.CiphertextBase64.get -> string!
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.CiphertextBase64.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.CryptoEpoch.get -> long
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.CryptoEpoch.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.Deconstruct(out string! Protocol, out long CryptoEpoch, out string! CiphertextBase64, out string! NonceBase64, out string! AuthTagBase64, out string? AssociatedDataBase64, out string? SenderKeyId) -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.EncryptedMessageEnvelope(string! Protocol, long CryptoEpoch, string! CiphertextBase64, string! NonceBase64, string! AuthTagBase64, string? AssociatedDataBase64 = null, string? SenderKeyId = null) -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.Equals(OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope? other) -> bool
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.NonceBase64.get -> string!
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.NonceBase64.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.Protocol.get -> string!
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.Protocol.init -> void
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.SenderKeyId.get -> string?
+OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.SenderKeyId.init -> void
+OpenConnect.Abstractions.Messaging.EnrollmentId
+OpenConnect.Abstractions.Messaging.EnrollmentId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.EnrollmentId.EnrollmentId() -> void
+OpenConnect.Abstractions.Messaging.EnrollmentId.EnrollmentId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.EnrollmentId.Equals(OpenConnect.Abstractions.Messaging.EnrollmentId other) -> bool
+OpenConnect.Abstractions.Messaging.EnrollmentId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.EnrollmentId.Value.init -> void
+OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Approved = 2 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Cancelled = 5 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Claimed = 1 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Consumed = 3 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Denied = 6 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Expired = 4 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.EnrollmentState.Pending = 0 -> OpenConnect.Abstractions.Messaging.EnrollmentState
+OpenConnect.Abstractions.Messaging.FollowUpId
+OpenConnect.Abstractions.Messaging.FollowUpId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.FollowUpId.Equals(OpenConnect.Abstractions.Messaging.FollowUpId other) -> bool
+OpenConnect.Abstractions.Messaging.FollowUpId.FollowUpId() -> void
+OpenConnect.Abstractions.Messaging.FollowUpId.FollowUpId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.FollowUpId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.FollowUpId.Value.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.<Clone>$() -> OpenConnect.Abstractions.Messaging.FollowUpRaceResolution!
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.Deconstruct(out OpenConnect.Abstractions.Messaging.FollowUpRecord! FollowUp, out bool SuppressedByHumanReply, out OpenConnect.Abstractions.Messaging.ContinuationRecord? QueuedContinuation) -> void
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.Equals(OpenConnect.Abstractions.Messaging.FollowUpRaceResolution? other) -> bool
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.FollowUp.get -> OpenConnect.Abstractions.Messaging.FollowUpRecord!
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.FollowUp.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.FollowUpRaceResolution(OpenConnect.Abstractions.Messaging.FollowUpRecord! FollowUp, bool SuppressedByHumanReply, OpenConnect.Abstractions.Messaging.ContinuationRecord? QueuedContinuation = null) -> void
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.QueuedContinuation.get -> OpenConnect.Abstractions.Messaging.ContinuationRecord?
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.QueuedContinuation.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.SuppressedByHumanReply.get -> bool
+OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.SuppressedByHumanReply.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord
+OpenConnect.Abstractions.Messaging.FollowUpRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.FollowUpRecord!
+OpenConnect.Abstractions.Messaging.FollowUpRecord.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Abstractions.Messaging.FollowUpRecord.AgentId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.FollowUpRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.Attempt.get -> int
+OpenConnect.Abstractions.Messaging.FollowUpRecord.Attempt.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.CausalEventId.get -> string!
+OpenConnect.Abstractions.Messaging.FollowUpRecord.CausalEventId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.CompletedAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.CompletedAtUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.FollowUpRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.FollowUpId FollowUpId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.TaskId? TaskId, out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.PrincipalId RecipientPrincipalId, out System.DateTimeOffset DueAtUtc, out int Attempt, out int MaxAttempts, out OpenConnect.Abstractions.Messaging.FollowUpState State, out string! IdempotencyKey, out string! CausalEventId, out string? LeaseOwner, out long LeaseFence, out System.DateTimeOffset? LeaseExpiresAtUtc, out System.TimeOnly? QuietHoursStartUtc, out System.TimeOnly? QuietHoursEndUtc, out string? TimeZoneId, out System.DateTimeOffset? LastDispatchedAtUtc, out System.DateTimeOffset? CompletedAtUtc) -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.DueAtUtc.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.FollowUpRecord.DueAtUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.Equals(OpenConnect.Abstractions.Messaging.FollowUpRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.FollowUpRecord.FollowUpId.get -> OpenConnect.Abstractions.Messaging.FollowUpId
+OpenConnect.Abstractions.Messaging.FollowUpRecord.FollowUpId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.FollowUpRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.FollowUpId FollowUpId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.TaskId? TaskId, OpenConnect.Abstractions.AgentId AgentId, OpenConnect.Abstractions.PrincipalId RecipientPrincipalId, System.DateTimeOffset DueAtUtc, int Attempt, int MaxAttempts, OpenConnect.Abstractions.Messaging.FollowUpState State, string! IdempotencyKey, string! CausalEventId, string? LeaseOwner = null, long LeaseFence = 0, System.DateTimeOffset? LeaseExpiresAtUtc = null, System.TimeOnly? QuietHoursStartUtc = null, System.TimeOnly? QuietHoursEndUtc = null, string? TimeZoneId = null, System.DateTimeOffset? LastDispatchedAtUtc = null, System.DateTimeOffset? CompletedAtUtc = null) -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.IdempotencyKey.get -> string!
+OpenConnect.Abstractions.Messaging.FollowUpRecord.IdempotencyKey.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LastDispatchedAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LastDispatchedAtUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseExpiresAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseExpiresAtUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseFence.get -> long
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseFence.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseOwner.get -> string?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.LeaseOwner.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.MaxAttempts.get -> int
+OpenConnect.Abstractions.Messaging.FollowUpRecord.MaxAttempts.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.QuietHoursEndUtc.get -> System.TimeOnly?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.QuietHoursEndUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.QuietHoursStartUtc.get -> System.TimeOnly?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.QuietHoursStartUtc.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.RecipientPrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.FollowUpRecord.RecipientPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.State.get -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpRecord.State.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TaskId.get -> OpenConnect.Abstractions.TaskId?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TaskId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TimeZoneId.get -> string?
+OpenConnect.Abstractions.Messaging.FollowUpRecord.TimeZoneId.init -> void
+OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Authorized = 2 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Cancelled = 11 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Claimed = 1 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Completed = 8 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.ContinuationQueued = 7 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Dispatched = 3 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Escalated = 10 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Expired = 12 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Rescheduled = 9 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.ResponseReceived = 5 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Scheduled = 0 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.TimedOut = 6 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.FollowUpState.Waiting = 4 -> OpenConnect.Abstractions.Messaging.FollowUpState
+OpenConnect.Abstractions.Messaging.IAgentDiscoveryAuthorizer
+OpenConnect.Abstractions.Messaging.IAgentDiscoveryAuthorizer.GetAuthorizedAgentsAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem!>!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentAuthorizer
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentAuthorizer.AuthorizeConfirmAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentAuthorizer.AuthorizeInitiateAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentAuthorizer.AuthorizeRevokeAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.ApproveEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId approvingPrincipalId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.ClaimEnrollmentAsync(string! plaintextEnrollmentToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, string! devicePublicKeyBase64, string! deviceDisplayName, OpenConnect.Abstractions.Messaging.DevicePlatform platform, System.ReadOnlyMemory<byte> challengeProofSignature, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.CompleteEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.ReadOnlyMemory<byte> completionProofSignature, string! audience, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.DenyOrCancelEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, bool isDenial, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.InitiateEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId initiatingPrincipalId, string! issuer, string! subject, System.Uri! baseGatewayUrl, System.TimeSpan? expiry = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.RevokeDeviceAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentCoordinator.RotateRefreshTokenAsync(string! plaintextRefreshToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.CreateEnrollmentAsync(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! enrollment, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.CreateRefreshGrantAsync(OpenConnect.Abstractions.Messaging.RefreshGrantRecord! grant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.RefreshGrantRecord!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.GetDeviceAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord?>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.GetEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord?>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.GetEnrollmentByTokenHashAsync(string! tokenHashSha256, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord?>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.GetRefreshGrantByTokenHashAsync(string! tokenHashSha256, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.RefreshGrantRecord?>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.ListDevicesAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceRecord!>!>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.RevokeAllDeviceRefreshGrantsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.RevokeDevicePushRegistrationsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.RevokeRefreshFamilyAsync(OpenConnect.Abstractions.TenantId tenantId, string! familyId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.TryUpdateEnrollmentAsync(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! updated, OpenConnect.Abstractions.Messaging.EnrollmentState expectedState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.TryUpdateRefreshGrantAsync(OpenConnect.Abstractions.Messaging.RefreshGrantRecord! updated, OpenConnect.Abstractions.Messaging.RefreshGrantStatus expectedStatus, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore.UpsertDeviceAsync(OpenConnect.Abstractions.Messaging.DeviceRecord! device, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator.AuthorizeAndDispatchAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, string! leaseOwner, long leaseFence, System.Func<OpenConnect.Abstractions.Messaging.FollowUpRecord!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! dispatchCallback, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator.CancelFollowUpAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator.ClaimDueBatchAsync(string! leaseOwner, System.TimeSpan leaseDuration, int maxBatchSize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator.RecordHumanReplyAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId humanPrincipalId, string! triggeringEventId, OpenConnect.Abstractions.SessionId? sessionId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRaceResolution!>
+OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator.ScheduleFollowUpAsync(OpenConnect.Abstractions.Messaging.MessagingActor! agentActor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId recipientPrincipalId, System.DateTimeOffset dueAtUtc, int maxAttempts, string! idempotencyKey, string! causalEventId, OpenConnect.Abstractions.TaskId? taskId = null, System.TimeOnly? quietHoursStartUtc = null, System.TimeOnly? quietHoursEndUtc = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpStore
+OpenConnect.Abstractions.Messaging.IFollowUpStore.ClaimDueFollowUpsAsync(System.DateTimeOffset utcNow, string! leaseOwner, System.TimeSpan leaseDuration, int maxBatchSize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Abstractions.Messaging.IFollowUpStore.CreateContinuationAsync(OpenConnect.Abstractions.Messaging.ContinuationRecord! continuation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ContinuationRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpStore.CreateFollowUpAsync(OpenConnect.Abstractions.Messaging.FollowUpRecord! followUp, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Abstractions.Messaging.IFollowUpStore.GetActiveFollowUpsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId recipientPrincipalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Abstractions.Messaging.IFollowUpStore.GetFollowUpAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord?>
+OpenConnect.Abstractions.Messaging.IFollowUpStore.TryTransitionFollowUpAsync(OpenConnect.Abstractions.Messaging.FollowUpRecord! updated, OpenConnect.Abstractions.Messaging.FollowUpState expectedState, long expectedLeaseFence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IMessagingAuthorizer
+OpenConnect.Abstractions.Messaging.IMessagingAuthorizer.AuthorizeAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.MessagingPermission permission, OpenConnect.Abstractions.Messaging.ConversationId? conversationId = null, OpenConnect.Abstractions.Messaging.MessagingActor? target = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.AcceptCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! acceptor, OpenConnect.Abstractions.Messaging.CallId callId, OpenConnect.Abstractions.SessionId voiceSessionId, string! admissionTokenHash, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.CreateCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! caller, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.CallMediaSecurityMode mediaSecurityMode, bool requireEncryption, System.TimeSpan? ringTimeout = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.DeclineCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.CallId callId, string? reason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.EndCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.CallId callId, string? reason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.MarkRingingAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallCoordinator.TerminateCallsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+OpenConnect.Abstractions.Messaging.IMessagingCallStore
+OpenConnect.Abstractions.Messaging.IMessagingCallStore.CreateCallAsync(OpenConnect.Abstractions.Messaging.MessagingCallRecord! call, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCallStore.GetActiveCallsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>!>
+OpenConnect.Abstractions.Messaging.IMessagingCallStore.GetCallAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord?>
+OpenConnect.Abstractions.Messaging.IMessagingCallStore.TryTransitionCallAsync(OpenConnect.Abstractions.Messaging.MessagingCallRecord! updated, OpenConnect.Abstractions.Messaging.CallState expectedState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.CommitMessageAsync(OpenConnect.Abstractions.Messaging.MessageRecord! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.CreateConversationAsync(OpenConnect.Abstractions.Messaging.ConversationRecord! conversation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.GetConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord?>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.GetMessageAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessageId messageId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord?>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.GetMessageByClientOperationIdAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string! clientOperationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord?>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.GetReceiptAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord?>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.UpdateConversationAsync(OpenConnect.Abstractions.Messaging.ConversationRecord! conversation, long expectedMembershipVersion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingConversationStore.UpsertReceiptAsync(OpenConnect.Abstractions.Messaging.MessageReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator.AddParticipantAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessagingActor! participantToAdd, OpenConnect.Abstractions.Messaging.ParticipantRole role, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator.CommitMessageAsync(OpenConnect.Abstractions.Messaging.MessagingActor! sender, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! envelope, string! clientOperationId, string? correlationId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageCommitResult!>
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator.CreateConversationAsync(OpenConnect.Abstractions.Messaging.MessagingActor! creator, OpenConnect.Abstractions.Messaging.ConversationSecurityProfile securityProfile, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingActor!>! initialParticipants, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator.RecordReceiptAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Abstractions.Messaging.MessageReceiptKind kind, string? failureReason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Abstractions.Messaging.IMessagingCoordinator.RemoveParticipantAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.ParticipantKind targetKind, OpenConnect.Abstractions.PrincipalId? targetPrincipalId, OpenConnect.Abstractions.AgentId? targetAgentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ParticipantRemovalResult!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.AddDeviceAndRekeyAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceKeyPackage! newMemberPackage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.ComputeKeyFingerprintAsync(string! publicKeyBase64, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.CreateGroupAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceKeyPackage!>! initialMemberPackages, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.DecryptAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId recipientDeviceId, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! envelope, System.ReadOnlyMemory<byte> associatedData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<byte[]!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.EncryptAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId senderDeviceId, System.ReadOnlyMemory<byte> plaintext, System.ReadOnlyMemory<byte> associatedData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.ProtocolName.get -> string!
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.RemoveDeviceAndRekeyAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId removedDeviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider.VerifyDeviceProofOfPossessionAsync(string! publicKeyBase64, System.ReadOnlyMemory<byte> challenge, System.ReadOnlyMemory<byte> signature, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IMessagingEventDispatcher
+OpenConnect.Abstractions.Messaging.IMessagingEventDispatcher.DispatchAsync(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Abstractions.Messaging.IMessagingRecipientResolver
+OpenConnect.Abstractions.Messaging.IMessagingRecipientResolver.ResolveAgentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.AgentId agentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingActor?>
+OpenConnect.Abstractions.Messaging.IMessagingRecipientResolver.ResolveHumanAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingActor?>
+OpenConnect.Abstractions.Messaging.IMessagingWorkerClient
+OpenConnect.Abstractions.Messaging.IMessagingWorkerClient.CheckReadinessAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness!>
+OpenConnect.Abstractions.Messaging.IMessagingWorkerClient.ExecuteAsync(OpenConnect.Abstractions.Messaging.MessagingWorkerCommand! command, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingWorkerResult!>
+OpenConnect.Abstractions.Messaging.IMobileTokenIssuer
+OpenConnect.Abstractions.Messaging.IMobileTokenIssuer.IssueAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, string! issuer, string! subject, string! audience, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Abstractions.Messaging.IMobileTokenIssuer.RotateAsync(OpenConnect.Abstractions.Messaging.RefreshGrantRecord! existingGrant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Abstractions.Messaging.KeyPackageId
+OpenConnect.Abstractions.Messaging.KeyPackageId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.KeyPackageId.Equals(OpenConnect.Abstractions.Messaging.KeyPackageId other) -> bool
+OpenConnect.Abstractions.Messaging.KeyPackageId.KeyPackageId() -> void
+OpenConnect.Abstractions.Messaging.KeyPackageId.KeyPackageId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.KeyPackageId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.KeyPackageId.Value.init -> void
+OpenConnect.Abstractions.Messaging.MessageCommitResult
+OpenConnect.Abstractions.Messaging.MessageCommitResult.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessageCommitResult!
+OpenConnect.Abstractions.Messaging.MessageCommitResult.Deconstruct(out OpenConnect.Abstractions.Messaging.MessageRecord! Message, out bool WasDeduplicated) -> void
+OpenConnect.Abstractions.Messaging.MessageCommitResult.Equals(OpenConnect.Abstractions.Messaging.MessageCommitResult? other) -> bool
+OpenConnect.Abstractions.Messaging.MessageCommitResult.Message.get -> OpenConnect.Abstractions.Messaging.MessageRecord!
+OpenConnect.Abstractions.Messaging.MessageCommitResult.Message.init -> void
+OpenConnect.Abstractions.Messaging.MessageCommitResult.MessageCommitResult(OpenConnect.Abstractions.Messaging.MessageRecord! Message, bool WasDeduplicated) -> void
+OpenConnect.Abstractions.Messaging.MessageCommitResult.WasDeduplicated.get -> bool
+OpenConnect.Abstractions.Messaging.MessageCommitResult.WasDeduplicated.init -> void
+OpenConnect.Abstractions.Messaging.MessageId
+OpenConnect.Abstractions.Messaging.MessageId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.MessageId.Equals(OpenConnect.Abstractions.Messaging.MessageId other) -> bool
+OpenConnect.Abstractions.Messaging.MessageId.MessageId() -> void
+OpenConnect.Abstractions.Messaging.MessageId.MessageId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.MessageId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.MessageId.Value.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptKind.Committed = 1 -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptKind.Delivered = 2 -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptKind.Failed = 4 -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptKind.Queued = 0 -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptKind.Read = 3 -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessageReceiptRecord!
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.MessageId MessageId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out OpenConnect.Abstractions.Messaging.MessageReceiptKind Kind, out long Sequence, out System.DateTimeOffset RecordedAt, out string? FailureReason) -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Equals(OpenConnect.Abstractions.Messaging.MessageReceiptRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.FailureReason.get -> string?
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.FailureReason.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Kind.get -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Kind.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.MessageId.get -> OpenConnect.Abstractions.Messaging.MessageId
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.MessageId.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.MessageReceiptRecord(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.MessageId MessageId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, OpenConnect.Abstractions.Messaging.MessageReceiptKind Kind, long Sequence, System.DateTimeOffset RecordedAt, string? FailureReason = null) -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.RecordedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.RecordedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Sequence.get -> long
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Sequence.init -> void
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.MessageReceiptRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord
+OpenConnect.Abstractions.Messaging.MessageRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessageRecord!
+OpenConnect.Abstractions.Messaging.MessageRecord.ClientOperationId.get -> string!
+OpenConnect.Abstractions.Messaging.MessageRecord.ClientOperationId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.MessageRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.CorrelationId.get -> string?
+OpenConnect.Abstractions.Messaging.MessageRecord.CorrelationId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessageRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.MessageId MessageId, out long Sequence, out OpenConnect.Abstractions.Messaging.ParticipantKind SenderKind, out OpenConnect.Abstractions.PrincipalId? SenderPrincipalId, out OpenConnect.Abstractions.AgentId? SenderAgentId, out OpenConnect.Abstractions.Messaging.DeviceId? SenderDeviceId, out OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! Envelope, out string! ClientOperationId, out string! PayloadDigestSha256, out System.DateTimeOffset CreatedAt, out string? CorrelationId) -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.Envelope.get -> OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope!
+OpenConnect.Abstractions.Messaging.MessageRecord.Envelope.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.Equals(OpenConnect.Abstractions.Messaging.MessageRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.MessageRecord.MessageId.get -> OpenConnect.Abstractions.Messaging.MessageId
+OpenConnect.Abstractions.Messaging.MessageRecord.MessageId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.MessageRecord(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.MessageId MessageId, long Sequence, OpenConnect.Abstractions.Messaging.ParticipantKind SenderKind, OpenConnect.Abstractions.PrincipalId? SenderPrincipalId, OpenConnect.Abstractions.AgentId? SenderAgentId, OpenConnect.Abstractions.Messaging.DeviceId? SenderDeviceId, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! Envelope, string! ClientOperationId, string! PayloadDigestSha256, System.DateTimeOffset CreatedAt, string? CorrelationId = null) -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.PayloadDigestSha256.get -> string!
+OpenConnect.Abstractions.Messaging.MessageRecord.PayloadDigestSha256.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderAgentId.get -> OpenConnect.Abstractions.AgentId?
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderAgentId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderDeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId?
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderDeviceId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderKind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderKind.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderPrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.MessageRecord.SenderPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.Sequence.get -> long
+OpenConnect.Abstractions.Messaging.MessageRecord.Sequence.init -> void
+OpenConnect.Abstractions.Messaging.MessageRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.MessageRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor
+OpenConnect.Abstractions.Messaging.MessagingActor.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingActor!
+OpenConnect.Abstractions.Messaging.MessagingActor.AgentId.get -> OpenConnect.Abstractions.AgentId?
+OpenConnect.Abstractions.Messaging.MessagingActor.AgentId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingActor.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.ParticipantKind Kind, out OpenConnect.Abstractions.PrincipalId? PrincipalId, out OpenConnect.Abstractions.AgentId? AgentId, out OpenConnect.Abstractions.Messaging.DeviceId? DeviceId, out string? Issuer, out string? Subject) -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId?
+OpenConnect.Abstractions.Messaging.MessagingActor.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.Equals(OpenConnect.Abstractions.Messaging.MessagingActor? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingActor.Issuer.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingActor.Issuer.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.Kind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.MessagingActor.Kind.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.MessagingActor(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.ParticipantKind Kind, OpenConnect.Abstractions.PrincipalId? PrincipalId = null, OpenConnect.Abstractions.AgentId? AgentId = null, OpenConnect.Abstractions.Messaging.DeviceId? DeviceId = null, string? Issuer = null, string? Subject = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.MessagingActor.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.Subject.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingActor.Subject.init -> void
+OpenConnect.Abstractions.Messaging.MessagingActor.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.MessagingActor.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision!
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Allowed.get -> bool
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Allowed.init -> void
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Deconstruct(out bool Allowed, out string? ErrorCode, out string? Reason) -> void
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Equals(OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.ErrorCode.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.ErrorCode.init -> void
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.MessagingAuthorizationDecision(bool Allowed, string? ErrorCode = null, string? Reason = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Reason.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Reason.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingCallRecord!
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AcceptedDeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AcceptedDeviceId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AcceptedPrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AcceptedPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AdmissionTokenHash.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AdmissionTokenHash.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AllowedHumanRecipients.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.PrincipalId>!
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.AllowedHumanRecipients.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerAgentId.get -> OpenConnect.Abstractions.AgentId?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerAgentId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerKind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerKind.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerPrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerPrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.get -> OpenConnect.Abstractions.Messaging.CallId
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CreatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CreatedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.CallId CallId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.ParticipantKind CallerKind, out OpenConnect.Abstractions.PrincipalId? CallerPrincipalId, out OpenConnect.Abstractions.AgentId? CallerAgentId, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.PrincipalId>! AllowedHumanRecipients, out OpenConnect.Abstractions.Messaging.CallState State, out OpenConnect.Abstractions.Messaging.CallMediaSecurityMode MediaSecurityMode, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset ExpiresAt, out OpenConnect.Abstractions.Messaging.DeviceId? AcceptedDeviceId, out OpenConnect.Abstractions.PrincipalId? AcceptedPrincipalId, out OpenConnect.Abstractions.SessionId? VoiceSessionId, out string? AdmissionTokenHash, out System.DateTimeOffset? EndedAt, out string? EndReason) -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndReason.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndReason.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.Equals(OpenConnect.Abstractions.Messaging.MessagingCallRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.MediaSecurityMode.get -> OpenConnect.Abstractions.Messaging.CallMediaSecurityMode
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.MediaSecurityMode.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.MessagingCallRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.CallId CallId, OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.ParticipantKind CallerKind, OpenConnect.Abstractions.PrincipalId? CallerPrincipalId, OpenConnect.Abstractions.AgentId? CallerAgentId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.PrincipalId>! AllowedHumanRecipients, OpenConnect.Abstractions.Messaging.CallState State, OpenConnect.Abstractions.Messaging.CallMediaSecurityMode MediaSecurityMode, System.DateTimeOffset CreatedAt, System.DateTimeOffset ExpiresAt, OpenConnect.Abstractions.Messaging.DeviceId? AcceptedDeviceId = null, OpenConnect.Abstractions.PrincipalId? AcceptedPrincipalId = null, OpenConnect.Abstractions.SessionId? VoiceSessionId = null, string? AdmissionTokenHash = null, System.DateTimeOffset? EndedAt = null, string? EndReason = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.State.get -> OpenConnect.Abstractions.Messaging.CallState
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.State.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.VoiceSessionId.get -> OpenConnect.Abstractions.SessionId?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.VoiceSessionId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCapabilityIds
+OpenConnect.Abstractions.Messaging.MessagingChannelKind
+OpenConnect.Abstractions.Messaging.MessagingChannelKind.DiscordPlanned = 3 -> OpenConnect.Abstractions.Messaging.MessagingChannelKind
+OpenConnect.Abstractions.Messaging.MessagingChannelKind.InApp = 0 -> OpenConnect.Abstractions.Messaging.MessagingChannelKind
+OpenConnect.Abstractions.Messaging.MessagingChannelKind.TelegramPlanned = 2 -> OpenConnect.Abstractions.Messaging.MessagingChannelKind
+OpenConnect.Abstractions.Messaging.MessagingChannelKind.WhatsAppPlanned = 1 -> OpenConnect.Abstractions.Messaging.MessagingChannelKind
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out long Epoch, out string! Protocol, out string! GroupKeyHashSha256, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceId>! MemberDevices, out System.DateTimeOffset UpdatedAt) -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Epoch.get -> long
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Epoch.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Equals(OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.GroupKeyHashSha256.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.GroupKeyHashSha256.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.MemberDevices.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceId>!
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.MemberDevices.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.MessagingCryptoGroupState(OpenConnect.Abstractions.Messaging.ConversationId ConversationId, long Epoch, string! Protocol, string! GroupKeyHashSha256, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceId>! MemberDevices, System.DateTimeOffset UpdatedAt) -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Protocol.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Protocol.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.UpdatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.UpdatedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingDomainException
+OpenConnect.Abstractions.Messaging.MessagingDomainException.ErrorCode.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingDomainException.MessagingDomainException(string! errorCode, string! message, int statusCode = 400, System.Exception? innerException = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingDomainException.StatusCode.get -> int
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId?
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.ConversationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.CorrelationId.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.CorrelationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Cursor.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Cursor.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Deconstruct(out int SchemaVersion, out string! EventId, out string! Type, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.Messaging.ConversationId? ConversationId, out long Sequence, out string! Cursor, out System.DateTimeOffset OccurredAt, out string! PayloadJson, out string? CorrelationId) -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Equals(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.EventId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.EventId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.MessagingEventEnvelope(int SchemaVersion, string! EventId, string! Type, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.Messaging.ConversationId? ConversationId, long Sequence, string! Cursor, System.DateTimeOffset OccurredAt, string! PayloadJson, string? CorrelationId = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.OccurredAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.PayloadJson.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.PayloadJson.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.SchemaVersion.get -> int
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.SchemaVersion.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Sequence.get -> long
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Sequence.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Type.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Type.init -> void
+OpenConnect.Abstractions.Messaging.MessagingEventTypes
+OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Approval = 8 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Attachment = 7 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Call = 5 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Discover = 0 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.FollowUp = 6 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Initiate = 3 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Invite = 4 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Receive = 1 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingPermission.Send = 2 -> OpenConnect.Abstractions.Messaging.MessagingPermission
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingWorkerCommand!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Deconstruct(out string! SchemaVersion, out string! TaskId, out string! Kind, out string! TenantId, out System.DateTimeOffset IssuedAt, out System.DateTimeOffset ExpiresAt, out string! Nonce, out string! PayloadJson) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Equals(OpenConnect.Abstractions.Messaging.MessagingWorkerCommand? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.IssuedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.IssuedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Kind.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Kind.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.MessagingWorkerCommand(string! SchemaVersion, string! TaskId, string! Kind, string! TenantId, System.DateTimeOffset IssuedAt, System.DateTimeOffset ExpiresAt, string! Nonce, string! PayloadJson) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Nonce.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Nonce.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.PayloadJson.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.PayloadJson.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.SchemaVersion.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.SchemaVersion.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.TaskId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.TaskId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.TenantId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness!
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.CheckedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.CheckedAt.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.ContractVersion.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.ContractVersion.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.Deconstruct(out bool IsReady, out System.Collections.Generic.IReadOnlyList<string!>! VerifiedCapabilities, out string? ContractVersion, out System.DateTimeOffset? CheckedAt) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.Equals(OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.IsReady.get -> bool
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.IsReady.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.MessagingWorkerReadiness(bool IsReady, System.Collections.Generic.IReadOnlyList<string!>! VerifiedCapabilities, string? ContractVersion = null, System.DateTimeOffset? CheckedAt = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.VerifiedCapabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.VerifiedCapabilities.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.<Clone>$() -> OpenConnect.Abstractions.Messaging.MessagingWorkerResult!
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Accepted.get -> bool
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Accepted.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Deconstruct(out string! SchemaVersion, out string! TaskId, out string! Kind, out bool Accepted, out string? Status, out string? ErrorCode, out string? PayloadJson) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Equals(OpenConnect.Abstractions.Messaging.MessagingWorkerResult? other) -> bool
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.ErrorCode.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.ErrorCode.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Kind.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Kind.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.MessagingWorkerResult(string! SchemaVersion, string! TaskId, string! Kind, bool Accepted, string? Status = null, string? ErrorCode = null, string? PayloadJson = null) -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.PayloadJson.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.PayloadJson.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.SchemaVersion.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.SchemaVersion.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Status.get -> string?
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Status.init -> void
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.TaskId.get -> string!
+OpenConnect.Abstractions.Messaging.MessagingWorkerResult.TaskId.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.<Clone>$() -> OpenConnect.Abstractions.Messaging.MobileTokenBundle!
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.AccessToken.get -> string!
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.AccessToken.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.AccessTokenExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.AccessTokenExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.Deconstruct(out string! AccessToken, out System.DateTimeOffset AccessTokenExpiresAt, out string! RefreshToken, out System.DateTimeOffset RefreshTokenExpiresAt, out OpenConnect.Abstractions.Messaging.RefreshGrantId RefreshGrantId, out string! FamilyId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.Equals(OpenConnect.Abstractions.Messaging.MobileTokenBundle? other) -> bool
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.FamilyId.get -> string!
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.FamilyId.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.MobileTokenBundle(string! AccessToken, System.DateTimeOffset AccessTokenExpiresAt, string! RefreshToken, System.DateTimeOffset RefreshTokenExpiresAt, OpenConnect.Abstractions.Messaging.RefreshGrantId RefreshGrantId, string! FamilyId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshGrantId.get -> OpenConnect.Abstractions.Messaging.RefreshGrantId
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshGrantId.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshToken.get -> string!
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshToken.init -> void
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshTokenExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.MobileTokenBundle.RefreshTokenExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.<Clone>$() -> OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem!
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AgentId.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AllowedCapabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AllowedCapabilities.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AvatarUrl.get -> string?
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.AvatarUrl.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.Deconstruct(out OpenConnect.Abstractions.AgentId AgentId, out string! DisplayName, out string! Description, out string? AvatarUrl, out System.Collections.Generic.IReadOnlyList<string!>! AllowedCapabilities, out bool IsReady) -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.Description.get -> string!
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.Description.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.DisplayName.get -> string!
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.DisplayName.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.Equals(OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem? other) -> bool
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.IsReady.get -> bool
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.IsReady.init -> void
+OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.OperationalAgentDiscoveryItem(OpenConnect.Abstractions.AgentId AgentId, string! DisplayName, string! Description, string? AvatarUrl, System.Collections.Generic.IReadOnlyList<string!>! AllowedCapabilities, bool IsReady) -> void
+OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.ParticipantKind.Agent = 1 -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.ParticipantKind.Human = 0 -> OpenConnect.Abstractions.Messaging.ParticipantKind
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.<Clone>$() -> OpenConnect.Abstractions.Messaging.ParticipantRemovalResult!
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.Conversation.get -> OpenConnect.Abstractions.Messaging.ConversationRecord!
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.Conversation.init -> void
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.ConversationClosed.get -> bool
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.ConversationClosed.init -> void
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationRecord! Conversation, out bool ConversationClosed, out bool TerminateActiveCalls) -> void
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.Equals(OpenConnect.Abstractions.Messaging.ParticipantRemovalResult? other) -> bool
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.ParticipantRemovalResult(OpenConnect.Abstractions.Messaging.ConversationRecord! Conversation, bool ConversationClosed, bool TerminateActiveCalls) -> void
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.TerminateActiveCalls.get -> bool
+OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.TerminateActiveCalls.init -> void
+OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ParticipantRole.Guest = 2 -> OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ParticipantRole.Member = 1 -> OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ParticipantRole.OperationalAgent = 3 -> OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ParticipantRole.Owner = 0 -> OpenConnect.Abstractions.Messaging.ParticipantRole
+OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.ParticipantStatus.Active = 0 -> OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.ParticipantStatus.Left = 1 -> OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.ParticipantStatus.Removed = 2 -> OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.ParticipantStatus.Revoked = 3 -> OpenConnect.Abstractions.Messaging.ParticipantStatus
+OpenConnect.Abstractions.Messaging.PushProviderKind
+OpenConnect.Abstractions.Messaging.PushProviderKind.Fcm = 0 -> OpenConnect.Abstractions.Messaging.PushProviderKind
+OpenConnect.Abstractions.Messaging.PushProviderKind.WebPush = 1 -> OpenConnect.Abstractions.Messaging.PushProviderKind
+OpenConnect.Abstractions.Messaging.PushRegistrationId
+OpenConnect.Abstractions.Messaging.PushRegistrationId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationId.Equals(OpenConnect.Abstractions.Messaging.PushRegistrationId other) -> bool
+OpenConnect.Abstractions.Messaging.PushRegistrationId.PushRegistrationId() -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationId.PushRegistrationId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.PushRegistrationId.Value.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.PushRegistrationRecord!
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ConsentGranted.get -> bool
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ConsentGranted.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.PushRegistrationId RegistrationId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out OpenConnect.Abstractions.Messaging.PushProviderKind Provider, out string! ProtectedTokenHandle, out bool ConsentGranted, out OpenConnect.Abstractions.Messaging.PushRegistrationStatus Status, out System.DateTimeOffset UpdatedAt) -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Equals(OpenConnect.Abstractions.Messaging.PushRegistrationRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ProtectedTokenHandle.get -> string!
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ProtectedTokenHandle.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Provider.get -> OpenConnect.Abstractions.Messaging.PushProviderKind
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Provider.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.PushRegistrationRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.PushRegistrationId RegistrationId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, OpenConnect.Abstractions.Messaging.PushProviderKind Provider, string! ProtectedTokenHandle, bool ConsentGranted, OpenConnect.Abstractions.Messaging.PushRegistrationStatus Status, System.DateTimeOffset UpdatedAt) -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.RegistrationId.get -> OpenConnect.Abstractions.Messaging.PushRegistrationId
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.RegistrationId.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Status.get -> OpenConnect.Abstractions.Messaging.PushRegistrationStatus
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Status.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.UpdatedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.PushRegistrationRecord.UpdatedAt.init -> void
+OpenConnect.Abstractions.Messaging.PushRegistrationStatus
+OpenConnect.Abstractions.Messaging.PushRegistrationStatus.Active = 0 -> OpenConnect.Abstractions.Messaging.PushRegistrationStatus
+OpenConnect.Abstractions.Messaging.PushRegistrationStatus.InvalidToken = 1 -> OpenConnect.Abstractions.Messaging.PushRegistrationStatus
+OpenConnect.Abstractions.Messaging.PushRegistrationStatus.Revoked = 2 -> OpenConnect.Abstractions.Messaging.PushRegistrationStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantId
+OpenConnect.Abstractions.Messaging.RefreshGrantId.Deconstruct(out OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantId.Equals(OpenConnect.Abstractions.Messaging.RefreshGrantId other) -> bool
+OpenConnect.Abstractions.Messaging.RefreshGrantId.RefreshGrantId() -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantId.RefreshGrantId(OpenConnect.Abstractions.Ulid Value) -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantId.Value.get -> OpenConnect.Abstractions.Ulid
+OpenConnect.Abstractions.Messaging.RefreshGrantId.Value.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.<Clone>$() -> OpenConnect.Abstractions.Messaging.RefreshGrantRecord!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.ApplicationId.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Audience.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Audience.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.RefreshGrantId GrantId, out string! FamilyId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! Issuer, out string! Subject, out string! Audience, out string! TokenHashSha256, out OpenConnect.Abstractions.Messaging.RefreshGrantStatus Status, out System.DateTimeOffset IssuedAt, out System.DateTimeOffset ExpiresAt, out System.DateTimeOffset? RotatedAt, out System.DateTimeOffset? RevokedAt) -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.DeviceId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Equals(OpenConnect.Abstractions.Messaging.RefreshGrantRecord? other) -> bool
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.ExpiresAt.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.FamilyId.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.FamilyId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.GrantId.get -> OpenConnect.Abstractions.Messaging.RefreshGrantId
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.GrantId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.IssuedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.IssuedAt.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Issuer.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Issuer.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.PrincipalId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.RefreshGrantRecord(OpenConnect.Abstractions.TenantId TenantId, string! ApplicationId, OpenConnect.Abstractions.Messaging.RefreshGrantId GrantId, string! FamilyId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! Issuer, string! Subject, string! Audience, string! TokenHashSha256, OpenConnect.Abstractions.Messaging.RefreshGrantStatus Status, System.DateTimeOffset IssuedAt, System.DateTimeOffset ExpiresAt, System.DateTimeOffset? RotatedAt = null, System.DateTimeOffset? RevokedAt = null) -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.RevokedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.RevokedAt.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.RotatedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.RotatedAt.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Status.get -> OpenConnect.Abstractions.Messaging.RefreshGrantStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Status.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Subject.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Subject.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.TenantId.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.TokenHashSha256.get -> string!
+OpenConnect.Abstractions.Messaging.RefreshGrantRecord.TokenHashSha256.init -> void
+OpenConnect.Abstractions.Messaging.RefreshGrantStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantStatus.Active = 0 -> OpenConnect.Abstractions.Messaging.RefreshGrantStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantStatus.ReuseDetected = 3 -> OpenConnect.Abstractions.Messaging.RefreshGrantStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantStatus.Revoked = 2 -> OpenConnect.Abstractions.Messaging.RefreshGrantStatus
+OpenConnect.Abstractions.Messaging.RefreshGrantStatus.Rotated = 1 -> OpenConnect.Abstractions.Messaging.RefreshGrantStatus
 OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Abstractions.ModelExecutionLocation.LocalOnly = 0 -> OpenConnect.Abstractions.ModelExecutionLocation
 OpenConnect.Abstractions.ModelExecutionLocation.RemoteAllowed = 2 -> OpenConnect.Abstractions.ModelExecutionLocation
@@ -1170,15 +2249,6 @@ OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.get -> string!
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.init -> void
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.get -> long?
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.init -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Deconstruct(out long? TurnId, out string! Text) -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? other) -> bool
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.RealtimeTranscriptTurn(long? TurnId, string! Text) -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.get -> string!
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.init -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.get -> long?
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.init -> void
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Deconstruct(out string! SessionId, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>! Turns) -> void
@@ -1189,6 +2259,15 @@ OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.get -> str
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.init -> void
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>!
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Deconstruct(out long? TurnId, out string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? other) -> bool
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.RealtimeTranscriptTurn(long? TurnId, string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.get -> string!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.get -> long?
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.init -> void
 OpenConnect.Abstractions.Speech.SpeechToTextTurn
 OpenConnect.Abstractions.Speech.SpeechToTextTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.SpeechToTextTurn!
 OpenConnect.Abstractions.Speech.SpeechToTextTurn.Deconstruct(out int TurnId, out long StartMs, out long EndMs, out string! Transcript, out string! Speaker) -> void
@@ -1492,8 +2571,8 @@ OpenConnect.Abstractions.ToolExecutionMode.Inline = 0 -> OpenConnect.Abstraction
 OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Accepted = 2 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.AwaitingApproval = 1 -> OpenConnect.Abstractions.ToolExecutionState
-OpenConnect.Abstractions.ToolExecutionState.CancelRequested = 9 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Cancelled = 10 -> OpenConnect.Abstractions.ToolExecutionState
+OpenConnect.Abstractions.ToolExecutionState.CancelRequested = 9 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Completed = 7 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Failed = 8 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Finalizing = 6 -> OpenConnect.Abstractions.ToolExecutionState
@@ -1592,51 +2671,6 @@ OpenConnect.Abstractions.WorkerReadiness.Loading = 2 -> OpenConnect.Abstractions
 OpenConnect.Abstractions.WorkerReadiness.Provisioning = 1 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Ready = 3 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Unavailable = 5 -> OpenConnect.Abstractions.WorkerReadiness
-const OpenConnect.Abstractions.CanonicalAgentEvent.CurrentSchemaVersion = "openconnect.v1" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.DatabaseFencingDenied = "database_fencing_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfConcurrencyConflict = "ef_concurrency_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfContextMissing = "ef_context_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfInmemoryNotDurable = "ef_inmemory_not_durable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfLeaseExpired = "ef_lease_expired" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfMigrationNotAllowed = "ef_migration_not_allowed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfModelMissing = "ef_model_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfOutboxClaimConflict = "ef_outbox_claim_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfPersistenceUnavailable = "ef_persistence_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfProviderUnsupported = "ef_provider_unsupported" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfSchemaMismatch = "ef_schema_mismatch" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfSchemaMissing = "ef_schema_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfTransactionUnavailable = "ef_transaction_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.InvalidRequest = "invalid_request" -> string!
-const OpenConnect.Abstractions.ErrorCodes.MalwareDetected = "malware_detected" -> string!
-const OpenConnect.Abstractions.ErrorCodes.PrivacyBlocked = "privacy_blocked" -> string!
-const OpenConnect.Abstractions.ErrorCodes.PromptInjectionDetected = "prompt_injection_detected" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.RateLimited = "rate_limited" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ServiceFencingDenied = "service_fencing_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.SessionNotFound = "session_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.TaskNotFound = "task_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ToolNotAllowed = "tool_not_allowed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.Unauthorized = "unauthorized" -> string!
-const OpenConnect.Abstractions.ErrorCodes.VoiceEgressDenied = "voice_egress_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hosting_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
-const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
-const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.EvidenceV1 = "openconnect.security-evidence.v1" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.InspectionV1 = "openconnect.security-inspection.v1" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.OffsetUnitUnicodeScalar = "unicode-scalar" -> string!
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxFrameBytes = 98304 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxPayloadBytes = 98272 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.ProtocolVersion = 2 -> byte
 override OpenConnect.Abstractions.AgentBudget.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.AgentBudget.GetHashCode() -> int
 override OpenConnect.Abstractions.AgentBudget.ToString() -> string!
@@ -1700,6 +2734,102 @@ override OpenConnect.Abstractions.MemorySearchRequest.ToString() -> string!
 override OpenConnect.Abstractions.MemorySearchResult.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.MemorySearchResult.GetHashCode() -> int
 override OpenConnect.Abstractions.MemorySearchResult.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.ApprovalRequestId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.AttachmentId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.AttachmentRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.AttachmentRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.AttachmentRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.CallId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ContinuationId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ContinuationRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.ContinuationRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ContinuationRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.ConversationId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ConversationParticipant.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.ConversationParticipant.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ConversationParticipant.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.ConversationRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.ConversationRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ConversationRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.DeviceId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceKeyPackage.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.DeviceKeyPackage.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceKeyPackage.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.DeviceRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.DeviceRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.DeviceRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.EnrollmentId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.FollowUpId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.FollowUpRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.FollowUpRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.FollowUpRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.KeyPackageId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessageCommitResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessageCommitResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessageCommitResult.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessageId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessageReceiptRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessageReceiptRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessageReceiptRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessageRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessageRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessageRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingActor.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingActor.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingActor.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingCallRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingCallRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingCallRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MessagingWorkerResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MessagingWorkerResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MessagingWorkerResult.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.MobileTokenBundle.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.MobileTokenBundle.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.MobileTokenBundle.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.PushRegistrationId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.PushRegistrationRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.PushRegistrationRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.PushRegistrationRecord.ToString() -> string!
+override OpenConnect.Abstractions.Messaging.RefreshGrantId.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.RefreshGrantRecord.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Messaging.RefreshGrantRecord.GetHashCode() -> int
+override OpenConnect.Abstractions.Messaging.RefreshGrantRecord.ToString() -> string!
 override OpenConnect.Abstractions.ModelRequirement.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.ModelRequirement.GetHashCode() -> int
 override OpenConnect.Abstractions.ModelRequirement.ToString() -> string!
@@ -1787,12 +2917,12 @@ override OpenConnect.Abstractions.SessionId.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.ToString() -> string!
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(object? obj) -> bool
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.GetHashCode() -> int
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.ToString() -> string!
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.ToString() -> string!
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.ToString() -> string!
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.ToString() -> string!
@@ -1863,8 +2993,8 @@ static OpenConnect.Abstractions.CanonicalAgentEvent.operator !=(OpenConnect.Abst
 static OpenConnect.Abstractions.CanonicalAgentEvent.operator ==(OpenConnect.Abstractions.CanonicalAgentEvent? left, OpenConnect.Abstractions.CanonicalAgentEvent? right) -> bool
 static OpenConnect.Abstractions.CanonicalEventMapper.FromEventRecord(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionId, System.Guid eventId, System.DateTimeOffset occurredAt, string? correlationId = null) -> OpenConnect.Abstractions.CanonicalAgentEvent!
 static OpenConnect.Abstractions.CanonicalEventMapper.TryFromEventRecord(OpenConnect.Abstractions.EventRecord? record, System.Guid sessionId, System.Guid eventId, System.DateTimeOffset occurredAt, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical, string? correlationId = null) -> bool
-static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(System.Text.Json.JsonElement element, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(string? json, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
+static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(System.Text.Json.JsonElement element, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Abstractions.CapabilityDescriptor.operator !=(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.CapabilityDescriptor.operator ==(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.CapabilityId.operator !=(OpenConnect.Abstractions.CapabilityId left, OpenConnect.Abstractions.CapabilityId right) -> bool
@@ -1895,6 +3025,86 @@ static OpenConnect.Abstractions.MemorySearchRequest.operator !=(OpenConnect.Abst
 static OpenConnect.Abstractions.MemorySearchRequest.operator ==(OpenConnect.Abstractions.MemorySearchRequest? left, OpenConnect.Abstractions.MemorySearchRequest? right) -> bool
 static OpenConnect.Abstractions.MemorySearchResult.operator !=(OpenConnect.Abstractions.MemorySearchResult? left, OpenConnect.Abstractions.MemorySearchResult? right) -> bool
 static OpenConnect.Abstractions.MemorySearchResult.operator ==(OpenConnect.Abstractions.MemorySearchResult? left, OpenConnect.Abstractions.MemorySearchResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.ApprovalRequestId.operator !=(OpenConnect.Abstractions.Messaging.ApprovalRequestId left, OpenConnect.Abstractions.Messaging.ApprovalRequestId right) -> bool
+static OpenConnect.Abstractions.Messaging.ApprovalRequestId.operator ==(OpenConnect.Abstractions.Messaging.ApprovalRequestId left, OpenConnect.Abstractions.Messaging.ApprovalRequestId right) -> bool
+static OpenConnect.Abstractions.Messaging.AttachmentId.operator !=(OpenConnect.Abstractions.Messaging.AttachmentId left, OpenConnect.Abstractions.Messaging.AttachmentId right) -> bool
+static OpenConnect.Abstractions.Messaging.AttachmentId.operator ==(OpenConnect.Abstractions.Messaging.AttachmentId left, OpenConnect.Abstractions.Messaging.AttachmentId right) -> bool
+static OpenConnect.Abstractions.Messaging.AttachmentRecord.operator !=(OpenConnect.Abstractions.Messaging.AttachmentRecord? left, OpenConnect.Abstractions.Messaging.AttachmentRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.AttachmentRecord.operator ==(OpenConnect.Abstractions.Messaging.AttachmentRecord? left, OpenConnect.Abstractions.Messaging.AttachmentRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.CallId.operator !=(OpenConnect.Abstractions.Messaging.CallId left, OpenConnect.Abstractions.Messaging.CallId right) -> bool
+static OpenConnect.Abstractions.Messaging.CallId.operator ==(OpenConnect.Abstractions.Messaging.CallId left, OpenConnect.Abstractions.Messaging.CallId right) -> bool
+static OpenConnect.Abstractions.Messaging.ContinuationId.operator !=(OpenConnect.Abstractions.Messaging.ContinuationId left, OpenConnect.Abstractions.Messaging.ContinuationId right) -> bool
+static OpenConnect.Abstractions.Messaging.ContinuationId.operator ==(OpenConnect.Abstractions.Messaging.ContinuationId left, OpenConnect.Abstractions.Messaging.ContinuationId right) -> bool
+static OpenConnect.Abstractions.Messaging.ContinuationRecord.operator !=(OpenConnect.Abstractions.Messaging.ContinuationRecord? left, OpenConnect.Abstractions.Messaging.ContinuationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.ContinuationRecord.operator ==(OpenConnect.Abstractions.Messaging.ContinuationRecord? left, OpenConnect.Abstractions.Messaging.ContinuationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationId.operator !=(OpenConnect.Abstractions.Messaging.ConversationId left, OpenConnect.Abstractions.Messaging.ConversationId right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationId.operator ==(OpenConnect.Abstractions.Messaging.ConversationId left, OpenConnect.Abstractions.Messaging.ConversationId right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationParticipant.operator !=(OpenConnect.Abstractions.Messaging.ConversationParticipant? left, OpenConnect.Abstractions.Messaging.ConversationParticipant? right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationParticipant.operator ==(OpenConnect.Abstractions.Messaging.ConversationParticipant? left, OpenConnect.Abstractions.Messaging.ConversationParticipant? right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationRecord.operator !=(OpenConnect.Abstractions.Messaging.ConversationRecord? left, OpenConnect.Abstractions.Messaging.ConversationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.ConversationRecord.operator ==(OpenConnect.Abstractions.Messaging.ConversationRecord? left, OpenConnect.Abstractions.Messaging.ConversationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.operator !=(OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult.operator ==(OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.operator !=(OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload.operator ==(OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.operator !=(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord.operator ==(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord? left, OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceId.operator !=(OpenConnect.Abstractions.Messaging.DeviceId left, OpenConnect.Abstractions.Messaging.DeviceId right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceId.operator ==(OpenConnect.Abstractions.Messaging.DeviceId left, OpenConnect.Abstractions.Messaging.DeviceId right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceKeyPackage.operator !=(OpenConnect.Abstractions.Messaging.DeviceKeyPackage? left, OpenConnect.Abstractions.Messaging.DeviceKeyPackage? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceKeyPackage.operator ==(OpenConnect.Abstractions.Messaging.DeviceKeyPackage? left, OpenConnect.Abstractions.Messaging.DeviceKeyPackage? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceRecord.operator !=(OpenConnect.Abstractions.Messaging.DeviceRecord? left, OpenConnect.Abstractions.Messaging.DeviceRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.DeviceRecord.operator ==(OpenConnect.Abstractions.Messaging.DeviceRecord? left, OpenConnect.Abstractions.Messaging.DeviceRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.operator !=(OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope? left, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope? right) -> bool
+static OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope.operator ==(OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope? left, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope? right) -> bool
+static OpenConnect.Abstractions.Messaging.EnrollmentId.operator !=(OpenConnect.Abstractions.Messaging.EnrollmentId left, OpenConnect.Abstractions.Messaging.EnrollmentId right) -> bool
+static OpenConnect.Abstractions.Messaging.EnrollmentId.operator ==(OpenConnect.Abstractions.Messaging.EnrollmentId left, OpenConnect.Abstractions.Messaging.EnrollmentId right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpId.operator !=(OpenConnect.Abstractions.Messaging.FollowUpId left, OpenConnect.Abstractions.Messaging.FollowUpId right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpId.operator ==(OpenConnect.Abstractions.Messaging.FollowUpId left, OpenConnect.Abstractions.Messaging.FollowUpId right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.operator !=(OpenConnect.Abstractions.Messaging.FollowUpRaceResolution? left, OpenConnect.Abstractions.Messaging.FollowUpRaceResolution? right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpRaceResolution.operator ==(OpenConnect.Abstractions.Messaging.FollowUpRaceResolution? left, OpenConnect.Abstractions.Messaging.FollowUpRaceResolution? right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpRecord.operator !=(OpenConnect.Abstractions.Messaging.FollowUpRecord? left, OpenConnect.Abstractions.Messaging.FollowUpRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.FollowUpRecord.operator ==(OpenConnect.Abstractions.Messaging.FollowUpRecord? left, OpenConnect.Abstractions.Messaging.FollowUpRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.KeyPackageId.operator !=(OpenConnect.Abstractions.Messaging.KeyPackageId left, OpenConnect.Abstractions.Messaging.KeyPackageId right) -> bool
+static OpenConnect.Abstractions.Messaging.KeyPackageId.operator ==(OpenConnect.Abstractions.Messaging.KeyPackageId left, OpenConnect.Abstractions.Messaging.KeyPackageId right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageCommitResult.operator !=(OpenConnect.Abstractions.Messaging.MessageCommitResult? left, OpenConnect.Abstractions.Messaging.MessageCommitResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageCommitResult.operator ==(OpenConnect.Abstractions.Messaging.MessageCommitResult? left, OpenConnect.Abstractions.Messaging.MessageCommitResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageId.operator !=(OpenConnect.Abstractions.Messaging.MessageId left, OpenConnect.Abstractions.Messaging.MessageId right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageId.operator ==(OpenConnect.Abstractions.Messaging.MessageId left, OpenConnect.Abstractions.Messaging.MessageId right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageReceiptRecord.operator !=(OpenConnect.Abstractions.Messaging.MessageReceiptRecord? left, OpenConnect.Abstractions.Messaging.MessageReceiptRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageReceiptRecord.operator ==(OpenConnect.Abstractions.Messaging.MessageReceiptRecord? left, OpenConnect.Abstractions.Messaging.MessageReceiptRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageRecord.operator !=(OpenConnect.Abstractions.Messaging.MessageRecord? left, OpenConnect.Abstractions.Messaging.MessageRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessageRecord.operator ==(OpenConnect.Abstractions.Messaging.MessageRecord? left, OpenConnect.Abstractions.Messaging.MessageRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingActor.operator !=(OpenConnect.Abstractions.Messaging.MessagingActor? left, OpenConnect.Abstractions.Messaging.MessagingActor? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingActor.operator ==(OpenConnect.Abstractions.Messaging.MessagingActor? left, OpenConnect.Abstractions.Messaging.MessagingActor? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.operator !=(OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision? left, OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision.operator ==(OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision? left, OpenConnect.Abstractions.Messaging.MessagingAuthorizationDecision? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingCallRecord.operator !=(OpenConnect.Abstractions.Messaging.MessagingCallRecord? left, OpenConnect.Abstractions.Messaging.MessagingCallRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingCallRecord.operator ==(OpenConnect.Abstractions.Messaging.MessagingCallRecord? left, OpenConnect.Abstractions.Messaging.MessagingCallRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.operator !=(OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState? left, OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState.operator ==(OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState? left, OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.operator !=(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope? left, OpenConnect.Abstractions.Messaging.MessagingEventEnvelope? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingEventEnvelope.operator ==(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope? left, OpenConnect.Abstractions.Messaging.MessagingEventEnvelope? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.operator !=(OpenConnect.Abstractions.Messaging.MessagingWorkerCommand? left, OpenConnect.Abstractions.Messaging.MessagingWorkerCommand? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerCommand.operator ==(OpenConnect.Abstractions.Messaging.MessagingWorkerCommand? left, OpenConnect.Abstractions.Messaging.MessagingWorkerCommand? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.operator !=(OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness? left, OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness.operator ==(OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness? left, OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerResult.operator !=(OpenConnect.Abstractions.Messaging.MessagingWorkerResult? left, OpenConnect.Abstractions.Messaging.MessagingWorkerResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.MessagingWorkerResult.operator ==(OpenConnect.Abstractions.Messaging.MessagingWorkerResult? left, OpenConnect.Abstractions.Messaging.MessagingWorkerResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.MobileTokenBundle.operator !=(OpenConnect.Abstractions.Messaging.MobileTokenBundle? left, OpenConnect.Abstractions.Messaging.MobileTokenBundle? right) -> bool
+static OpenConnect.Abstractions.Messaging.MobileTokenBundle.operator ==(OpenConnect.Abstractions.Messaging.MobileTokenBundle? left, OpenConnect.Abstractions.Messaging.MobileTokenBundle? right) -> bool
+static OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.operator !=(OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem? left, OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem? right) -> bool
+static OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem.operator ==(OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem? left, OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem? right) -> bool
+static OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.operator !=(OpenConnect.Abstractions.Messaging.ParticipantRemovalResult? left, OpenConnect.Abstractions.Messaging.ParticipantRemovalResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.ParticipantRemovalResult.operator ==(OpenConnect.Abstractions.Messaging.ParticipantRemovalResult? left, OpenConnect.Abstractions.Messaging.ParticipantRemovalResult? right) -> bool
+static OpenConnect.Abstractions.Messaging.PushRegistrationId.operator !=(OpenConnect.Abstractions.Messaging.PushRegistrationId left, OpenConnect.Abstractions.Messaging.PushRegistrationId right) -> bool
+static OpenConnect.Abstractions.Messaging.PushRegistrationId.operator ==(OpenConnect.Abstractions.Messaging.PushRegistrationId left, OpenConnect.Abstractions.Messaging.PushRegistrationId right) -> bool
+static OpenConnect.Abstractions.Messaging.PushRegistrationRecord.operator !=(OpenConnect.Abstractions.Messaging.PushRegistrationRecord? left, OpenConnect.Abstractions.Messaging.PushRegistrationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.PushRegistrationRecord.operator ==(OpenConnect.Abstractions.Messaging.PushRegistrationRecord? left, OpenConnect.Abstractions.Messaging.PushRegistrationRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.RefreshGrantId.operator !=(OpenConnect.Abstractions.Messaging.RefreshGrantId left, OpenConnect.Abstractions.Messaging.RefreshGrantId right) -> bool
+static OpenConnect.Abstractions.Messaging.RefreshGrantId.operator ==(OpenConnect.Abstractions.Messaging.RefreshGrantId left, OpenConnect.Abstractions.Messaging.RefreshGrantId right) -> bool
+static OpenConnect.Abstractions.Messaging.RefreshGrantRecord.operator !=(OpenConnect.Abstractions.Messaging.RefreshGrantRecord? left, OpenConnect.Abstractions.Messaging.RefreshGrantRecord? right) -> bool
+static OpenConnect.Abstractions.Messaging.RefreshGrantRecord.operator ==(OpenConnect.Abstractions.Messaging.RefreshGrantRecord? left, OpenConnect.Abstractions.Messaging.RefreshGrantRecord? right) -> bool
 static OpenConnect.Abstractions.ModelRequirement.operator !=(OpenConnect.Abstractions.ModelRequirement? left, OpenConnect.Abstractions.ModelRequirement? right) -> bool
 static OpenConnect.Abstractions.ModelRequirement.operator ==(OpenConnect.Abstractions.ModelRequirement? left, OpenConnect.Abstractions.ModelRequirement? right) -> bool
 static OpenConnect.Abstractions.OperationalPolicy.operator !=(OpenConnect.Abstractions.OperationalPolicy? left, OpenConnect.Abstractions.OperationalPolicy? right) -> bool
@@ -1957,10 +3167,10 @@ static OpenConnect.Abstractions.SessionId.operator !=(OpenConnect.Abstractions.S
 static OpenConnect.Abstractions.SessionId.operator ==(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator !=(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator ==(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
-static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
-static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator ==(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? left, OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? right) -> bool
@@ -2000,27 +3210,8 @@ static OpenConnect.Abstractions.ToolId.operator ==(OpenConnect.Abstractions.Tool
 static OpenConnect.Abstractions.ToolPolicy.operator !=(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
 static OpenConnect.Abstractions.ToolPolicy.operator ==(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
 static OpenConnect.Abstractions.Ulid.NewUlid() -> OpenConnect.Abstractions.Ulid
-static OpenConnect.Abstractions.Ulid.Parse(string! value) -> OpenConnect.Abstractions.Ulid
 static OpenConnect.Abstractions.Ulid.operator !=(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
 static OpenConnect.Abstractions.Ulid.operator ==(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
+static OpenConnect.Abstractions.Ulid.Parse(string! value) -> OpenConnect.Abstractions.Ulid
 static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator !=(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator ==(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
-~override OpenConnect.Abstractions.AgentId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.AgentId.ToString() -> string
-~override OpenConnect.Abstractions.CapabilityId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.CapabilityId.ToString() -> string
-~override OpenConnect.Abstractions.ExecutionId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.ExecutionId.ToString() -> string
-~override OpenConnect.Abstractions.PrincipalId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
-~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.SessionId.ToString() -> string
-~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.ToString() -> string
-~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.TaskId.ToString() -> string
-~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.TenantId.ToString() -> string
-~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.ToolId.ToString() -> string
-~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool

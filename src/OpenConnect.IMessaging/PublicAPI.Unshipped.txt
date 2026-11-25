@@ -1,0 +1,74 @@
+#nullable enable
+const OpenConnect.IMessaging.MessagingWorkerClient.KeyIdHeaderName = "X-OpenConnect-Key-Id" -> string!
+const OpenConnect.IMessaging.MessagingWorkerClient.SignatureHeaderName = "X-OpenConnect-Signature" -> string!
+const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxRequestBytes = 262144 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxResponseBytes = 524288 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.HardMaxFrameBytes = 4194304 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.MinSigningKeyBytes = 32 -> int
+const OpenConnect.IMessaging.WorkerEventConsumer.DefaultMaxDedupEntries = 10000 -> int
+OpenConnect.IMessaging.AgentDiscoveryOptions
+OpenConnect.IMessaging.AgentDiscoveryOptions.AgentDiscoveryOptions() -> void
+OpenConnect.IMessaging.AgentDiscoveryOptions.Enabled.get -> bool
+OpenConnect.IMessaging.AgentDiscoveryOptions.Enabled.set -> void
+OpenConnect.IMessaging.AgentDiscoveryOptions.MaxPageSize.get -> int
+OpenConnect.IMessaging.AgentDiscoveryOptions.MaxPageSize.set -> void
+OpenConnect.IMessaging.CapabilityRegistration
+OpenConnect.IMessaging.CapabilityRegistration.ApplyReadiness(OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness! readiness, bool messagingEnabled = true, bool e2eeVerified = false) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.CapabilityDescriptor!>!
+OpenConnect.IMessaging.CapabilityRegistration.CapabilityRegistration(OpenConnect.Abstractions.ICapabilityRegistry! capabilityRegistry, OpenConnect.Abstractions.IWorkerCapabilityRegistry? workerCapabilityRegistry = null) -> void
+OpenConnect.IMessaging.CapabilityRegistration.IsOutboxWorkerReady() -> bool
+OpenConnect.IMessaging.DeviceEnrollmentOptions
+OpenConnect.IMessaging.DeviceEnrollmentOptions.DeviceEnrollmentOptions() -> void
+OpenConnect.IMessaging.DeviceEnrollmentOptions.Enabled.get -> bool
+OpenConnect.IMessaging.DeviceEnrollmentOptions.Enabled.set -> void
+OpenConnect.IMessaging.DeviceEnrollmentOptions.EnrollmentExpiry.get -> System.TimeSpan
+OpenConnect.IMessaging.DeviceEnrollmentOptions.EnrollmentExpiry.set -> void
+OpenConnect.IMessaging.DeviceEnrollmentOptions.RequireRecentAuthentication.get -> bool
+OpenConnect.IMessaging.DeviceEnrollmentOptions.RequireRecentAuthentication.set -> void
+OpenConnect.IMessaging.MessagingWorkerClient
+OpenConnect.IMessaging.MessagingWorkerClient.CheckReadinessAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness!>
+OpenConnect.IMessaging.MessagingWorkerClient.Dispose() -> void
+OpenConnect.IMessaging.MessagingWorkerClient.ExecuteAsync(OpenConnect.Abstractions.Messaging.MessagingWorkerCommand! command, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingWorkerResult!>
+OpenConnect.IMessaging.MessagingWorkerClient.MessagingWorkerClient(Microsoft.Extensions.Options.IOptions<OpenConnect.IMessaging.MessagingWorkerOptions!>! options, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.IMessaging.MessagingWorkerOptions
+OpenConnect.IMessaging.MessagingWorkerOptions.AllowInsecureLoopbackHttpInDevelopment.get -> bool
+OpenConnect.IMessaging.MessagingWorkerOptions.AllowInsecureLoopbackHttpInDevelopment.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.AllowUnencryptedFallback.get -> bool
+OpenConnect.IMessaging.MessagingWorkerOptions.AllowUnencryptedFallback.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.BearerToken.get -> string?
+OpenConnect.IMessaging.MessagingWorkerOptions.BearerToken.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.Enabled.get -> bool
+OpenConnect.IMessaging.MessagingWorkerOptions.Enabled.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.InAppEnabled.get -> bool
+OpenConnect.IMessaging.MessagingWorkerOptions.InAppEnabled.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxFollowUpAttempts.get -> int
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxFollowUpAttempts.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxRequestBytes.get -> int
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxRequestBytes.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxResponseBytes.get -> int
+OpenConnect.IMessaging.MessagingWorkerOptions.MaxResponseBytes.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.MessagingWorkerOptions() -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.RequestTimeout.get -> System.TimeSpan
+OpenConnect.IMessaging.MessagingWorkerOptions.RequestTimeout.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.RequireEncryption.get -> bool
+OpenConnect.IMessaging.MessagingWorkerOptions.RequireEncryption.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.SigningKey.get -> byte[]?
+OpenConnect.IMessaging.MessagingWorkerOptions.SigningKey.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.SigningKeyId.get -> string?
+OpenConnect.IMessaging.MessagingWorkerOptions.SigningKeyId.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.UnixSocketPath.get -> string?
+OpenConnect.IMessaging.MessagingWorkerOptions.UnixSocketPath.set -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.Validate() -> void
+OpenConnect.IMessaging.MessagingWorkerOptions.WorkerEndpoint.get -> string?
+OpenConnect.IMessaging.MessagingWorkerOptions.WorkerEndpoint.set -> void
+OpenConnect.IMessaging.ServiceCollectionExtensions
+OpenConnect.IMessaging.WorkerEventConsumer
+OpenConnect.IMessaging.WorkerEventConsumer.DispatchAsync(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.IMessaging.WorkerEventConsumer.WorkerEventConsumer(System.Func<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? handler = null, int maxDedupEntries = 10000, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.IMessaging.WorkerResponseValidator
+static OpenConnect.IMessaging.MessagingWorkerClient.ComputeSignatureHex(byte[]! signingKey, System.ReadOnlySpan<byte> payloadBytes) -> string!
+static OpenConnect.IMessaging.ServiceCollectionExtensions.AddOpenConnectAgentDiscovery(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.IMessaging.AgentDiscoveryOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.IMessaging.ServiceCollectionExtensions.AddOpenConnectDeviceEnrollment(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.IMessaging.DeviceEnrollmentOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.IMessaging.ServiceCollectionExtensions.AddOpenConnectMessaging(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.IMessaging.MessagingWorkerOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.IMessaging.WorkerResponseValidator.IsAllowedCapabilityId(string! capabilityId) -> bool
+static OpenConnect.IMessaging.WorkerResponseValidator.ValidateCapabilitiesResponse(System.Text.Json.JsonElement root, System.DateTimeOffset checkedAt) -> OpenConnect.Abstractions.Messaging.MessagingWorkerReadiness!
+static OpenConnect.IMessaging.WorkerResponseValidator.ValidateExecuteResponse(System.Text.Json.JsonElement root, string! expectedTaskId, string! expectedKind, string! expectedTenantId) -> OpenConnect.Abstractions.Messaging.MessagingWorkerResult!

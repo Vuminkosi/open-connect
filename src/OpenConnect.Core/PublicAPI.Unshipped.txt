@@ -1,4 +1,15 @@
 #nullable enable
+~override OpenConnect.Core.VoiceSessionKey.Equals(object obj) -> bool
+~override OpenConnect.Core.VoiceSessionKey.ToString() -> string
+const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
+const OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.MaxAllowedAttemptsLimit = 20 -> int
+const OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.CanonicalProtocolName = "openconnect.e2ee.p256-hkdf-aes256gcm.v1" -> string!
+const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
+const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
+const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
+const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultHandshakeTimeoutSeconds = 10 -> int
+const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultMaxAudioBytes = 33554432 -> long
+const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 OpenConnect.Core.AdaptiveEndpointDecision
 OpenConnect.Core.AdaptiveEndpointDecision.BackchannelIgnore = 2 -> OpenConnect.Core.AdaptiveEndpointDecision
 OpenConnect.Core.AdaptiveEndpointDecision.ContinueListening = 0 -> OpenConnect.Core.AdaptiveEndpointDecision
@@ -354,12 +365,12 @@ OpenConnect.Core.Configuration.PrivacyOptions
 OpenConnect.Core.Configuration.PrivacyOptions.AgentTools.get -> OpenConnect.Core.Configuration.SecurityAgentToolsOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.set -> void
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.ImageRedaction.get -> OpenConnect.Core.Configuration.SecurityImageRedactionOptions!
@@ -374,9 +385,9 @@ OpenConnect.Core.Configuration.PrivacyOptions.Policies.get -> OpenConnect.Core.C
 OpenConnect.Core.Configuration.PrivacyOptions.PrivacyOptions() -> void
 OpenConnect.Core.Configuration.PrivacyOptions.PromptInjection.get -> OpenConnect.Core.Configuration.SecurityPromptInjectionOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
+OpenConnect.Core.Configuration.PrivacyOptions.RequiredCoverage.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.SecurityCoverage>!
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.set -> void
-OpenConnect.Core.Configuration.PrivacyOptions.RequiredCoverage.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.SecurityCoverage>!
 OpenConnect.Core.Configuration.PrivacyOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions
@@ -734,6 +745,47 @@ OpenConnect.Core.McpServiceRegistry.GetAll() -> System.Collections.Generic.IRead
 OpenConnect.Core.McpServiceRegistry.IsToolAllowed(string! serviceName, string! toolId, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Abstractions.TenantId tenant) -> bool
 OpenConnect.Core.McpServiceRegistry.McpServiceRegistry() -> void
 OpenConnect.Core.McpServiceRegistry.Register(OpenConnect.Core.Configuration.OpenConnectMcpServiceOptions! service) -> void
+OpenConnect.Core.Messaging.ConversationCoordinator
+OpenConnect.Core.Messaging.ConversationCoordinator.AddParticipantAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessagingActor! participantToAdd, OpenConnect.Abstractions.Messaging.ParticipantRole role, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Core.Messaging.ConversationCoordinator.CommitMessageAsync(OpenConnect.Abstractions.Messaging.MessagingActor! sender, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! envelope, string! clientOperationId, string? correlationId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageCommitResult!>
+OpenConnect.Core.Messaging.ConversationCoordinator.ConversationCoordinator(OpenConnect.Abstractions.Messaging.IMessagingConversationStore! store, OpenConnect.Abstractions.Messaging.IMessagingAuthorizer! authorizer, OpenConnect.Abstractions.Messaging.IMessagingRecipientResolver! recipientResolver, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Messaging.ConversationCoordinator.CreateConversationAsync(OpenConnect.Abstractions.Messaging.MessagingActor! creator, OpenConnect.Abstractions.Messaging.ConversationSecurityProfile securityProfile, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingActor!>! initialParticipants, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Core.Messaging.ConversationCoordinator.RecordReceiptAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Abstractions.Messaging.MessageReceiptKind kind, string? failureReason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Core.Messaging.ConversationCoordinator.RemoveParticipantAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.ParticipantKind targetKind, OpenConnect.Abstractions.PrincipalId? targetPrincipalId, OpenConnect.Abstractions.AgentId? targetAgentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ParticipantRemovalResult!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.ApproveEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId approvingPrincipalId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.ClaimEnrollmentAsync(string! plaintextEnrollmentToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, string! devicePublicKeyBase64, string! deviceDisplayName, OpenConnect.Abstractions.Messaging.DevicePlatform platform, System.ReadOnlyMemory<byte> challengeProofSignature, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.CompleteEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.ReadOnlyMemory<byte> completionProofSignature, string! audience, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.DenyOrCancelEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, bool isDenial, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.DeviceEnrollmentCoordinator(OpenConnect.Abstractions.Messaging.IDeviceEnrollmentStore! store, OpenConnect.Abstractions.Messaging.IDeviceEnrollmentAuthorizer! authorizer, OpenConnect.Abstractions.Messaging.IMobileTokenIssuer! tokenIssuer, OpenConnect.Abstractions.Messaging.IMessagingCryptoProvider! cryptoProvider, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.InitiateEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId initiatingPrincipalId, string! issuer, string! subject, System.Uri! baseGatewayUrl, System.TimeSpan? expiry = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.RevokeDeviceAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord!>
+OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.RotateRefreshTokenAsync(string! plaintextRefreshToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.AuthorizeAndDispatchAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, string! leaseOwner, long leaseFence, System.Func<OpenConnect.Abstractions.Messaging.FollowUpRecord!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! dispatchCallback, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.CancelFollowUpAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.ClaimDueBatchAsync(string! leaseOwner, System.TimeSpan leaseDuration, int maxBatchSize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.FollowUpSchedulerCoordinator(OpenConnect.Abstractions.Messaging.IFollowUpStore! followUpStore, OpenConnect.Abstractions.Messaging.IMessagingConversationStore! conversationStore, OpenConnect.Abstractions.Messaging.IMessagingAuthorizer! authorizer, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.RecordHumanReplyAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId humanPrincipalId, string! triggeringEventId, OpenConnect.Abstractions.SessionId? sessionId = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRaceResolution!>
+OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.ScheduleFollowUpAsync(OpenConnect.Abstractions.Messaging.MessagingActor! agentActor, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId recipientPrincipalId, System.DateTimeOffset dueAtUtc, int maxAttempts, string! idempotencyKey, string! causalEventId, OpenConnect.Abstractions.TaskId? taskId = null, System.TimeOnly? quietHoursStartUtc = null, System.TimeOnly? quietHoursEndUtc = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator
+OpenConnect.Core.Messaging.MessagingCallCoordinator.AcceptCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! acceptor, OpenConnect.Abstractions.Messaging.CallId callId, OpenConnect.Abstractions.SessionId voiceSessionId, string! admissionTokenHash, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator.CreateCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! caller, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.CallMediaSecurityMode mediaSecurityMode, bool requireEncryption, System.TimeSpan? ringTimeout = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator.DeclineCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.CallId callId, string? reason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator.EndCallAsync(OpenConnect.Abstractions.Messaging.MessagingActor! actor, OpenConnect.Abstractions.Messaging.CallId callId, string? reason = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator.MarkRingingAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Core.Messaging.MessagingCallCoordinator.MessagingCallCoordinator(OpenConnect.Abstractions.Messaging.IMessagingCallStore! callStore, OpenConnect.Abstractions.Messaging.IMessagingConversationStore! conversationStore, OpenConnect.Abstractions.Messaging.IMessagingAuthorizer! authorizer, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Messaging.MessagingCallCoordinator.TerminateCallsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string! reason, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.AddDeviceAndRekeyAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceKeyPackage! newMemberPackage, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.ComputeKeyFingerprintAsync(string! publicKeyBase64, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.CreateGroupAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceKeyPackage!>! initialMemberPackages, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.DecryptAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId recipientDeviceId, OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! envelope, System.ReadOnlyMemory<byte> associatedData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<byte[]!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.EncryptAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId senderDeviceId, System.ReadOnlyMemory<byte> plaintext, System.ReadOnlyMemory<byte> associatedData, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.MessagingCryptoEnvelopeService(System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.ProtocolName.get -> string!
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.RemoveDeviceAndRekeyAsync(OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.DeviceId removedDeviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCryptoGroupState!>
+OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.VerifyDeviceProofOfPossessionAsync(string! publicKeyBase64, System.ReadOnlyMemory<byte> challenge, System.ReadOnlyMemory<byte> signature, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Core.OpenConnectLeadAgent
 OpenConnect.Core.OpenConnectOptionsValidator
 OpenConnect.Core.OpenConnectOptionsValidator.OpenConnectOptionsValidator() -> void
@@ -901,13 +953,6 @@ OpenConnect.Core.VoiceTurnCoordinator.HandlePartialHypothesis(OpenConnect.Abstra
 OpenConnect.Core.VoiceTurnCoordinator.InterruptBargeIn(OpenConnect.Abstractions.SessionId sessionId) -> long
 OpenConnect.Core.VoiceTurnCoordinator.ValidateRecordedUpload(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Core.RecordedAudioUpload! upload) -> OpenConnect.Core.VoiceTurnCommitResult!
 OpenConnect.Core.VoiceTurnCoordinator.VoiceTurnCoordinator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>! options) -> void
-const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
-const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
-const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
-const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
-const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultHandshakeTimeoutSeconds = 10 -> int
-const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultMaxAudioBytes = 33554432 -> long
-const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 override OpenConnect.Core.AdaptiveEndpointInput.Equals(object? obj) -> bool
 override OpenConnect.Core.AdaptiveEndpointInput.GetHashCode() -> int
 override OpenConnect.Core.AdaptiveEndpointInput.ToString() -> string!
@@ -991,6 +1036,16 @@ static OpenConnect.Core.DuplexSegmentRegistrationResult.operator !=(OpenConnect.
 static OpenConnect.Core.DuplexSegmentRegistrationResult.operator ==(OpenConnect.Core.DuplexSegmentRegistrationResult? left, OpenConnect.Core.DuplexSegmentRegistrationResult? right) -> bool
 static OpenConnect.Core.DuplexVoiceSessionSnapshot.operator !=(OpenConnect.Core.DuplexVoiceSessionSnapshot? left, OpenConnect.Core.DuplexVoiceSessionSnapshot? right) -> bool
 static OpenConnect.Core.DuplexVoiceSessionSnapshot.operator ==(OpenConnect.Core.DuplexVoiceSessionSnapshot? left, OpenConnect.Core.DuplexVoiceSessionSnapshot? right) -> bool
+static OpenConnect.Core.Messaging.ConversationCoordinator.ComputeEnvelopeDigestSha256(OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! envelope) -> string!
+static OpenConnect.Core.Messaging.ConversationCoordinator.IsAllowedReceiptTransition(OpenConnect.Abstractions.Messaging.MessageReceiptKind current, OpenConnect.Abstractions.Messaging.MessageReceiptKind next) -> bool
+static OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.BuildClaimChallengeBytes(OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, string! tokenHashSha256, OpenConnect.Abstractions.Messaging.DeviceId deviceId) -> byte[]!
+static OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.ComputeTokenHashSha256(string! plaintextToken) -> string!
+static OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.IsWithinQuietHours(System.TimeOnly currentUtc, System.TimeOnly startUtc, System.TimeOnly endUtc) -> bool
+static OpenConnect.Core.Messaging.MessagingCallCoordinator.IsTerminalState(OpenConnect.Abstractions.Messaging.CallState state) -> bool
+static OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.CreateKeyPackage(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.PrincipalId? ownerPrincipalId = null, OpenConnect.Abstractions.AgentId? ownerAgentId = null, System.DateTimeOffset? createdAt = null, System.TimeSpan? lifetime = null) -> OpenConnect.Abstractions.Messaging.DeviceKeyPackage!
+static OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.DeriveEpochKeyDeterministic(System.ReadOnlySpan<byte> inputKeyMaterial, System.ReadOnlySpan<byte> salt, OpenConnect.Abstractions.Messaging.ConversationId conversationId, long epoch) -> byte[]!
+static OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.GenerateDeviceKeyPair() -> (string! PublicKeyBase64, string! PrivateKeyPkcs8Base64)
+static OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.SignProofOfPossession(string! privateKeyPkcs8Base64, System.ReadOnlySpan<byte> challenge) -> byte[]!
 static OpenConnect.Core.RecordedAudioUpload.operator !=(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
 static OpenConnect.Core.RecordedAudioUpload.operator ==(OpenConnect.Core.RecordedAudioUpload? left, OpenConnect.Core.RecordedAudioUpload? right) -> bool
 static OpenConnect.Core.Runtime.LoadedInstructions.operator !=(OpenConnect.Core.Runtime.LoadedInstructions? left, OpenConnect.Core.Runtime.LoadedInstructions? right) -> bool
@@ -1031,7 +1086,9 @@ static OpenConnect.Core.VoiceSessionKey.operator !=(OpenConnect.Core.VoiceSessio
 static OpenConnect.Core.VoiceSessionKey.operator ==(OpenConnect.Core.VoiceSessionKey left, OpenConnect.Core.VoiceSessionKey right) -> bool
 static OpenConnect.Core.VoiceTurnCommitResult.operator !=(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
 static OpenConnect.Core.VoiceTurnCommitResult.operator ==(OpenConnect.Core.VoiceTurnCommitResult? left, OpenConnect.Core.VoiceTurnCommitResult? right) -> bool
+static readonly OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.DefaultEnrollmentExpiry -> System.TimeSpan
+static readonly OpenConnect.Core.Messaging.DeviceEnrollmentCoordinator.MaxEnrollmentExpiry -> System.TimeSpan
+static readonly OpenConnect.Core.Messaging.MessagingCallCoordinator.DefaultRingTimeout -> System.TimeSpan
+static readonly OpenConnect.Core.Messaging.MessagingCallCoordinator.MaxRingTimeout -> System.TimeSpan
 static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
 virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!
-~override OpenConnect.Core.VoiceSessionKey.Equals(object obj) -> bool
-~override OpenConnect.Core.VoiceSessionKey.ToString() -> string
