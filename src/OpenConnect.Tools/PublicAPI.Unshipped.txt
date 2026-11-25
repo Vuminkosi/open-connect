@@ -1,6 +1,146 @@
 #nullable enable
 OpenConnect.Tools.IToolAccessPolicy
 OpenConnect.Tools.IToolAccessPolicy.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Tools.Security.ISecurityArtifactResolver
+OpenConnect.Tools.Security.ISecurityArtifactResolver.StoreRedactedAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! sourceArtifactRef, string! operation, System.ReadOnlyMemory<byte> redactedBytes, string! contentType, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Tools.Security.SecurityRedactedArtifactResult!>
+OpenConnect.Tools.Security.ISecurityArtifactResolver.TryResolveAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! artifactRef, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Tools.Security.SecurityArtifactContent?>
+OpenConnect.Tools.Security.ISecurityCapabilityHealthProvider
+OpenConnect.Tools.Security.ISecurityCapabilityHealthProvider.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityCapabilitiesSnapshot!>
+OpenConnect.Tools.Security.ISecurityContentRedactor
+OpenConnect.Tools.Security.ISecurityContentRedactor.RedactAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Tools.Security.SecurityArtifactContent! artifact, string! operation, OpenConnect.Abstractions.SecurityInspectionResponse? inspection, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Tools.Security.SecurityRedactionExecutionResult!>
+OpenConnect.Tools.Security.ISecurityEvidenceLookup
+OpenConnect.Tools.Security.ISecurityEvidenceLookup.GetByIdAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, System.Guid eventId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityEvidenceEvent?>
+OpenConnect.Tools.Security.ISecurityPolicyAssessmentProvider
+OpenConnect.Tools.Security.ISecurityPolicyAssessmentProvider.AssessDataAccessAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! dataOperationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Tools.Security.SecurityPolicyAssessment!>
+OpenConnect.Tools.Security.ISecurityPolicyAssessmentProvider.AssessDestinationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! serviceId, string! operationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Tools.Security.SecurityPolicyAssessment!>
+OpenConnect.Tools.Security.ISecurityToolOutputSanitizer
+OpenConnect.Tools.Security.ISecurityToolOutputSanitizer.SanitizeAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, string! jsonOutput, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Tools.Security.SecurityArtifactContent
+OpenConnect.Tools.Security.SecurityArtifactContent.<Clone>$() -> OpenConnect.Tools.Security.SecurityArtifactContent!
+OpenConnect.Tools.Security.SecurityArtifactContent.ArtifactRef.get -> string!
+OpenConnect.Tools.Security.SecurityArtifactContent.ArtifactRef.init -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.Bytes.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Tools.Security.SecurityArtifactContent.Bytes.init -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.ContentType.get -> string!
+OpenConnect.Tools.Security.SecurityArtifactContent.ContentType.init -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.Deconstruct(out string! ArtifactRef, out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! ContentType, out System.ReadOnlyMemory<byte> Bytes, out string! Sha256Digest) -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.Equals(OpenConnect.Tools.Security.SecurityArtifactContent? other) -> bool
+OpenConnect.Tools.Security.SecurityArtifactContent.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Tools.Security.SecurityArtifactContent.PrincipalId.init -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.SecurityArtifactContent(string! ArtifactRef, OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! ContentType, System.ReadOnlyMemory<byte> Bytes, string! Sha256Digest) -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.Sha256Digest.get -> string!
+OpenConnect.Tools.Security.SecurityArtifactContent.Sha256Digest.init -> void
+OpenConnect.Tools.Security.SecurityArtifactContent.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Tools.Security.SecurityArtifactContent.TenantId.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment
+OpenConnect.Tools.Security.SecurityPolicyAssessment.<Clone>$() -> OpenConnect.Tools.Security.SecurityPolicyAssessment!
+OpenConnect.Tools.Security.SecurityPolicyAssessment.Deconstruct(out bool PermittedByPolicy, out string! TargetId, out string! OperationId, out string! PolicyRevision, out string! ReasonCode, out bool RequiresApproval) -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.Equals(OpenConnect.Tools.Security.SecurityPolicyAssessment? other) -> bool
+OpenConnect.Tools.Security.SecurityPolicyAssessment.OperationId.get -> string!
+OpenConnect.Tools.Security.SecurityPolicyAssessment.OperationId.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.PermittedByPolicy.get -> bool
+OpenConnect.Tools.Security.SecurityPolicyAssessment.PermittedByPolicy.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.PolicyRevision.get -> string!
+OpenConnect.Tools.Security.SecurityPolicyAssessment.PolicyRevision.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.ReasonCode.get -> string!
+OpenConnect.Tools.Security.SecurityPolicyAssessment.ReasonCode.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.RequiresApproval.get -> bool
+OpenConnect.Tools.Security.SecurityPolicyAssessment.RequiresApproval.init -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.SecurityPolicyAssessment(bool PermittedByPolicy, string! TargetId, string! OperationId, string! PolicyRevision, string! ReasonCode, bool RequiresApproval = false) -> void
+OpenConnect.Tools.Security.SecurityPolicyAssessment.TargetId.get -> string!
+OpenConnect.Tools.Security.SecurityPolicyAssessment.TargetId.init -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.<Clone>$() -> OpenConnect.Tools.Security.SecurityRedactedArtifactResult!
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.Deconstruct(out bool Succeeded, out string? SanitizedArtifactRef, out string! HostDecision, out int RedactedCount, out string! ReasonCode) -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.Equals(OpenConnect.Tools.Security.SecurityRedactedArtifactResult? other) -> bool
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.HostDecision.get -> string!
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.HostDecision.init -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.ReasonCode.get -> string!
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.ReasonCode.init -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.RedactedCount.get -> int
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.RedactedCount.init -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.SanitizedArtifactRef.get -> string?
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.SanitizedArtifactRef.init -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.SecurityRedactedArtifactResult(bool Succeeded, string? SanitizedArtifactRef, string! HostDecision, int RedactedCount, string! ReasonCode) -> void
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.Succeeded.get -> bool
+OpenConnect.Tools.Security.SecurityRedactedArtifactResult.Succeeded.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.<Clone>$() -> OpenConnect.Tools.Security.SecurityRedactionExecutionResult!
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.ContentType.get -> string!
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.ContentType.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.Deconstruct(out bool Succeeded, out System.ReadOnlyMemory<byte> RedactedBytes, out string! ContentType, out int RedactedCount, out string! HostDecision, out string! ReasonCode) -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.Equals(OpenConnect.Tools.Security.SecurityRedactionExecutionResult? other) -> bool
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.HostDecision.get -> string!
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.HostDecision.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.ReasonCode.get -> string!
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.ReasonCode.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.RedactedBytes.get -> System.ReadOnlyMemory<byte>
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.RedactedBytes.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.RedactedCount.get -> int
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.RedactedCount.init -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.SecurityRedactionExecutionResult(bool Succeeded, System.ReadOnlyMemory<byte> RedactedBytes, string! ContentType, int RedactedCount, string! HostDecision, string! ReasonCode) -> void
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.Succeeded.get -> bool
+OpenConnect.Tools.Security.SecurityRedactionExecutionResult.Succeeded.init -> void
+OpenConnect.Tools.Security.SecurityToolAccessPolicy
+OpenConnect.Tools.Security.SecurityToolAccessPolicy.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Tools.Security.SecurityToolAccessPolicy.SecurityToolAccessPolicy(OpenConnect.Tools.IToolAccessPolicy! inner, OpenConnect.Tools.Security.SecurityToolPolicyOptions! options, OpenConnect.Tools.Security.ISecurityCapabilityHealthProvider! healthProvider, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext
+OpenConnect.Tools.Security.SecurityToolExecutionContext.<Clone>$() -> OpenConnect.Tools.Security.SecurityToolExecutionContext!
+OpenConnect.Tools.Security.SecurityToolExecutionContext.AgentId.get -> OpenConnect.Abstractions.AgentId
+OpenConnect.Tools.Security.SecurityToolExecutionContext.AgentId.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.ApplicationId.get -> string!
+OpenConnect.Tools.Security.SecurityToolExecutionContext.ApplicationId.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out OpenConnect.Abstractions.AgentId AgentId, out OpenConnect.Abstractions.TaskId TaskId, out string! ApplicationId, out string! PolicyRevision) -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.Equals(OpenConnect.Tools.Security.SecurityToolExecutionContext? other) -> bool
+OpenConnect.Tools.Security.SecurityToolExecutionContext.PolicyRevision.get -> string!
+OpenConnect.Tools.Security.SecurityToolExecutionContext.PolicyRevision.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Tools.Security.SecurityToolExecutionContext.PrincipalId.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.SecurityToolExecutionContext(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, OpenConnect.Abstractions.AgentId AgentId, OpenConnect.Abstractions.TaskId TaskId, string! ApplicationId = "openconnect-agent", string! PolicyRevision = "1") -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.TaskId.get -> OpenConnect.Abstractions.TaskId
+OpenConnect.Tools.Security.SecurityToolExecutionContext.TaskId.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContext.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Tools.Security.SecurityToolExecutionContext.TenantId.init -> void
+OpenConnect.Tools.Security.SecurityToolExecutionContextScope
+OpenConnect.Tools.Security.SecurityToolIds
+OpenConnect.Tools.Security.SecurityToolMetadata
+OpenConnect.Tools.Security.SecurityToolMetadata.<Clone>$() -> OpenConnect.Tools.Security.SecurityToolMetadata!
+OpenConnect.Tools.Security.SecurityToolMetadata.BackingCapabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Tools.Security.SecurityToolMetadata.BackingCapabilities.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.Deconstruct(out OpenConnect.Abstractions.ToolId ToolId, out string! Name, out string! Mode, out string! Description, out string! JsonSchema, out bool RequiresApproval, out System.Collections.Generic.IReadOnlyList<string!>! BackingCapabilities) -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.Description.get -> string!
+OpenConnect.Tools.Security.SecurityToolMetadata.Description.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.Equals(OpenConnect.Tools.Security.SecurityToolMetadata? other) -> bool
+OpenConnect.Tools.Security.SecurityToolMetadata.JsonSchema.get -> string!
+OpenConnect.Tools.Security.SecurityToolMetadata.JsonSchema.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.Mode.get -> string!
+OpenConnect.Tools.Security.SecurityToolMetadata.Mode.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.Name.get -> string!
+OpenConnect.Tools.Security.SecurityToolMetadata.Name.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.RequiresApproval.get -> bool
+OpenConnect.Tools.Security.SecurityToolMetadata.RequiresApproval.init -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.SecurityToolMetadata(OpenConnect.Abstractions.ToolId ToolId, string! Name, string! Mode, string! Description, string! JsonSchema, bool RequiresApproval, System.Collections.Generic.IReadOnlyList<string!>! BackingCapabilities) -> void
+OpenConnect.Tools.Security.SecurityToolMetadata.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Tools.Security.SecurityToolMetadata.ToolId.init -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.ApplicationApprovedToolIds.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.ApplicationId.get -> string!
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.ApplicationId.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.ApprovedRedactionOperations.get -> System.Collections.Generic.ISet<string!>!
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.Enabled.get -> bool
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.Enabled.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.IsCapabilityEnabledForTenant.get -> System.Func<OpenConnect.Abstractions.TenantId, string!, bool>?
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.IsCapabilityEnabledForTenant.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.MaxTextBytes.get -> int
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.MaxTextBytes.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.PolicyRevision.get -> string!
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.PolicyRevision.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.PromptInjectionThreshold.get -> double
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.PromptInjectionThreshold.set -> void
+OpenConnect.Tools.Security.SecurityToolPolicyOptions.SecurityToolPolicyOptions() -> void
+OpenConnect.Tools.Security.SecurityToolSuite
+OpenConnect.Tools.Security.SecurityToolSuite.RegisterAll(OpenConnect.Tools.ToolCatalog! catalog, OpenConnect.Abstractions.AgentId ownerAgentId, System.Collections.Generic.IEnumerable<OpenConnect.Abstractions.AgentId>? allowedAgents = null) -> void
+OpenConnect.Tools.Security.SecurityToolSuite.SecurityToolSuite(OpenConnect.Tools.Security.ISecurityCapabilityHealthProvider! healthProvider, OpenConnect.Tools.Security.SecurityToolPolicyOptions! options, OpenConnect.Abstractions.ISecurityWorkerClient? workerClient = null, OpenConnect.Tools.Security.ISecurityArtifactResolver? artifactResolver = null, OpenConnect.Tools.Security.ISecurityContentRedactor? contentRedactor = null, OpenConnect.Tools.Security.ISecurityPolicyAssessmentProvider? policyAssessmentProvider = null, OpenConnect.Tools.Security.ISecurityEvidenceLookup? evidenceLookup = null, OpenConnect.Abstractions.ISecurityEvidenceSink? evidenceSink = null, OpenConnect.Tools.Security.ISecurityToolOutputSanitizer? outputSanitizer = null, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Tools.ToolAccessRequest
 OpenConnect.Tools.ToolAccessRequest.<Clone>$() -> OpenConnect.Tools.ToolAccessRequest!
 OpenConnect.Tools.ToolAccessRequest.AgentId.get -> OpenConnect.Abstractions.AgentId
@@ -61,12 +201,56 @@ OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.Too
 OpenConnect.Tools.ToolRetryClassifier
 OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
+const OpenConnect.Tools.Security.SecurityToolIds.CheckDataAccess = "security_check_data_access" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.CheckDestination = "security_check_destination" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ExplainEvent = "security_explain_event" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.RedactContent = "security_redact_content" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanFile = "security_scan_file" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanImage = "security_scan_image" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanPrompt = "security_scan_prompt" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanText = "security_scan_text" -> string!
+override OpenConnect.Tools.Security.SecurityArtifactContent.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityArtifactContent.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityArtifactContent.ToString() -> string!
+override OpenConnect.Tools.Security.SecurityPolicyAssessment.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityPolicyAssessment.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityPolicyAssessment.ToString() -> string!
+override OpenConnect.Tools.Security.SecurityRedactedArtifactResult.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityRedactedArtifactResult.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityRedactedArtifactResult.ToString() -> string!
+override OpenConnect.Tools.Security.SecurityRedactionExecutionResult.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityRedactionExecutionResult.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityRedactionExecutionResult.ToString() -> string!
+override OpenConnect.Tools.Security.SecurityToolExecutionContext.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityToolExecutionContext.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityToolExecutionContext.ToString() -> string!
+override OpenConnect.Tools.Security.SecurityToolMetadata.Equals(object? obj) -> bool
+override OpenConnect.Tools.Security.SecurityToolMetadata.GetHashCode() -> int
+override OpenConnect.Tools.Security.SecurityToolMetadata.ToString() -> string!
 override OpenConnect.Tools.ToolAccessRequest.Equals(object? obj) -> bool
 override OpenConnect.Tools.ToolAccessRequest.GetHashCode() -> int
 override OpenConnect.Tools.ToolAccessRequest.ToString() -> string!
 override OpenConnect.Tools.ToolRegistration.Equals(object? obj) -> bool
 override OpenConnect.Tools.ToolRegistration.GetHashCode() -> int
 override OpenConnect.Tools.ToolRegistration.ToString() -> string!
+static OpenConnect.Tools.Security.SecurityArtifactContent.operator !=(OpenConnect.Tools.Security.SecurityArtifactContent? left, OpenConnect.Tools.Security.SecurityArtifactContent? right) -> bool
+static OpenConnect.Tools.Security.SecurityArtifactContent.operator ==(OpenConnect.Tools.Security.SecurityArtifactContent? left, OpenConnect.Tools.Security.SecurityArtifactContent? right) -> bool
+static OpenConnect.Tools.Security.SecurityPolicyAssessment.operator !=(OpenConnect.Tools.Security.SecurityPolicyAssessment? left, OpenConnect.Tools.Security.SecurityPolicyAssessment? right) -> bool
+static OpenConnect.Tools.Security.SecurityPolicyAssessment.operator ==(OpenConnect.Tools.Security.SecurityPolicyAssessment? left, OpenConnect.Tools.Security.SecurityPolicyAssessment? right) -> bool
+static OpenConnect.Tools.Security.SecurityRedactedArtifactResult.operator !=(OpenConnect.Tools.Security.SecurityRedactedArtifactResult? left, OpenConnect.Tools.Security.SecurityRedactedArtifactResult? right) -> bool
+static OpenConnect.Tools.Security.SecurityRedactedArtifactResult.operator ==(OpenConnect.Tools.Security.SecurityRedactedArtifactResult? left, OpenConnect.Tools.Security.SecurityRedactedArtifactResult? right) -> bool
+static OpenConnect.Tools.Security.SecurityRedactionExecutionResult.operator !=(OpenConnect.Tools.Security.SecurityRedactionExecutionResult? left, OpenConnect.Tools.Security.SecurityRedactionExecutionResult? right) -> bool
+static OpenConnect.Tools.Security.SecurityRedactionExecutionResult.operator ==(OpenConnect.Tools.Security.SecurityRedactionExecutionResult? left, OpenConnect.Tools.Security.SecurityRedactionExecutionResult? right) -> bool
+static OpenConnect.Tools.Security.SecurityToolAccessPolicy.GetBackingCapabilities(string! toolId) -> System.Collections.Generic.IReadOnlyList<string!>!
+static OpenConnect.Tools.Security.SecurityToolExecutionContext.operator !=(OpenConnect.Tools.Security.SecurityToolExecutionContext? left, OpenConnect.Tools.Security.SecurityToolExecutionContext? right) -> bool
+static OpenConnect.Tools.Security.SecurityToolExecutionContext.operator ==(OpenConnect.Tools.Security.SecurityToolExecutionContext? left, OpenConnect.Tools.Security.SecurityToolExecutionContext? right) -> bool
+static OpenConnect.Tools.Security.SecurityToolExecutionContextScope.Current.get -> OpenConnect.Tools.Security.SecurityToolExecutionContext?
+static OpenConnect.Tools.Security.SecurityToolExecutionContextScope.Push(OpenConnect.Tools.Security.SecurityToolExecutionContext! context) -> System.IDisposable!
+static OpenConnect.Tools.Security.SecurityToolIds.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static OpenConnect.Tools.Security.SecurityToolIds.IsSecurityTool(OpenConnect.Abstractions.ToolId toolId) -> bool
+static OpenConnect.Tools.Security.SecurityToolMetadata.operator !=(OpenConnect.Tools.Security.SecurityToolMetadata? left, OpenConnect.Tools.Security.SecurityToolMetadata? right) -> bool
+static OpenConnect.Tools.Security.SecurityToolMetadata.operator ==(OpenConnect.Tools.Security.SecurityToolMetadata? left, OpenConnect.Tools.Security.SecurityToolMetadata? right) -> bool
+static OpenConnect.Tools.Security.SecurityToolSuite.GetAllToolMetadata() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Tools.Security.SecurityToolMetadata!>!
 static OpenConnect.Tools.ToolAccessRequest.operator !=(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
 static OpenConnect.Tools.ToolAccessRequest.operator ==(OpenConnect.Tools.ToolAccessRequest? left, OpenConnect.Tools.ToolAccessRequest? right) -> bool
 static OpenConnect.Tools.ToolAuthorizationService.HashArguments(System.Text.Json.JsonElement arguments) -> string!
