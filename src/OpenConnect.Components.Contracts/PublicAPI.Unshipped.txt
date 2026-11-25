@@ -168,6 +168,233 @@ OpenConnect.Components.Contracts.ComposerWireState.UiIntegration.init -> void
 OpenConnect.Components.Contracts.ComposerWireValues
 OpenConnect.Components.Contracts.IOpenConnectComponent
 OpenConnect.Components.Contracts.IOpenConnectComponent.Descriptor.get -> OpenConnect.Components.Contracts.OpenConnectComponentDescriptor!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingActiveCall!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.CallId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.CallId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.ConversationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.ConversationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.CounterpartyDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.CounterpartyDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.Deconstruct(out string! CallId, out string! ConversationId, out string! CounterpartyDisplayName, out string! StateLabel, out OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind MediaSecurityMode, out bool IsMuted, out bool IsCounterpartySpeaking, out System.DateTimeOffset StartedAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.Equals(OpenConnect.Components.Contracts.Messaging.MessagingActiveCall? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.IsCounterpartySpeaking.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.IsCounterpartySpeaking.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.IsMuted.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.IsMuted.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.MediaSecurityMode.get -> OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.MediaSecurityMode.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.MessagingActiveCall(string! CallId, string! ConversationId, string! CounterpartyDisplayName, string! StateLabel, OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind MediaSecurityMode, bool IsMuted, bool IsCounterpartySpeaking, System.DateTimeOffset StartedAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.StartedAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.StartedAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.StateLabel.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.StateLabel.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ActionName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ActionName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ActionSummary.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ActionSummary.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ApprovalRequestId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ApprovalRequestId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.Approved.get -> bool?
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.Approved.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ConversationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ConversationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.Deconstruct(out string! ApprovalRequestId, out string! ConversationId, out string! ActionName, out string! ActionSummary, out string! RequestedByDisplayName, out System.DateTimeOffset ExpiresAtUtc, out string? ResourceScope, out bool IsResolved, out bool? Approved) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.Equals(OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ExpiresAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ExpiresAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.IsResolved.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.IsResolved.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.MessagingApprovalRequest(string! ApprovalRequestId, string! ConversationId, string! ActionName, string! ActionSummary, string! RequestedByDisplayName, System.DateTimeOffset ExpiresAtUtc, string? ResourceScope = null, bool IsResolved = false, bool? Approved = null) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.RequestedByDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.RequestedByDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ResourceScope.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ResourceScope.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationTitle.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationTitle.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.Deconstruct(out string! CallId, out string! ConversationId, out string! CallerDisplayName, out bool IsAgentCaller, out string! ConversationTitle, out OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind MediaSecurityMode, out System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.Equals(OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ExpiresAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ExpiresAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.IsAgentCaller.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.IsAgentCaller.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.MediaSecurityMode.get -> OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.MediaSecurityMode.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.MessagingCallInvitation(string! CallId, string! ConversationId, string! CallerDisplayName, bool IsAgentCaller, string! ConversationTitle, OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind MediaSecurityMode, System.DateTimeOffset ExpiresAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind
+OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind.EndpointE2EE = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind
+OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind.TransportOnly = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingCallSecurityKind
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Connected = 2 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Connecting = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Disconnected = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Error = 6 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Offline = 4 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Reconnecting = 3 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConnectionState.Revoked = 5 -> OpenConnect.Components.Contracts.Messaging.MessagingConnectionState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState.Active = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState.Archived = 2 -> OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState.Closed = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary!
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.ActiveTypingLabel.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.ActiveTypingLabel.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.ConversationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.ConversationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.Deconstruct(out string! ConversationId, out string! Title, out OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind SecurityProfile, out OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState State, out int UnreadCount, out bool IncludesOperationalAgent, out string? LastMessagePreview, out System.DateTimeOffset? LastMessageAtUtc, out OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus? LastReceiptKind, out string? ActiveTypingLabel) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.Equals(OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.IncludesOperationalAgent.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.IncludesOperationalAgent.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastMessageAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastMessageAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastMessagePreview.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastMessagePreview.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastReceiptKind.get -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus?
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.LastReceiptKind.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.MessagingConversationSummary(string! ConversationId, string! Title, OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind SecurityProfile, OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState State, int UnreadCount, bool IncludesOperationalAgent, string? LastMessagePreview, System.DateTimeOffset? LastMessageAtUtc, OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus? LastReceiptKind = null, string? ActiveTypingLabel = null) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.SecurityProfile.get -> OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.SecurityProfile.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.State.get -> OpenConnect.Components.Contracts.Messaging.MessagingConversationLifecycleState
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.State.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.Title.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.Title.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.UnreadCount.get -> int
+OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.UnreadCount.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Deconstruct(out string! DeviceId, out string! DisplayName, out string! Platform, out string! KeyFingerprint, out string! Status, out bool IsCurrentSession, out bool IsRevoked, out System.DateTimeOffset LastSeenAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.DeviceId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.DeviceId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.DisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.DisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Equals(OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.IsCurrentSession.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.IsCurrentSession.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.IsRevoked.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.IsRevoked.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.KeyFingerprint.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.KeyFingerprint.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.LastSeenAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.LastSeenAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.MessagingLinkedDeviceSummary(string! DeviceId, string! DisplayName, string! Platform, string! KeyFingerprint, string! Status, bool IsCurrentSession, bool IsRevoked, System.DateTimeOffset LastSeenAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Platform.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Platform.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Status.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Status.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingPairingSession!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ApplicationDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ApplicationDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ClaimedDeviceName.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ClaimedDeviceName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ClaimedDevicePlatform.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ClaimedDevicePlatform.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.CompanyDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.CompanyDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.Deconstruct(out string! EnrollmentId, out string! CompanyDisplayName, out string! ApplicationDisplayName, out string! QrPayloadJson, out string! VerificationCode, out OpenConnect.Components.Contracts.Messaging.MessagingPairingState State, out System.DateTimeOffset ExpiresAtUtc, out string? ClaimedDeviceName, out string? ClaimedDevicePlatform) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.EnrollmentId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.EnrollmentId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.Equals(OpenConnect.Components.Contracts.Messaging.MessagingPairingSession? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ExpiresAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ExpiresAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.MessagingPairingSession(string! EnrollmentId, string! CompanyDisplayName, string! ApplicationDisplayName, string! QrPayloadJson, string! VerificationCode, OpenConnect.Components.Contracts.Messaging.MessagingPairingState State, System.DateTimeOffset ExpiresAtUtc, string? ClaimedDeviceName = null, string? ClaimedDevicePlatform = null) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.QrPayloadJson.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.QrPayloadJson.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.State.get -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.State.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.VerificationCode.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.VerificationCode.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Approved = 2 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Cancelled = 5 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Claimed = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Consumed = 3 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Denied = 6 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Expired = 4 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingPairingState.Pending = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingPairingState
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus.Committed = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus.Delivered = 2 -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus.Failed = 4 -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus.Queued = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus.Read = 3 -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind.AgentE2EE = 1 -> OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind.Governed = 2 -> OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind.PrivateE2EE = 0 -> OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage!
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.AttachmentName.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.AttachmentName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.BodyText.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.BodyText.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.CorrelationId.get -> string?
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.CorrelationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.CryptoEpoch.get -> long
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.CryptoEpoch.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.Deconstruct(out string! MessageId, out long Sequence, out string! SenderDisplayName, out bool IsAgentSender, out bool IsOwnMessage, out string! BodyText, out bool IsDecrypted, out long CryptoEpoch, out System.DateTimeOffset SentAtUtc, out OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus ReceiptKind, out string? AttachmentName, out bool IsVoiceNote, out string? CorrelationId, out bool IsIncompleteGeneration) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.Equals(OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsAgentSender.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsAgentSender.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsDecrypted.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsDecrypted.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsIncompleteGeneration.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsIncompleteGeneration.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsOwnMessage.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsOwnMessage.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsVoiceNote.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.IsVoiceNote.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.MessageId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.MessageId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.MessagingThreadMessage(string! MessageId, long Sequence, string! SenderDisplayName, bool IsAgentSender, bool IsOwnMessage, string! BodyText, bool IsDecrypted, long CryptoEpoch, System.DateTimeOffset SentAtUtc, OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus ReceiptKind, string? AttachmentName = null, bool IsVoiceNote = false, string? CorrelationId = null, bool IsIncompleteGeneration = false) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.ReceiptKind.get -> OpenConnect.Components.Contracts.Messaging.MessagingReceiptStatus
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.ReceiptKind.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.SenderDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.SenderDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.SentAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.SentAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.Sequence.get -> long
+OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.Sequence.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingToastNotification!
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.ConversationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.ConversationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.Deconstruct(out string! NotificationId, out string! ConversationId, out string! SenderDisplayName, out string! SummaryText, out OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind SecurityProfile, out System.DateTimeOffset OccurredAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.Equals(OpenConnect.Components.Contracts.Messaging.MessagingToastNotification? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.MessagingToastNotification(string! NotificationId, string! ConversationId, string! SenderDisplayName, string! SummaryText, OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind SecurityProfile, System.DateTimeOffset OccurredAtUtc) -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.NotificationId.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.NotificationId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.OccurredAtUtc.get -> System.DateTimeOffset
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.OccurredAtUtc.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SecurityProfile.get -> OpenConnect.Components.Contracts.Messaging.MessagingSecurityProfileKind
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SecurityProfile.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SenderDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SenderDisplayName.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SummaryText.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.SummaryText.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingUiOptions!
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.EnableLinkedDevices.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.EnableLinkedDevices.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.EnableMessaging.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.EnableMessaging.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.Equals(OpenConnect.Components.Contracts.Messaging.MessagingUiOptions? other) -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.MessagingUiOptions() -> void
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.ShowIncomingToasts.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.ShowIncomingToasts.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.ShowUnreadBadgeOnFab.get -> bool
+OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.ShowUnreadBadgeOnFab.init -> void
 OpenConnect.Components.Contracts.OpenConnectComponentDescriptor
 OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.<Clone>$() -> OpenConnect.Components.Contracts.OpenConnectComponentDescriptor!
 OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Category.get -> string?
@@ -194,14 +421,14 @@ OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.get ->
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.set -> void
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.get -> bool
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Equals(OpenConnect.Components.Contracts.OpenConnectComposerOptions? other) -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.get -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.set -> void
@@ -239,6 +466,33 @@ override OpenConnect.Components.Contracts.ComposerVoiceOptions.ToString() -> str
 override OpenConnect.Components.Contracts.ComposerWireState.Equals(object? obj) -> bool
 override OpenConnect.Components.Contracts.ComposerWireState.GetHashCode() -> int
 override OpenConnect.Components.Contracts.ComposerWireState.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.ToString() -> string!
+override OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.Equals(object? obj) -> bool
+override OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.GetHashCode() -> int
+override OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.ToString() -> string!
 override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.Equals(object? obj) -> bool
 override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.GetHashCode() -> int
 override OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.ToString() -> string!
@@ -263,6 +517,24 @@ static OpenConnect.Components.Contracts.ComposerWireValues.CreateJsonOptions() -
 static OpenConnect.Components.Contracts.ComposerWireValues.FromWireValue<TEnum>(string! value) -> TEnum
 static OpenConnect.Components.Contracts.ComposerWireValues.ToWireValue<TEnum>(TEnum value) -> string!
 static OpenConnect.Components.Contracts.ComposerWireValues.ValidateJson<T>(string! json) -> T
+static OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingActiveCall? left, OpenConnect.Components.Contracts.Messaging.MessagingActiveCall? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingActiveCall.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingActiveCall? left, OpenConnect.Components.Contracts.Messaging.MessagingActiveCall? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest? left, OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest? left, OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation? left, OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation? left, OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary? left, OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary? left, OpenConnect.Components.Contracts.Messaging.MessagingConversationSummary? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary? left, OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary? left, OpenConnect.Components.Contracts.Messaging.MessagingLinkedDeviceSummary? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingPairingSession? left, OpenConnect.Components.Contracts.Messaging.MessagingPairingSession? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingPairingSession.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingPairingSession? left, OpenConnect.Components.Contracts.Messaging.MessagingPairingSession? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage? left, OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage? left, OpenConnect.Components.Contracts.Messaging.MessagingThreadMessage? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingToastNotification? left, OpenConnect.Components.Contracts.Messaging.MessagingToastNotification? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingToastNotification.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingToastNotification? left, OpenConnect.Components.Contracts.Messaging.MessagingToastNotification? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.operator !=(OpenConnect.Components.Contracts.Messaging.MessagingUiOptions? left, OpenConnect.Components.Contracts.Messaging.MessagingUiOptions? right) -> bool
+static OpenConnect.Components.Contracts.Messaging.MessagingUiOptions.operator ==(OpenConnect.Components.Contracts.Messaging.MessagingUiOptions? left, OpenConnect.Components.Contracts.Messaging.MessagingUiOptions? right) -> bool
 static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.IsValidName(string! name) -> bool
 static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.operator !=(OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? left, OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? right) -> bool
 static OpenConnect.Components.Contracts.OpenConnectComponentDescriptor.operator ==(OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? left, OpenConnect.Components.Contracts.OpenConnectComponentDescriptor? right) -> bool

@@ -1,0 +1,48 @@
+@page "/calls"
+@inject IMobileCallingService CallingService
+
+<section aria-label="Voice calls" style="max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+    <h1 style="margin: 0; font-size: 1.375rem; font-weight: 600;">Calls</h1>
+
+    @if (MessagingProvider?.PendingIncomingCall is not null)
+    {
+        <IncomingCallDialog Invitation="MessagingProvider.PendingIncomingCall" />
+    }
+
+    @if (MessagingProvider?.ActiveCall is not null)
+    {
+        <CallControls Call="MessagingProvider.ActiveCall" />
+    }
+    else
+    {
+        <div role="status" style="padding: 24px 16px; border: 1px dashed var(--oc-mobile-border); border-radius: 8px; text-align: center;">
+            <p style="margin: 0 0 4px 0; font-weight: 600;">No active calls</p>
+            <p style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">
+                Incoming calls require your explicit acceptance before the microphone activates.
+            </p>
+        </div>
+    }
+
+    <MudButton Variant="Variant.Outlined" Style="min-height: 44px; align-self: flex-start;" OnClick="CheckMicAsync">
+        Verify microphone permission
+    </MudButton>
+
+    @if (!string.IsNullOrWhiteSpace(_micStatus))
+    {
+        <p role="status" style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">@_micStatus</p>
+    }
+</section>
+
+@code {
+    [CascadingParameter(Name = "MessagingProvider")] private MessagingProvider? MessagingProvider { get; set; }
+
+    private string? _micStatus;
+
+    private async Task CheckMicAsync()
+    {
+        var granted = await CallingService.EnsureMicrophonePermissionAsync();
+        _micStatus = granted
+            ? "Microphone permission granted for user-accepted calls."
+            : "Microphone permission denied. Voice calls require microphone access.";
+    }
+}

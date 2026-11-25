@@ -71,6 +71,16 @@
                         <MudPaper Elevation="0" Class="pa-3 oc-settings-menu" Style="min-width: 240px;">
                             <MudText Typo="Typo.subtitle2" Class="mb-2">Composer settings</MudText>
                             <MudButton Variant="Variant.Outlined" FullWidth="true" Size="Size.Small" StartIcon="@Icons.Material.Filled.MonitorHeart" OnClick="OpenSettingsDialogAsync">Monitoring &amp; configuration</MudButton>
+                            @if (EnableLinkedDevices)
+                            {
+                                <MudButton Variant="Variant.Outlined" FullWidth="true" Size="Size.Small" Class="mt-2" StartIcon="@Icons.Material.Filled.Devices" OnClick="OpenLinkedDevicesAsync">Linked devices</MudButton>
+                            }
+                            @if (EnableMessaging)
+                            {
+                                <MudButton Variant="Variant.Outlined" FullWidth="true" Size="Size.Small" Class="mt-2" StartIcon="@Icons.Material.Filled.Forum" OnClick="OpenMessagingAsync">
+                                    Messages@(MessagingUnreadCount > 0 ? $" ({MessagingUnreadCount})" : string.Empty)
+                                </MudButton>
+                            }
                             <MudDivider Class="my-2" />
 
                             <MudText Typo="Typo.caption" Color="Color.Secondary">Voice</MudText>

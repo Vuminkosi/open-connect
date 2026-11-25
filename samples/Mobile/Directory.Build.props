@@ -1,0 +1,10 @@
+<Project>
+  <!-- Isolated MAUI build settings so root single-TFM Directory.Build.props does not conflict with multi-target MAUI TFMs. -->
+  <PropertyGroup>
+    <LangVersion>12</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>

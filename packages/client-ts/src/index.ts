@@ -35,3 +35,4 @@ export type {
   VadFallbackMode,
   VadFrameResult,
 } from "./vad.js";
+export * from "./messaging/index.js";

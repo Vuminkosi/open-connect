@@ -1,0 +1,23 @@
+@page "/agents"
+@inject IMessagingProfileManager ProfileManager
+
+<section aria-label="Operational agents" style="max-width: 720px; margin: 0 auto;">
+    @if (ProfileManager.ActiveProfile is null)
+    {
+        <div role="status" style="padding: 24px 16px; border: 1px dashed var(--oc-mobile-border); border-radius: 8px; text-align: center;">
+            Activate a company profile to discover authorized operational agents.
+        </div>
+    }
+    else
+    {
+        <AgentDirectory Agents="_agents"
+                        IsLoading="_isLoading"
+                        ErrorMessage="@_errorMessage" />
+    }
+</section>
+
+@code {
+    private readonly IReadOnlyList<OperationalAgentDiscoveryItem> _agents = Array.Empty<OperationalAgentDiscoveryItem>();
+    private readonly bool _isLoading = false;
+    private readonly string? _errorMessage = null;
+}

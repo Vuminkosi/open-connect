@@ -1,4 +1,8 @@
 #nullable enable
+const OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator.ExpectedType = "openconnect.device.enrollment" -> string!
+const OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator.MaxPayloadBytes = 4096 -> int
+const OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator.SupportedVersion = 1 -> int
+const OpenConnect.Client.RealtimeVoiceSession.SubProtocol = "openconnect.voice.v2" -> string!
 OpenConnect.Client.ClientAuthenticationMode
 OpenConnect.Client.ClientAuthenticationMode.BearerToken = 1 -> OpenConnect.Client.ClientAuthenticationMode
 OpenConnect.Client.ClientAuthenticationMode.Cookie = 2 -> OpenConnect.Client.ClientAuthenticationMode
@@ -8,12 +12,12 @@ OpenConnect.Client.ClientVadOptions
 OpenConnect.Client.ClientVadOptions.ClientVadOptions() -> void
 OpenConnect.Client.ClientVadOptions.EnableBargeIn.get -> bool
 OpenConnect.Client.ClientVadOptions.EnableBargeIn.set -> void
+OpenConnect.Client.ClientVadOptions.Enabled.get -> bool
+OpenConnect.Client.ClientVadOptions.Enabled.set -> void
 OpenConnect.Client.ClientVadOptions.EnablePreRoll.get -> bool
 OpenConnect.Client.ClientVadOptions.EnablePreRoll.set -> void
 OpenConnect.Client.ClientVadOptions.EnableSilenceSuppression.get -> bool
 OpenConnect.Client.ClientVadOptions.EnableSilenceSuppression.set -> void
-OpenConnect.Client.ClientVadOptions.Enabled.get -> bool
-OpenConnect.Client.ClientVadOptions.Enabled.set -> void
 OpenConnect.Client.ClientVadOptions.Engine.get -> OpenConnect.Client.VadEngine
 OpenConnect.Client.ClientVadOptions.Engine.set -> void
 OpenConnect.Client.ClientVadOptions.FrameSamples.get -> int
@@ -174,10 +178,10 @@ OpenConnect.Client.Cloud.CloudClassificationResult.Abstained.init -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.CloudClassificationResult(System.Collections.Generic.IReadOnlyList<string!>! Labels, System.Collections.Generic.IReadOnlyDictionary<string!, double>! Scores, bool Abstained, string! ModelRevision, string! LabelSetVersion) -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Labels, out System.Collections.Generic.IReadOnlyDictionary<string!, double>! Scores, out bool Abstained, out string! ModelRevision, out string! LabelSetVersion) -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.Equals(OpenConnect.Client.Cloud.CloudClassificationResult? other) -> bool
-OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.get -> string!
-OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.init -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.Labels.get -> System.Collections.Generic.IReadOnlyList<string!>!
 OpenConnect.Client.Cloud.CloudClassificationResult.Labels.init -> void
+OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.get -> string!
+OpenConnect.Client.Cloud.CloudClassificationResult.LabelSetVersion.init -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.ModelRevision.get -> string!
 OpenConnect.Client.Cloud.CloudClassificationResult.ModelRevision.init -> void
 OpenConnect.Client.Cloud.CloudClassificationResult.Scores.get -> System.Collections.Generic.IReadOnlyDictionary<string!, double>!
@@ -233,6 +237,17 @@ OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Intent.get -> string!
 OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Intent.init -> void
 OpenConnect.Client.Cloud.CloudLiveUIPlanInput.SchemaVersion.get -> string!
 OpenConnect.Client.Cloud.CloudLiveUIPlanInput.SchemaVersion.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.CloudLiveUIPlannedAction(string! Type, string! Target, string? Value = null) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Deconstruct(out string! Type, out string! Target, out string? Value) -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? other) -> bool
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.get -> string!
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.init -> void
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.get -> string?
+OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.init -> void
 OpenConnect.Client.Cloud.CloudLiveUIPlanRequest
 OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlanRequest!
 OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.CloudLiveUIPlanRequest(OpenConnect.Client.Cloud.CloudLiveUIPlanInput! Input, string? RequestId = null, System.DateTimeOffset? ExpiresAtUtc = null) -> void
@@ -259,17 +274,6 @@ OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.SchemaVersion.get -> string!
 OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.SchemaVersion.init -> void
 OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.TraceId.get -> string!
 OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.TraceId.init -> void
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.<Clone>$() -> OpenConnect.Client.Cloud.CloudLiveUIPlannedAction!
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.CloudLiveUIPlannedAction(string! Type, string! Target, string? Value = null) -> void
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Deconstruct(out string! Type, out string! Target, out string? Value) -> void
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? other) -> bool
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.get -> string!
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Target.init -> void
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.get -> string!
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Type.init -> void
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.get -> string?
-OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Value.init -> void
 OpenConnect.Client.Cloud.CloudProblemDetails
 OpenConnect.Client.Cloud.CloudProblemDetails.<Clone>$() -> OpenConnect.Client.Cloud.CloudProblemDetails!
 OpenConnect.Client.Cloud.CloudProblemDetails.CloudProblemDetails(string? Type, string? Title, int? Status, string? Code, string? TraceId, bool Retryable = false, string? Detail = null) -> void
@@ -496,8 +500,8 @@ OpenConnect.Client.IVoiceClientService.InvalidateAllEpochs() -> void
 OpenConnect.Client.IVoiceClientService.IsPlaybackActive.get -> bool
 OpenConnect.Client.IVoiceClientService.LivePartialTranscript.get -> string!
 OpenConnect.Client.IVoiceClientService.Options.get -> OpenConnect.Client.VoiceClientOptions!
-OpenConnect.Client.IVoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.IVoiceClientService.StagedRecording.get -> OpenConnect.Client.RecordedVoiceDraft?
+OpenConnect.Client.IVoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.IVoiceClientService.StartLiveCapture(bool microphonePermissionGranted) -> long
 OpenConnect.Client.IVoiceClientService.TriggerBargeIn() -> long
 OpenConnect.Client.IVoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
@@ -516,13 +520,317 @@ OpenConnect.Client.MauiAudioOptions.RequireMicrophonePermission.set -> void
 OpenConnect.Client.MauiAudioOptions.SampleRate.get -> int
 OpenConnect.Client.MauiAudioOptions.SampleRate.set -> void
 OpenConnect.Client.MauiAudioOptions.Validate() -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.<Clone>$() -> OpenConnect.Client.Messaging.CompleteEnrollmentRequest!
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.Audience.get -> string!
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.Audience.init -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.CompleteEnrollmentRequest(OpenConnect.Abstractions.Messaging.DeviceId DeviceId, string! CompletionProofSignatureBase64, string! Audience) -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.CompletionProofSignatureBase64.get -> string!
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.CompletionProofSignatureBase64.init -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out string! CompletionProofSignatureBase64, out string! Audience) -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.DeviceId.init -> void
+OpenConnect.Client.Messaging.CompleteEnrollmentRequest.Equals(OpenConnect.Client.Messaging.CompleteEnrollmentRequest? other) -> bool
+OpenConnect.Client.Messaging.CreateMessagingCallRequest
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.<Clone>$() -> OpenConnect.Client.Messaging.CreateMessagingCallRequest!
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.ConversationId.init -> void
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.CreateMessagingCallRequest(OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.CallMediaSecurityMode MediaSecurityMode, bool RequireEncryption = true) -> void
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.CallMediaSecurityMode MediaSecurityMode, out bool RequireEncryption) -> void
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.Equals(OpenConnect.Client.Messaging.CreateMessagingCallRequest? other) -> bool
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.MediaSecurityMode.get -> OpenConnect.Abstractions.Messaging.CallMediaSecurityMode
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.MediaSecurityMode.init -> void
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.RequireEncryption.get -> bool
+OpenConnect.Client.Messaging.CreateMessagingCallRequest.RequireEncryption.init -> void
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.<Clone>$() -> OpenConnect.Client.Messaging.CreateMessagingConversationRequest!
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.CreateMessagingConversationRequest(OpenConnect.Abstractions.Messaging.ConversationSecurityProfile SecurityProfile, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingActor!>! InitialParticipants) -> void
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationSecurityProfile SecurityProfile, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingActor!>! InitialParticipants) -> void
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.Equals(OpenConnect.Client.Messaging.CreateMessagingConversationRequest? other) -> bool
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.InitialParticipants.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingActor!>!
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.InitialParticipants.init -> void
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.SecurityProfile.get -> OpenConnect.Abstractions.Messaging.ConversationSecurityProfile
+OpenConnect.Client.Messaging.CreateMessagingConversationRequest.SecurityProfile.init -> void
+OpenConnect.Client.Messaging.IMessagingProfileManager
+OpenConnect.Client.Messaging.IMessagingProfileManager.ActiveProfile.get -> OpenConnect.Client.Messaging.MessagingProfileRecord?
+OpenConnect.Client.Messaging.IMessagingProfileManager.ActiveProfileCancellationToken.get -> System.Threading.CancellationToken
+OpenConnect.Client.Messaging.IMessagingProfileManager.ActiveProfileChanged -> System.Action<OpenConnect.Client.Messaging.MessagingProfileRecord?, long>?
+OpenConnect.Client.Messaging.IMessagingProfileManager.AddOrUpdateProfileAsync(OpenConnect.Client.Messaging.MessagingProfileRecord! profile, OpenConnect.Client.Messaging.MessagingProfileCredentials! credentials, bool activate = true, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileRecord!>
+OpenConnect.Client.Messaging.IMessagingProfileManager.CreateScopedHttpClient(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile) -> System.Net.Http.HttpClient!
+OpenConnect.Client.Messaging.IMessagingProfileManager.CurrentEpoch.get -> long
+OpenConnect.Client.Messaging.IMessagingProfileManager.DeactivateCurrentProfileAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileManager.GetValidAccessTokenAsync(string! profileId, System.Func<OpenConnect.Client.Messaging.MessagingProfileIdentity!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>>! refreshCallback, bool forceRefresh = false, System.TimeSpan? refreshSkew = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Client.Messaging.IMessagingProfileManager.HasActiveCall.get -> bool
+OpenConnect.Client.Messaging.IMessagingProfileManager.InitializeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileManager.IsCurrentEpoch(long epoch, string! profileId) -> bool
+OpenConnect.Client.Messaging.IMessagingProfileManager.ListProfilesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Messaging.MessagingProfileRecord!>!>
+OpenConnect.Client.Messaging.IMessagingProfileManager.MarkProfileRevokedAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileManager.RemoveProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileManager.SetActiveCallState(bool hasActiveCall, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? endActiveCallCallback = null) -> void
+OpenConnect.Client.Messaging.IMessagingProfileManager.SwitchProfileAsync(string! targetProfileId, bool confirmEndActiveCall = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileSwitchResult!>
+OpenConnect.Client.Messaging.IMessagingProfileManager.UpdateCursorAsync(string! profileId, long expectedEpoch, string! cursor, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileStorage
+OpenConnect.Client.Messaging.IMessagingProfileStorage.DeleteCredentialsAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileStorage.DeleteProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileStorage.GetActiveProfileIdAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+OpenConnect.Client.Messaging.IMessagingProfileStorage.GetCredentialsAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileCredentials?>
+OpenConnect.Client.Messaging.IMessagingProfileStorage.GetProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileRecord?>
+OpenConnect.Client.Messaging.IMessagingProfileStorage.ListProfilesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Messaging.MessagingProfileRecord!>!>
+OpenConnect.Client.Messaging.IMessagingProfileStorage.SaveCredentialsAsync(string! profileId, OpenConnect.Client.Messaging.MessagingProfileCredentials! credentials, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileStorage.SaveProfileAsync(OpenConnect.Client.Messaging.MessagingProfileRecord! profile, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IMessagingProfileStorage.SetActiveProfileIdAsync(string? profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.DeleteCredentialsAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.DeleteProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.GetActiveProfileIdAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.GetCredentialsAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileCredentials?>
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.GetProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileRecord?>
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.InMemoryMessagingProfileStorage() -> void
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.ListProfilesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Messaging.MessagingProfileRecord!>!>
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.SaveCredentialsAsync(string! profileId, OpenConnect.Client.Messaging.MessagingProfileCredentials! credentials, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.SaveProfileAsync(OpenConnect.Client.Messaging.MessagingProfileRecord! profile, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.InMemoryMessagingProfileStorage.SetActiveProfileIdAsync(string? profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.AcceptCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.CompleteEnrollmentAsync(System.Uri! baseGatewayUrl, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, OpenConnect.Client.Messaging.CompleteEnrollmentRequest! request, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ConfirmEnrollmentAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.CreateCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Client.Messaging.CreateMessagingCallRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.CreateConversationAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Client.Messaging.CreateMessagingConversationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.DeclineCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.DiscoverAgentsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem!>!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.EndCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.GetCompatibilityAsync(System.Uri! baseGatewayUrl, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingCompatibilityInfo!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.GetConversationAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.InitiateEnrollmentAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ListConversationsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationRecord!>!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ListDevicesAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceRecord!>!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ListFollowUpsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ListMessagesAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string? cursor = null, int limit = 50, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessageRecord!>!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RecordReceiptAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Client.Messaging.RecordMessageReceiptRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RedeemEnrollmentAsync(System.Uri! baseGatewayUrl, OpenConnect.Client.Messaging.RedeemEnrollmentRequest! request, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RefreshTokenAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! refreshToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RegisterPushAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Client.Messaging.RegisterPushRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.PushRegistrationRecord!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.ReplayEventsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, string? cursor = null, int limit = 100, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingEventReplayResponse!>
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RevokeDeviceAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.RevokePushAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.IOpenConnectMessagingClient.SendMessageAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Client.Messaging.SendEncryptedMessageRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageCommitResult!>
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.<Clone>$() -> OpenConnect.Client.Messaging.MessagingCompatibilityInfo!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ApplicationDisplayName.get -> string!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ApplicationDisplayName.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ApplicationId.get -> string!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ApplicationId.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Capabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Capabilities.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.CompanyDisplayName.get -> string!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.CompanyDisplayName.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ContractVersion.get -> string!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ContractVersion.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Deconstruct(out string! ContractVersion, out string! Issuer, out string! ApplicationId, out string! CompanyDisplayName, out string! ApplicationDisplayName, out System.Collections.Generic.IReadOnlyList<string!>! Capabilities, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationSecurityProfile>! SupportedSecurityProfiles) -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Equals(OpenConnect.Client.Messaging.MessagingCompatibilityInfo? other) -> bool
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Issuer.get -> string!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Issuer.init -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.MessagingCompatibilityInfo(string! ContractVersion, string! Issuer, string! ApplicationId, string! CompanyDisplayName, string! ApplicationDisplayName, System.Collections.Generic.IReadOnlyList<string!>! Capabilities, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationSecurityProfile>! SupportedSecurityProfiles) -> void
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.SupportedSecurityProfiles.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationSecurityProfile>!
+OpenConnect.Client.Messaging.MessagingCompatibilityInfo.SupportedSecurityProfiles.init -> void
+OpenConnect.Client.Messaging.MessagingEventReplayResponse
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.<Clone>$() -> OpenConnect.Client.Messaging.MessagingEventReplayResponse!
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.Deconstruct(out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>! Events, out string? NextCursor, out bool HasMore) -> void
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.Equals(OpenConnect.Client.Messaging.MessagingEventReplayResponse? other) -> bool
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.Events.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>!
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.Events.init -> void
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.HasMore.get -> bool
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.HasMore.init -> void
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.MessagingEventReplayResponse(System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!>! Events, string? NextCursor, bool HasMore) -> void
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.NextCursor.get -> string?
+OpenConnect.Client.Messaging.MessagingEventReplayResponse.NextCursor.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials
+OpenConnect.Client.Messaging.MessagingProfileCredentials.<Clone>$() -> OpenConnect.Client.Messaging.MessagingProfileCredentials!
+OpenConnect.Client.Messaging.MessagingProfileCredentials.AccessToken.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileCredentials.AccessToken.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.AccessTokenExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Client.Messaging.MessagingProfileCredentials.AccessTokenExpiresAt.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.Deconstruct(out string! AccessToken, out System.DateTimeOffset AccessTokenExpiresAt, out string! RefreshToken, out System.DateTimeOffset RefreshTokenExpiresAt, out OpenConnect.Abstractions.Messaging.RefreshGrantId RefreshGrantId, out string! FamilyId, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Client.Messaging.MessagingProfileCredentials.DeviceId.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.Equals(OpenConnect.Client.Messaging.MessagingProfileCredentials? other) -> bool
+OpenConnect.Client.Messaging.MessagingProfileCredentials.FamilyId.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileCredentials.FamilyId.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.MessagingProfileCredentials(string! AccessToken, System.DateTimeOffset AccessTokenExpiresAt, string! RefreshToken, System.DateTimeOffset RefreshTokenExpiresAt, OpenConnect.Abstractions.Messaging.RefreshGrantId RefreshGrantId, string! FamilyId, OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshGrantId.get -> OpenConnect.Abstractions.Messaging.RefreshGrantId
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshGrantId.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshToken.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshToken.init -> void
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshTokenExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Client.Messaging.MessagingProfileCredentials.RefreshTokenExpiresAt.init -> void
+OpenConnect.Client.Messaging.MessagingProfileIdentity
+OpenConnect.Client.Messaging.MessagingProfileIdentity.<Clone>$() -> OpenConnect.Client.Messaging.MessagingProfileIdentity!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.ApplicationId.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.BaseGatewayUrl.get -> System.Uri!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.CanonicalOrigin.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Client.Messaging.MessagingProfileIdentity.Equals(OpenConnect.Client.Messaging.MessagingProfileIdentity? other) -> bool
+OpenConnect.Client.Messaging.MessagingProfileIdentity.Issuer.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.MessagingProfileIdentity(string! profileId, System.Uri! baseGatewayUrl, OpenConnect.Abstractions.TenantId tenantId, string! applicationId, string! issuer, string! subject, OpenConnect.Abstractions.Messaging.DeviceId deviceId) -> void
+OpenConnect.Client.Messaging.MessagingProfileIdentity.ProfileId.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.Subject.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileIdentity.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Client.Messaging.MessagingProfileManager
+OpenConnect.Client.Messaging.MessagingProfileManager.ActiveProfile.get -> OpenConnect.Client.Messaging.MessagingProfileRecord?
+OpenConnect.Client.Messaging.MessagingProfileManager.ActiveProfileCancellationToken.get -> System.Threading.CancellationToken
+OpenConnect.Client.Messaging.MessagingProfileManager.ActiveProfileChanged -> System.Action<OpenConnect.Client.Messaging.MessagingProfileRecord?, long>?
+OpenConnect.Client.Messaging.MessagingProfileManager.AddOrUpdateProfileAsync(OpenConnect.Client.Messaging.MessagingProfileRecord! profile, OpenConnect.Client.Messaging.MessagingProfileCredentials! credentials, bool activate = true, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileRecord!>
+OpenConnect.Client.Messaging.MessagingProfileManager.CreateScopedHttpClient(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile) -> System.Net.Http.HttpClient!
+OpenConnect.Client.Messaging.MessagingProfileManager.CurrentEpoch.get -> long
+OpenConnect.Client.Messaging.MessagingProfileManager.DeactivateCurrentProfileAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileManager.DisposeAsync() -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileManager.GetValidAccessTokenAsync(string! profileId, System.Func<OpenConnect.Client.Messaging.MessagingProfileIdentity!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>>! refreshCallback, bool forceRefresh = false, System.TimeSpan? refreshSkew = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Client.Messaging.MessagingProfileManager.HasActiveCall.get -> bool
+OpenConnect.Client.Messaging.MessagingProfileManager.InitializeAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileManager.IsCurrentEpoch(long epoch, string! profileId) -> bool
+OpenConnect.Client.Messaging.MessagingProfileManager.ListProfilesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Client.Messaging.MessagingProfileRecord!>!>
+OpenConnect.Client.Messaging.MessagingProfileManager.MarkProfileRevokedAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileManager.MessagingProfileManager(OpenConnect.Client.Messaging.IMessagingProfileStorage! storage, System.Func<OpenConnect.Client.Messaging.MessagingProfileIdentity!, System.Net.Http.HttpMessageHandler!>? handlerFactory = null, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Client.Messaging.MessagingProfileManager.RemoveProfileAsync(string! profileId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileManager.SetActiveCallState(bool hasActiveCall, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? endActiveCallCallback = null) -> void
+OpenConnect.Client.Messaging.MessagingProfileManager.SwitchProfileAsync(string! targetProfileId, bool confirmEndActiveCall = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingProfileSwitchResult!>
+OpenConnect.Client.Messaging.MessagingProfileManager.UpdateCursorAsync(string! profileId, long expectedEpoch, string! cursor, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.MessagingProfileRecord
+OpenConnect.Client.Messaging.MessagingProfileRecord.<Clone>$() -> OpenConnect.Client.Messaging.MessagingProfileRecord!
+OpenConnect.Client.Messaging.MessagingProfileRecord.ApplicationDisplayName.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileRecord.ApplicationDisplayName.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.CompanyDisplayName.get -> string!
+OpenConnect.Client.Messaging.MessagingProfileRecord.CompanyDisplayName.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.Deconstruct(out OpenConnect.Client.Messaging.MessagingProfileIdentity! Identity, out string! CompanyDisplayName, out string! ApplicationDisplayName, out OpenConnect.Client.Messaging.MessagingProfileState State, out string? LastEventCursor, out System.DateTimeOffset? LastSyncedAtUtc, out int UnreadCount, out bool PushConsentGranted, out string? PushRegistrationHandle) -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.Equals(OpenConnect.Client.Messaging.MessagingProfileRecord? other) -> bool
+OpenConnect.Client.Messaging.MessagingProfileRecord.Identity.get -> OpenConnect.Client.Messaging.MessagingProfileIdentity!
+OpenConnect.Client.Messaging.MessagingProfileRecord.Identity.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.LastEventCursor.get -> string?
+OpenConnect.Client.Messaging.MessagingProfileRecord.LastEventCursor.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.LastSyncedAtUtc.get -> System.DateTimeOffset?
+OpenConnect.Client.Messaging.MessagingProfileRecord.LastSyncedAtUtc.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.MessagingProfileRecord(OpenConnect.Client.Messaging.MessagingProfileIdentity! Identity, string! CompanyDisplayName, string! ApplicationDisplayName, OpenConnect.Client.Messaging.MessagingProfileState State, string? LastEventCursor = null, System.DateTimeOffset? LastSyncedAtUtc = null, int UnreadCount = 0, bool PushConsentGranted = false, string? PushRegistrationHandle = null) -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.PushConsentGranted.get -> bool
+OpenConnect.Client.Messaging.MessagingProfileRecord.PushConsentGranted.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.PushRegistrationHandle.get -> string?
+OpenConnect.Client.Messaging.MessagingProfileRecord.PushRegistrationHandle.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.State.get -> OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileRecord.State.init -> void
+OpenConnect.Client.Messaging.MessagingProfileRecord.UnreadCount.get -> int
+OpenConnect.Client.Messaging.MessagingProfileRecord.UnreadCount.init -> void
+OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileState.Active = 0 -> OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileState.Inactive = 1 -> OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileState.RequiresReauth = 2 -> OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileState.Revoked = 3 -> OpenConnect.Client.Messaging.MessagingProfileState
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.<Clone>$() -> OpenConnect.Client.Messaging.MessagingProfileSwitchResult!
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ActiveCallConfirmationRequired.get -> bool
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ActiveCallConfirmationRequired.init -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ActiveProfileId.get -> string?
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ActiveProfileId.init -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.Deconstruct(out bool Succeeded, out string? ActiveProfileId, out long ProfileEpoch, out bool ActiveCallConfirmationRequired, out string? ErrorCode, out string? ErrorMessage) -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.Equals(OpenConnect.Client.Messaging.MessagingProfileSwitchResult? other) -> bool
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ErrorCode.get -> string?
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ErrorCode.init -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ErrorMessage.get -> string?
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ErrorMessage.init -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.MessagingProfileSwitchResult(bool Succeeded, string? ActiveProfileId, long ProfileEpoch, bool ActiveCallConfirmationRequired = false, string? ErrorCode = null, string? ErrorMessage = null) -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ProfileEpoch.get -> long
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ProfileEpoch.init -> void
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.Succeeded.get -> bool
+OpenConnect.Client.Messaging.MessagingProfileSwitchResult.Succeeded.init -> void
+OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator
+OpenConnect.Client.Messaging.OpenConnectMessagingClient
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.AcceptCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.CompleteEnrollmentAsync(System.Uri! baseGatewayUrl, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, OpenConnect.Client.Messaging.CompleteEnrollmentRequest! request, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ConfirmEnrollmentAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.CreateCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Client.Messaging.CreateMessagingCallRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.CreateConversationAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Client.Messaging.CreateMessagingConversationRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.DeclineCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.DiscoverAgentsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.OperationalAgentDiscoveryItem!>!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.EndCallAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.GetCompatibilityAsync(System.Uri! baseGatewayUrl, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingCompatibilityInfo!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.GetConversationAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.InitiateEnrollmentAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentCreationResult!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ListConversationsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.ConversationRecord!>!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ListDevicesAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceRecord!>!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ListFollowUpsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ListMessagesAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string? cursor = null, int limit = 50, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessageRecord!>!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.OpenConnectMessagingClient(OpenConnect.Client.Messaging.IMessagingProfileManager! profileManager, System.Func<System.Uri!, System.Net.Http.HttpMessageHandler!>? unauthenticatedHandlerFactory = null) -> void
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RecordReceiptAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Client.Messaging.RecordMessageReceiptRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RedeemEnrollmentAsync(System.Uri! baseGatewayUrl, OpenConnect.Client.Messaging.RedeemEnrollmentRequest! request, bool allowLoopbackHttp = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RefreshTokenAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! refreshToken, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MobileTokenBundle!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RegisterPushAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Client.Messaging.RegisterPushRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.PushRegistrationRecord!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.ReplayEventsAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, string? cursor = null, int limit = 100, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Client.Messaging.MessagingEventReplayResponse!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RevokeDeviceAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.RevokePushAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Client.Messaging.OpenConnectMessagingClient.SendMessageAsync(OpenConnect.Client.Messaging.MessagingProfileIdentity! profile, string! accessToken, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Client.Messaging.SendEncryptedMessageRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageCommitResult!>
+OpenConnect.Client.Messaging.OpenConnectMessagingClientServiceCollectionExtensions
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.<Clone>$() -> OpenConnect.Client.Messaging.RecordMessageReceiptRequest!
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.MessageReceiptKind Kind, out string? FailureReason) -> void
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.Equals(OpenConnect.Client.Messaging.RecordMessageReceiptRequest? other) -> bool
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.FailureReason.get -> string?
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.FailureReason.init -> void
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.Kind.get -> OpenConnect.Abstractions.Messaging.MessageReceiptKind
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.Kind.init -> void
+OpenConnect.Client.Messaging.RecordMessageReceiptRequest.RecordMessageReceiptRequest(OpenConnect.Abstractions.Messaging.MessageReceiptKind Kind, string? FailureReason = null) -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.<Clone>$() -> OpenConnect.Client.Messaging.RedeemEnrollmentRequest!
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.ChallengeProofSignatureBase64.get -> string!
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.ChallengeProofSignatureBase64.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.Deconstruct(out string! EnrollmentToken, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId, out string! DevicePublicKeyBase64, out string! DeviceDisplayName, out OpenConnect.Abstractions.Messaging.DevicePlatform Platform, out string! ChallengeProofSignatureBase64) -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DeviceDisplayName.get -> string!
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DeviceDisplayName.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DeviceId.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DevicePublicKeyBase64.get -> string!
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.DevicePublicKeyBase64.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.EnrollmentToken.get -> string!
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.EnrollmentToken.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.Equals(OpenConnect.Client.Messaging.RedeemEnrollmentRequest? other) -> bool
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.Platform.get -> OpenConnect.Abstractions.Messaging.DevicePlatform
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.Platform.init -> void
+OpenConnect.Client.Messaging.RedeemEnrollmentRequest.RedeemEnrollmentRequest(string! EnrollmentToken, OpenConnect.Abstractions.Messaging.DeviceId DeviceId, string! DevicePublicKeyBase64, string! DeviceDisplayName, OpenConnect.Abstractions.Messaging.DevicePlatform Platform, string! ChallengeProofSignatureBase64) -> void
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.<Clone>$() -> OpenConnect.Client.Messaging.RefreshMobileTokenRequest!
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.Deconstruct(out string! RefreshToken, out OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.DeviceId.get -> OpenConnect.Abstractions.Messaging.DeviceId
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.DeviceId.init -> void
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.Equals(OpenConnect.Client.Messaging.RefreshMobileTokenRequest? other) -> bool
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.RefreshMobileTokenRequest(string! RefreshToken, OpenConnect.Abstractions.Messaging.DeviceId DeviceId) -> void
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.RefreshToken.get -> string!
+OpenConnect.Client.Messaging.RefreshMobileTokenRequest.RefreshToken.init -> void
+OpenConnect.Client.Messaging.RegisterPushRequest
+OpenConnect.Client.Messaging.RegisterPushRequest.<Clone>$() -> OpenConnect.Client.Messaging.RegisterPushRequest!
+OpenConnect.Client.Messaging.RegisterPushRequest.ConsentGranted.get -> bool
+OpenConnect.Client.Messaging.RegisterPushRequest.ConsentGranted.init -> void
+OpenConnect.Client.Messaging.RegisterPushRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.PushProviderKind Provider, out string! Token, out bool ConsentGranted) -> void
+OpenConnect.Client.Messaging.RegisterPushRequest.Equals(OpenConnect.Client.Messaging.RegisterPushRequest? other) -> bool
+OpenConnect.Client.Messaging.RegisterPushRequest.Provider.get -> OpenConnect.Abstractions.Messaging.PushProviderKind
+OpenConnect.Client.Messaging.RegisterPushRequest.Provider.init -> void
+OpenConnect.Client.Messaging.RegisterPushRequest.RegisterPushRequest(OpenConnect.Abstractions.Messaging.PushProviderKind Provider, string! Token, bool ConsentGranted) -> void
+OpenConnect.Client.Messaging.RegisterPushRequest.Token.get -> string!
+OpenConnect.Client.Messaging.RegisterPushRequest.Token.init -> void
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.<Clone>$() -> OpenConnect.Client.Messaging.SendEncryptedMessageRequest!
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.ClientOperationId.get -> string!
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.ClientOperationId.init -> void
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.CorrelationId.get -> string?
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.CorrelationId.init -> void
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.Deconstruct(out OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! Envelope, out string! ClientOperationId, out string? CorrelationId) -> void
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.Envelope.get -> OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope!
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.Envelope.init -> void
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.Equals(OpenConnect.Client.Messaging.SendEncryptedMessageRequest? other) -> bool
+OpenConnect.Client.Messaging.SendEncryptedMessageRequest.SendEncryptedMessageRequest(OpenConnect.Abstractions.Messaging.EncryptedMessageEnvelope! Envelope, string! ClientOperationId, string? CorrelationId = null) -> void
 OpenConnect.Client.NavigatorClientOptions
+OpenConnect.Client.NavigatorClientOptions.Enabled.get -> bool
+OpenConnect.Client.NavigatorClientOptions.Enabled.set -> void
 OpenConnect.Client.NavigatorClientOptions.EnableGuidedTours.get -> bool
 OpenConnect.Client.NavigatorClientOptions.EnableGuidedTours.set -> void
 OpenConnect.Client.NavigatorClientOptions.EnableHighlighting.get -> bool
 OpenConnect.Client.NavigatorClientOptions.EnableHighlighting.set -> void
-OpenConnect.Client.NavigatorClientOptions.Enabled.get -> bool
-OpenConnect.Client.NavigatorClientOptions.Enabled.set -> void
 OpenConnect.Client.NavigatorClientOptions.NavigatorClientOptions() -> void
 OpenConnect.Client.NavigatorClientOptions.RequireConsentForActions.get -> bool
 OpenConnect.Client.NavigatorClientOptions.RequireConsentForActions.set -> void
@@ -721,14 +1029,13 @@ OpenConnect.Client.VoiceClientService.InvalidateAllEpochs() -> void
 OpenConnect.Client.VoiceClientService.IsPlaybackActive.get -> bool
 OpenConnect.Client.VoiceClientService.LivePartialTranscript.get -> string!
 OpenConnect.Client.VoiceClientService.Options.get -> OpenConnect.Client.VoiceClientOptions!
-OpenConnect.Client.VoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.VoiceClientService.StagedRecording.get -> OpenConnect.Client.RecordedVoiceDraft?
+OpenConnect.Client.VoiceClientService.StageRecordingForPreview(System.ReadOnlySpan<byte> audioBytes, string! mimeType, System.TimeSpan duration, bool microphonePermissionGranted) -> OpenConnect.Client.RecordedVoiceDraft!
 OpenConnect.Client.VoiceClientService.StartLiveCapture(bool microphonePermissionGranted) -> long
 OpenConnect.Client.VoiceClientService.TriggerBargeIn() -> long
 OpenConnect.Client.VoiceClientService.TryAcceptPlaybackChunk(long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.UpdateLiveHypothesis(string! partialTranscript, long speechEpoch) -> bool
 OpenConnect.Client.VoiceClientService.VoiceClientService(OpenConnect.Client.VoiceClientOptions! options) -> void
-const OpenConnect.Client.RealtimeVoiceSession.SubProtocol = "openconnect.voice.v2" -> string!
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudCapabilitiesResult.ToString() -> string!
@@ -777,15 +1084,15 @@ override OpenConnect.Client.Cloud.CloudLiveUIPlan.ToString() -> string!
 override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudLiveUIPlanInput.ToString() -> string!
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(object? obj) -> bool
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.GetHashCode() -> int
+override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.ToString() -> string!
 override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.ToString() -> string!
 override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.ToString() -> string!
-override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.Equals(object? obj) -> bool
-override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.GetHashCode() -> int
-override OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.ToString() -> string!
 override OpenConnect.Client.Cloud.CloudProblemDetails.Equals(object? obj) -> bool
 override OpenConnect.Client.Cloud.CloudProblemDetails.GetHashCode() -> int
 override OpenConnect.Client.Cloud.CloudProblemDetails.ToString() -> string!
@@ -810,6 +1117,48 @@ override OpenConnect.Client.Cloud.CloudTokenUsage.ToString() -> string!
 override OpenConnect.Client.CreateTaskRequest.Equals(object? obj) -> bool
 override OpenConnect.Client.CreateTaskRequest.GetHashCode() -> int
 override OpenConnect.Client.CreateTaskRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.CompleteEnrollmentRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.CompleteEnrollmentRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.CompleteEnrollmentRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.CreateMessagingCallRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.CreateMessagingCallRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.CreateMessagingCallRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.CreateMessagingConversationRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.CreateMessagingConversationRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.CreateMessagingConversationRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingCompatibilityInfo.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingCompatibilityInfo.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingCompatibilityInfo.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingEventReplayResponse.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingEventReplayResponse.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingEventReplayResponse.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingProfileCredentials.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingProfileCredentials.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingProfileCredentials.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingProfileIdentity.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingProfileIdentity.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingProfileIdentity.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingProfileRecord.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingProfileRecord.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingProfileRecord.ToString() -> string!
+override OpenConnect.Client.Messaging.MessagingProfileSwitchResult.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.MessagingProfileSwitchResult.GetHashCode() -> int
+override OpenConnect.Client.Messaging.MessagingProfileSwitchResult.ToString() -> string!
+override OpenConnect.Client.Messaging.RecordMessageReceiptRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.RecordMessageReceiptRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.RecordMessageReceiptRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.RedeemEnrollmentRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.RedeemEnrollmentRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.RedeemEnrollmentRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.RefreshMobileTokenRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.RefreshMobileTokenRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.RefreshMobileTokenRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.RegisterPushRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.RegisterPushRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.RegisterPushRequest.ToString() -> string!
+override OpenConnect.Client.Messaging.SendEncryptedMessageRequest.Equals(object? obj) -> bool
+override OpenConnect.Client.Messaging.SendEncryptedMessageRequest.GetHashCode() -> int
+override OpenConnect.Client.Messaging.SendEncryptedMessageRequest.ToString() -> string!
 override OpenConnect.Client.RecordedVoiceDraft.Equals(object? obj) -> bool
 override OpenConnect.Client.RecordedVoiceDraft.GetHashCode() -> int
 override OpenConnect.Client.RecordedVoiceDraft.ToString() -> string!
@@ -857,12 +1206,12 @@ static OpenConnect.Client.Cloud.CloudLiveUIPlan.operator !=(OpenConnect.Client.C
 static OpenConnect.Client.Cloud.CloudLiveUIPlan.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlan? left, OpenConnect.Client.Cloud.CloudLiveUIPlan? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanInput.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanInput? left, OpenConnect.Client.Cloud.CloudLiveUIPlanInput? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanInput.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanInput? left, OpenConnect.Client.Cloud.CloudLiveUIPlanInput? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
+static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? left, OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanRequest.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? left, OpenConnect.Client.Cloud.CloudLiveUIPlanRequest? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? left, OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? right) -> bool
 static OpenConnect.Client.Cloud.CloudLiveUIPlanResponse.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? left, OpenConnect.Client.Cloud.CloudLiveUIPlanResponse? right) -> bool
-static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator !=(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
-static OpenConnect.Client.Cloud.CloudLiveUIPlannedAction.operator ==(OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? left, OpenConnect.Client.Cloud.CloudLiveUIPlannedAction? right) -> bool
 static OpenConnect.Client.Cloud.CloudProblemDetails.operator !=(OpenConnect.Client.Cloud.CloudProblemDetails? left, OpenConnect.Client.Cloud.CloudProblemDetails? right) -> bool
 static OpenConnect.Client.Cloud.CloudProblemDetails.operator ==(OpenConnect.Client.Cloud.CloudProblemDetails? left, OpenConnect.Client.Cloud.CloudProblemDetails? right) -> bool
 static OpenConnect.Client.Cloud.CloudReadinessResult.operator !=(OpenConnect.Client.Cloud.CloudReadinessResult? left, OpenConnect.Client.Cloud.CloudReadinessResult? right) -> bool
@@ -880,6 +1229,40 @@ static OpenConnect.Client.Cloud.CloudTokenUsage.operator ==(OpenConnect.Client.C
 static OpenConnect.Client.Cloud.OpenConnectCloudServiceCollectionExtensions.AddOpenConnectCloud(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.Cloud.OpenConnectCloudOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.CreateTaskRequest.operator !=(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
 static OpenConnect.Client.CreateTaskRequest.operator ==(OpenConnect.Client.CreateTaskRequest? left, OpenConnect.Client.CreateTaskRequest? right) -> bool
+static OpenConnect.Client.Messaging.CompleteEnrollmentRequest.operator !=(OpenConnect.Client.Messaging.CompleteEnrollmentRequest? left, OpenConnect.Client.Messaging.CompleteEnrollmentRequest? right) -> bool
+static OpenConnect.Client.Messaging.CompleteEnrollmentRequest.operator ==(OpenConnect.Client.Messaging.CompleteEnrollmentRequest? left, OpenConnect.Client.Messaging.CompleteEnrollmentRequest? right) -> bool
+static OpenConnect.Client.Messaging.CreateMessagingCallRequest.operator !=(OpenConnect.Client.Messaging.CreateMessagingCallRequest? left, OpenConnect.Client.Messaging.CreateMessagingCallRequest? right) -> bool
+static OpenConnect.Client.Messaging.CreateMessagingCallRequest.operator ==(OpenConnect.Client.Messaging.CreateMessagingCallRequest? left, OpenConnect.Client.Messaging.CreateMessagingCallRequest? right) -> bool
+static OpenConnect.Client.Messaging.CreateMessagingConversationRequest.operator !=(OpenConnect.Client.Messaging.CreateMessagingConversationRequest? left, OpenConnect.Client.Messaging.CreateMessagingConversationRequest? right) -> bool
+static OpenConnect.Client.Messaging.CreateMessagingConversationRequest.operator ==(OpenConnect.Client.Messaging.CreateMessagingConversationRequest? left, OpenConnect.Client.Messaging.CreateMessagingConversationRequest? right) -> bool
+static OpenConnect.Client.Messaging.MessagingCompatibilityInfo.operator !=(OpenConnect.Client.Messaging.MessagingCompatibilityInfo? left, OpenConnect.Client.Messaging.MessagingCompatibilityInfo? right) -> bool
+static OpenConnect.Client.Messaging.MessagingCompatibilityInfo.operator ==(OpenConnect.Client.Messaging.MessagingCompatibilityInfo? left, OpenConnect.Client.Messaging.MessagingCompatibilityInfo? right) -> bool
+static OpenConnect.Client.Messaging.MessagingEventReplayResponse.operator !=(OpenConnect.Client.Messaging.MessagingEventReplayResponse? left, OpenConnect.Client.Messaging.MessagingEventReplayResponse? right) -> bool
+static OpenConnect.Client.Messaging.MessagingEventReplayResponse.operator ==(OpenConnect.Client.Messaging.MessagingEventReplayResponse? left, OpenConnect.Client.Messaging.MessagingEventReplayResponse? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileCredentials.operator !=(OpenConnect.Client.Messaging.MessagingProfileCredentials? left, OpenConnect.Client.Messaging.MessagingProfileCredentials? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileCredentials.operator ==(OpenConnect.Client.Messaging.MessagingProfileCredentials? left, OpenConnect.Client.Messaging.MessagingProfileCredentials? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileIdentity.ComputeStableProfileId(System.Uri! baseGatewayUrl, OpenConnect.Abstractions.TenantId tenantId, string! applicationId, string! issuer, string! subject, OpenConnect.Abstractions.Messaging.DeviceId deviceId, bool allowLoopbackHttp = false) -> string!
+static OpenConnect.Client.Messaging.MessagingProfileIdentity.Create(System.Uri! baseGatewayUrl, OpenConnect.Abstractions.TenantId tenantId, string! applicationId, string! issuer, string! subject, OpenConnect.Abstractions.Messaging.DeviceId deviceId, bool allowLoopbackHttp = false) -> OpenConnect.Client.Messaging.MessagingProfileIdentity!
+static OpenConnect.Client.Messaging.MessagingProfileIdentity.NormalizeGatewayUri(System.Uri! uri, bool allowLoopbackHttp = false) -> System.Uri!
+static OpenConnect.Client.Messaging.MessagingProfileIdentity.operator !=(OpenConnect.Client.Messaging.MessagingProfileIdentity? left, OpenConnect.Client.Messaging.MessagingProfileIdentity? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileIdentity.operator ==(OpenConnect.Client.Messaging.MessagingProfileIdentity? left, OpenConnect.Client.Messaging.MessagingProfileIdentity? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileRecord.operator !=(OpenConnect.Client.Messaging.MessagingProfileRecord? left, OpenConnect.Client.Messaging.MessagingProfileRecord? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileRecord.operator ==(OpenConnect.Client.Messaging.MessagingProfileRecord? left, OpenConnect.Client.Messaging.MessagingProfileRecord? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileSwitchResult.operator !=(OpenConnect.Client.Messaging.MessagingProfileSwitchResult? left, OpenConnect.Client.Messaging.MessagingProfileSwitchResult? right) -> bool
+static OpenConnect.Client.Messaging.MessagingProfileSwitchResult.operator ==(OpenConnect.Client.Messaging.MessagingProfileSwitchResult? left, OpenConnect.Client.Messaging.MessagingProfileSwitchResult? right) -> bool
+static OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator.ParseAndValidate(string! rawQrPayload, System.DateTimeOffset utcNow, bool allowLoopbackHttp = false) -> OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload!
+static OpenConnect.Client.Messaging.MessagingQrEnrollmentValidator.Validate(OpenConnect.Abstractions.Messaging.DeviceEnrollmentQrPayload! payload, System.DateTimeOffset utcNow, bool allowLoopbackHttp = false) -> void
+static OpenConnect.Client.Messaging.OpenConnectMessagingClientServiceCollectionExtensions.AddOpenConnectMessagingClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Client.Messaging.RecordMessageReceiptRequest.operator !=(OpenConnect.Client.Messaging.RecordMessageReceiptRequest? left, OpenConnect.Client.Messaging.RecordMessageReceiptRequest? right) -> bool
+static OpenConnect.Client.Messaging.RecordMessageReceiptRequest.operator ==(OpenConnect.Client.Messaging.RecordMessageReceiptRequest? left, OpenConnect.Client.Messaging.RecordMessageReceiptRequest? right) -> bool
+static OpenConnect.Client.Messaging.RedeemEnrollmentRequest.operator !=(OpenConnect.Client.Messaging.RedeemEnrollmentRequest? left, OpenConnect.Client.Messaging.RedeemEnrollmentRequest? right) -> bool
+static OpenConnect.Client.Messaging.RedeemEnrollmentRequest.operator ==(OpenConnect.Client.Messaging.RedeemEnrollmentRequest? left, OpenConnect.Client.Messaging.RedeemEnrollmentRequest? right) -> bool
+static OpenConnect.Client.Messaging.RefreshMobileTokenRequest.operator !=(OpenConnect.Client.Messaging.RefreshMobileTokenRequest? left, OpenConnect.Client.Messaging.RefreshMobileTokenRequest? right) -> bool
+static OpenConnect.Client.Messaging.RefreshMobileTokenRequest.operator ==(OpenConnect.Client.Messaging.RefreshMobileTokenRequest? left, OpenConnect.Client.Messaging.RefreshMobileTokenRequest? right) -> bool
+static OpenConnect.Client.Messaging.RegisterPushRequest.operator !=(OpenConnect.Client.Messaging.RegisterPushRequest? left, OpenConnect.Client.Messaging.RegisterPushRequest? right) -> bool
+static OpenConnect.Client.Messaging.RegisterPushRequest.operator ==(OpenConnect.Client.Messaging.RegisterPushRequest? left, OpenConnect.Client.Messaging.RegisterPushRequest? right) -> bool
+static OpenConnect.Client.Messaging.SendEncryptedMessageRequest.operator !=(OpenConnect.Client.Messaging.SendEncryptedMessageRequest? left, OpenConnect.Client.Messaging.SendEncryptedMessageRequest? right) -> bool
+static OpenConnect.Client.Messaging.SendEncryptedMessageRequest.operator ==(OpenConnect.Client.Messaging.SendEncryptedMessageRequest? left, OpenConnect.Client.Messaging.SendEncryptedMessageRequest? right) -> bool
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.OpenConnectClientOptions!>! configure) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Uri! baseAddress, System.Action<Microsoft.Extensions.DependencyInjection.IHttpClientBuilder!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Client.OpenConnectClientServiceCollectionExtensions.AddOpenConnectClientVad(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Client.ClientVadOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

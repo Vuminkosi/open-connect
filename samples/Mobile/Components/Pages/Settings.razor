@@ -1,0 +1,53 @@
+@page "/settings"
+@inject IMessagingProfileManager ProfileManager
+@inject IMobileNotificationService Notifications
+
+<section aria-label="Settings" style="max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+    <h1 style="margin: 0; font-size: 1.375rem; font-weight: 600;">Settings</h1>
+
+    <div style="padding: 16px; border: 1px solid var(--oc-mobile-border); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <strong>Push notifications</strong>
+        <p style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">
+            @Notifications.PushStatusReason
+        </p>
+        <MudButton Variant="Variant.Outlined" Style="min-height: 44px; align-self: flex-start;" OnClick="RequestNotificationsAsync">
+            Check notification permission
+        </MudButton>
+        @if (!string.IsNullOrWhiteSpace(_notificationStatus))
+        {
+            <span role="status" style="font-size: 0.8125rem;">@_notificationStatus</span>
+        }
+    </div>
+
+    <div style="padding: 16px; border: 1px solid var(--oc-mobile-border); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <strong>Active session</strong>
+        <p style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">
+            @(ProfileManager.ActiveProfile is not null
+                ? $"Signed in to {ProfileManager.ActiveProfile.CompanyDisplayName} ({ProfileManager.ActiveProfile.Identity.CanonicalOrigin})."
+                : "No active company profile.")
+        </p>
+        @if (ProfileManager.ActiveProfile is not null)
+        {
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       Style="min-height: 44px; align-self: flex-start;"
+                       OnClick="LogoutAsync">
+                Deactivate active profile
+            </MudButton>
+        }
+    </div>
+</section>
+
+@code {
+    private string? _notificationStatus;
+
+    private async Task RequestNotificationsAsync()
+    {
+        var granted = await Notifications.RequestNotificationPermissionAsync();
+        _notificationStatus = granted
+            ? "OS notification permission granted."
+            : "OS notification permission denied.";
+    }
+
+    private async Task LogoutAsync() => await ProfileManager.DeactivateCurrentProfileAsync();
+}

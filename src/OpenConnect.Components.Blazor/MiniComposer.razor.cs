@@ -88,6 +88,48 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// </summary>
     [Parameter] public bool EnableContinuousVoice { get; set; }
 
+    /// <summary>Opt-in Linked Devices entry point inside Composer Settings for desktop QR pairing.</summary>
+    [Parameter] public bool EnableLinkedDevices { get; set; }
+
+    /// <summary>Opt-in IMessaging inbox entry point inside Composer Settings.</summary>
+    [Parameter] public bool EnableMessaging { get; set; }
+
+    /// <summary>Invoked when the user opens Linked Devices from Composer Settings.</summary>
+    [Parameter] public EventCallback OnOpenLinkedDevices { get; set; }
+
+    /// <summary>Invoked when the user opens IMessaging from Composer Settings.</summary>
+    [Parameter] public EventCallback OnOpenMessaging { get; set; }
+
+    [CascadingParameter(Name = "MessagingProvider")] private Messaging.MessagingProvider? MessagingProvider { get; set; }
+
+    private int MessagingUnreadCount => MessagingProvider?.TotalUnreadCount ?? 0;
+
+    private async Task OpenLinkedDevicesAsync()
+    {
+        if (_settingsMenu is not null)
+        {
+            await _settingsMenu.CloseMenuAsync();
+        }
+
+        if (OnOpenLinkedDevices.HasDelegate)
+        {
+            await OnOpenLinkedDevices.InvokeAsync();
+        }
+    }
+
+    private async Task OpenMessagingAsync()
+    {
+        if (_settingsMenu is not null)
+        {
+            await _settingsMenu.CloseMenuAsync();
+        }
+
+        if (OnOpenMessaging.HasDelegate)
+        {
+            await OnOpenMessaging.InvokeAsync();
+        }
+    }
+
     private bool VoiceInputBlocked => VoiceInputChecking || VoiceInputAvailable == false;
 
     private string? ContinuousVoiceStatusLabel => (_duplexStatus ?? Session?.ContinuousVoiceStatus) switch

@@ -1,0 +1,80 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+@if (Notification is not null)
+{
+    <aside class="oc-msg-toast"
+           role="status"
+           aria-live="polite"
+           aria-label="@($"New message from {Notification.SenderDisplayName}")">
+        <div class="oc-msg-toast__body">
+            <div class="oc-msg-toast__header">
+                <span class="oc-msg-toast__sender">@Notification.SenderDisplayName</span>
+                <span class="oc-msg-toast__profile">@GetSecurityLabel(Notification.SecurityProfile)</span>
+            </div>
+            <p class="oc-msg-toast__summary">@Notification.SummaryText</p>
+        </div>
+        <div class="oc-msg-toast__actions">
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       Class="oc-msg-touch-target"
+                       OnClick="@(() => OnOpen.InvokeAsync(Notification.ConversationId))">
+                Open
+            </MudButton>
+            <MudIconButton Icon="@Icons.Material.Filled.Close"
+                           Size="Size.Small"
+                           Class="oc-msg-touch-target"
+                           aria-label="Dismiss notification"
+                           OnClick="@(() => OnDismiss.InvokeAsync(Notification.NotificationId))" />
+        </div>
+    </aside>
+}
+
+<style>
+    .oc-msg-toast {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 8px;
+        background-color: var(--mud-palette-surface, #ffffff);
+        color: var(--mud-palette-text-primary, #0f172a);
+    }
+    .oc-msg-toast__body { min-width: 0; flex: 1; }
+    .oc-msg-toast__header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .oc-msg-toast__sender { font-weight: 600; font-size: 0.875rem; }
+    .oc-msg-toast__profile {
+        font-size: 0.75rem;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-toast__summary {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--mud-palette-text-secondary, #475569);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .oc-msg-toast__actions { display: flex; align-items: center; gap: 4px; }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public MessagingToastNotification? Notification { get; set; }
+
+    [Parameter] public EventCallback<string> OnOpen { get; set; }
+
+    [Parameter] public EventCallback<string> OnDismiss { get; set; }
+
+    private static string GetSecurityLabel(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => "Private E2EE",
+        MessagingSecurityProfileKind.AgentE2EE => "Agent E2EE",
+        MessagingSecurityProfileKind.Governed => "Governed (not E2EE)",
+        _ => "Unknown"
+    };
+}

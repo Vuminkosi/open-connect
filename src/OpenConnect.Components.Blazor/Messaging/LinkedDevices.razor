@@ -1,0 +1,86 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+<section class="oc-msg-linked-devices" aria-label="Linked devices management">
+    <header class="oc-msg-linked-devices__header">
+        <div>
+            <h2 class="oc-msg-linked-devices__title">Linked devices</h2>
+            <p class="oc-msg-linked-devices__subtitle">
+                Manage mobile and desktop endpoints enrolled for @CompanyDisplayName.
+            </p>
+        </div>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.QrCode2"
+                   Class="oc-msg-touch-target"
+                   Disabled="@IsBusy"
+                   OnClick="OnStartPairing">
+            Link OpenConnect Mobile
+        </MudButton>
+    </header>
+
+    @if (ActivePairing is not null)
+    {
+        <PairingDialog Session="ActivePairing"
+                       IsBusy="IsBusy"
+                       UtcNow="UtcNow"
+                       OnConfirmApproval="OnConfirmPairing"
+                       OnDeny="OnDenyPairing"
+                       OnRegenerate="OnStartPairing"
+                       OnCancel="OnCancelPairing" />
+    }
+
+    <DeviceList Devices="Devices"
+                IsLoading="IsLoading"
+                IsRevoking="IsBusy"
+                ErrorMessage="@ErrorMessage"
+                OnRevoke="OnRevokeDevice"
+                OnRetry="OnRefresh" />
+</section>
+
+<style>
+    .oc-msg-linked-devices { display: flex; flex-direction: column; gap: 16px; }
+    .oc-msg-linked-devices__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+    .oc-msg-linked-devices__title { margin: 0; font-size: 1.125rem; font-weight: 600; }
+    .oc-msg-linked-devices__subtitle {
+        margin: 2px 0 0 0;
+        font-size: 0.8125rem;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public string CompanyDisplayName { get; set; } = "this workspace";
+
+    [Parameter] public IReadOnlyList<MessagingLinkedDeviceSummary>? Devices { get; set; }
+
+    [Parameter] public MessagingPairingSession? ActivePairing { get; set; }
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public bool IsBusy { get; set; }
+
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    [Parameter] public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+
+    [Parameter] public EventCallback OnStartPairing { get; set; }
+
+    [Parameter] public EventCallback<string> OnConfirmPairing { get; set; }
+
+    [Parameter] public EventCallback<string> OnDenyPairing { get; set; }
+
+    [Parameter] public EventCallback OnCancelPairing { get; set; }
+
+    [Parameter] public EventCallback<string> OnRevokeDevice { get; set; }
+
+    [Parameter] public EventCallback OnRefresh { get; set; }
+}
