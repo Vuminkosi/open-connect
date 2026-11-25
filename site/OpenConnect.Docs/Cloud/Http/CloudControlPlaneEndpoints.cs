@@ -64,6 +64,7 @@ public static class CloudControlPlaneEndpoints
         group.MapCloudEntitlementAdministrationEndpoints();
         group.MapCloudPrivacyObservationEndpoints(identityIssuer);
         group.MapCloudHostPrivacyObservationEndpoints(identityIssuer);
+        group.MapCloudSecurityEvidenceQueryEndpoints(identityIssuer);
         group.MapCloudPrivacyStatisticsEndpoints(identityIssuer);
         group.MapCloudDeploymentEndpoints();
         group.MapCloudTranslationDeploymentProfileEndpoints();

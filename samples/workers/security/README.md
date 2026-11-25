@@ -2,95 +2,111 @@
 
 ## Overview
 
-End-to-end sample and release gate for the OpenConnect **Security** worker (`WSE2E-IMP-008`, `WSE2E-IMP-009`, `WSE2E-REQ-021–026`, `WSE2E-AT-001–008`).
+End-to-end sample, OWASP CRS WAF harness, and release acceptance gate for the OpenConnect **Security** worker (`WSE2E-AT-001–008`, `FW-010–FW-110`, `AT-01–AT-17`).
 
 - **Production Dockerfile & Compose:** `workers/security/Dockerfile`, `workers/security/compose.yaml`
 - **Canonical Image Repository:** `vuminkosimatibe/openconnect-worker-security` (built locally as `vuminkosimatibe/openconnect-worker-security:e2e-local` during PR/CI runs)
-- **Named Model Cache Volume:** `oc_security_models` mounted at `/models:ro`
-- **Security Boundary:** The Python worker detects spans and labels only; it **never** authorizes requests or holds the .NET AES-GCM vault key. When a policy requires a detector that is disabled or unready, the .NET firewall fails closed with **zero outbound bytes** to external model or tool sinks.
+- **Named Persistent Volumes:** `oc_security_models` (model cache), `oc_clamav_db` (ClamAV signature database), `oc_clamav_run` (internal ClamAV Unix socket)
+- **Security Boundary:** The Python worker supplies untrusted detection observations only; the trusted .NET host owns identity, tenant authorization, AES-GCM vault keys, flattened PNG redaction, service fencing, and final enforcement.
 
-## Build & Compose Invocation
+## Third-Party Infrastructure Provenance & Licenses (FW-020 / FW-060)
+
+| Service | Pinned Image | License | Purpose & Isolation |
+|---|---|---|---|
+| `clamav` (`--profile malware`) | `clamav/clamav-debian:1.4` | GPL-2.0 | Private malware scanning daemon over `oc-test-private` / Unix socket. No public port. |
+| `waf` (`--profile waf`) | `owasp/modsecurity-crs:4.11-nginx-alpine` | Apache-2.0 | OWASP CRS 4.11 reverse proxy in blocking mode (`MODSEC_RULE_ENGINE=On`, `PARANOIA=1`), content-free JSON audit log (`MODSEC_AUDIT_LOG_PARTS=AZ`), SignalR/Blazor WebSocket preservation (`/_blazor`). |
+| `waf-backend` (`--profile waf`) | `python:3.12-alpine` | PSF-2.0 | Private demo route group (`/api/waf-demo/echo`, `/api/waf-demo/stats`, `/_blazor/negotiate`) attached **only** to `oc-test-private` with no published host ports (zero direct bypass). |
+
+## Build, Compose & Acceptance Invocation
 
 ```bash
-# 1. Verify no build-time model downloads
-sh ../shared/scripts/verify-no-build-models.sh
+# 1. Run offline contract, policy-negative, WAF config, evidence, and 12-scenario cache suite (AT-01..AT-17)
+python3 samples/workers/security/tests/test_e2e_acceptance.py
 
-# 2. Build local E2E image from production Dockerfile
-docker compose -f compose.e2e.yaml build --pull=false
+# 2. Validate Compose configuration (T0 static)
+sh samples/workers/shared/scripts/run-one.sh --worker security --tier t0
 
-# 3. Validate Compose configuration (T0 static)
-sh ../shared/scripts/run-one.sh --worker security --tier t0
+# 3. Start Security Worker + OWASP CRS WAF + private backend (isolated project)
+docker compose -p oc-security-hackathon -f samples/workers/security/compose.e2e.yaml --profile waf up -d --build
 
-# 4. Run offline contract, policy-negative, and 12-scenario cache suite (T1 contract)
-sh ../shared/scripts/run-one.sh --worker security --tier t1
+# 4. (Optional) Also start private ClamAV malware daemon
+docker compose -p oc-security-hackathon -f samples/workers/security/compose.e2e.yaml --profile waf --profile malware up -d
 
-# 5. Start container and verify bounded readiness (T2 image-startup)
-sh ../shared/scripts/run-one.sh --worker security --tier t2
+# 5. Run live acceptance checks against running WAF & Security Worker
+OC_LIVE_E2E=1 OC_WAF_BASE_URL=http://127.0.0.1:8088 python3 samples/workers/security/tests/test_e2e_acceptance.py
 
-# 6. Run live container request/response + fail-closed negative suite (T3 integration)
-sh ../shared/scripts/run-one.sh --worker security --tier t3
+# 6. Safe teardown (NEVER use `down -v` — preserves oc_security_models and oc_clamav_db)
+docker compose -p oc-security-hackathon -f samples/workers/security/compose.e2e.yaml down --remove-orphans
+```
+
+## Connecting `OpenConnect.Docs` Security Playground
+
+The authenticated Blazor **Security Playground** (`/cloud/tenants/{TenantId}/security/playground`, linked from `TenantSecurity.razor`) connects to real configured engines and reports `not_configured` or `unavailable` honestly when an engine is absent:
+
+```json
+{
+  "OpenConnect": {
+    "SecurityWorker": {
+      "Endpoint": "http://127.0.0.1:8080",
+      "BearerToken": "<set-via-secret-store-or-env>",
+      "RequireAuthenticatedTransport": true,
+      "AllowInsecureLoopbackHttpInDevelopment": true
+    },
+    "SecurityPlayground": {
+      "WafDemoBaseUrl": "http://127.0.0.1:8088",
+      "ApprovedServiceBaseUrl": "http://127.0.0.1:8088"
+    }
+  }
+}
 ```
 
 ## Environment Variables & Secrets Configuration
 
-Copy `../shared/env.example` to `.env` for local overrides (never commit real secrets):
-
 | Variable | Default (E2E) | Description |
 |---|---|---|
-| `PORT_SECURITY` | `8080` | Loopback-bound host port mapped to container `:8080` |
-| `OPENCONNECT_SCAN_TOKEN` | `e2e-test-token-do-not-use-in-prod` | Private bearer token authenticating gateway-to-worker requests |
-| `OC_WORKER_ENGINE` | `real` | Engine mode (`real` for rules-only or verified model; `fake` for CI stubs) |
-| `OC_MODEL_DEVICE` | `cpu` | Device selector (`auto`, `cpu`, `cuda`) |
+| `PORT_SECURITY` | `8080` | Loopback-bound host port mapped to Security Worker `:8080` |
+| `PORT_WAF` | `8088` | Loopback-bound host port mapped to OWASP CRS WAF proxy `:8080` |
+| `OPENCONNECT_SCAN_TOKEN` | `e2e-test-token-do-not-use-in-prod` | Private bearer token authenticating host-to-worker requests |
+| `OC_WORKER_ENGINE` | `real` | Engine mode (`real` for production/demo) |
+| `OC_MODEL_DEVICE` | `cpu` | Device selector (`cpu`, `auto`, `cuda`) |
 | `OC_MODEL_PROVISIONING` | `first-start-if-missing` | Startup model provisioning policy |
 | `OC_MODEL_CACHE_DIR` | `/models` | Path to mounted `oc_security_models` volume |
-| `OC_MODEL_OFFLINE` | `true` | Enforces zero outbound registry connections |
-| `OC_SECURITY_RULES_ENABLED` | `true` | Deterministic CPU regex/checksum detector (requires zero model weights) |
-| `OC_SECURITY_GLINER_ENABLED` | `false` | Optional semantic PII detector (requires pinned manifest & license) |
-| `OC_SECURITY_DEBERTA_ENABLED` | `false` | Optional prompt-injection detector (requires pinned manifest & license) |
-| `OC_SECURITY_QWEN3GUARD_ENABLED` | `false` | Optional safety classifier (requires pinned manifest & license) |
-| `OC_SECURITY_PADDLEOCR_ENABLED` | `false` | Optional image OCR detector (requires pinned manifest & license) |
-| `OC_SECURITY_YUNET_ENABLED` | `false` | Optional face bounding-box detector (requires pinned manifest & license) |
-
-## Expected Capabilities & Model Manifest Status
-
-- **`rules-only` mode (Default):** Advertises `["rules"]` at `GET /health/ready`. Requires **no** model checkpoints and makes **zero** model registry connections (`WSE2E-AT-001`–`004`: **PASS** in T1/T2/T3).
-- **Model-backed detectors (`gliner-pii`, `deberta-injection`, `qwen3guard`, `paddle-ocr`, `yunet`):** Disabled by default. Requesting an unprovisioned detector returns `HTTP 503 {"detail": "detector unavailable"}` so the host blocks external egress (`WSE2E-AT-005`: **NOT_RUN / BLOCKED** for T4 model-live until approved checkpoint manifests are mounted).
+| `OC_MODEL_OFFLINE` | `true` | Set `false` for first-start allowlisted model provisioning; `true` for offline verified startup |
+| `OC_SECURITY_RULES_ENABLED` | `true` | Deterministic CPU rules detector (zero weights) |
+| `OC_SECURITY_GLINER_ENABLED` | `false` | Optional semantic PII detector (`urchade/gliner_small-v2.1`) |
+| `OC_SECURITY_DEBERTA_ENABLED` | `false` | Optional prompt-injection detector (`protectai/deberta-v3-base-prompt-injection-v2`) |
+| `OC_SECURITY_PADDLEOCR_ENABLED` | `false` | Optional local OCR detector (`PaddlePaddle/PP-OCRv5_mobile`) |
+| `OC_SECURITY_YUNET_ENABLED` | `false` | Optional face-region detector (`opencv/face_detection_yunet`) |
+| `OC_SECURITY_MALWARE_ENABLED` | `false` | Optional ClamAV malware scanning via `OC_SECURITY_CLAMAV_SOCKET` |
 
 ## Fixtures (`fixtures/`)
 
-- `request.json` / `expected.json`: Baseline T1/T3 rules scan contract fixture.
-- `rules-pii.json`: Synthetic email, phone, and secret token spans with exact character offsets.
-- `unicode-normalization.json`: Combining marks, CJK/RTL prefixes, and multi-codepoint emoji offset alignment.
-- `overlap-priority.json`: Deterministic overlap priority resolution (`block > redact > mask > review > allow`).
-- `prompt-injection.json`: Direct and indirect prompt injection payloads requiring `deberta-injection` fail-closed handling.
-- `malicious-detector-output.json`: Compromised worker responses (`allow: true`, `grantedTools`, out-of-range/reversed spans) rejected by host schema/policy.
-- `face-and-ocr.png`: Synthetic PNG containing a face region, OCR text region, and a `tEXt` EXIF canary chunk to verify pixel/metadata scrubbing before egress.
-- `unsupported-image.bin`: Invalid binary container rejected before image decode.
-- `forged-token.json`: Cross-tenant and workload-identity vault token restoration negative cases.
-- `policy-coverage.yaml`: Declarative host privacy policy coverage matrix.
+- `request.json` / `expected.json`: Legacy `/scan` contract parity fixture (AT-01).
+- `rules-pii.json` & `unicode-normalization.json`: Synthetic PII and Unicode scalar offset alignment (AT-04).
+- `overlap-priority.json`: Deterministic overlap resolution (`block > redact > mask > review > allow`).
+- `prompt-injection.json`: Benign vs synthetic prompt-injection fixtures requiring fail-closed handling (AT-08).
+- `malicious-detector-output.json`: Compromised worker responses rejected by host schema/policy (AT-06).
+- `face-and-ocr.png` & `synthetic-customer-card.png`: Synthetic PNG fixtures with face-like/text-like regions and EXIF/tEXt canary chunk for flattened raster redaction verification (AT-05).
+- `unsupported-image.bin`: Malformed binary rejected before image decode (AT-06).
+- `clean-sample.txt`: Clean synthetic file fixture for malware gate verification; harmless EICAR test string is assembled dynamically in test code (AT-07).
+- `waf-cases.json`: Fixed benign, CRS SQLi/XSS block, and Blazor SignalR negotiate cases (AT-09).
+- `service-fencing-cases.json`: Approved service vs denied SSRF/metadata/userinfo/cross-tenant destinations (AT-10).
+- `evidence-isolation-cases.json`: `openconnect.security-evidence.v1` valid event + rejected raw PII/forged tenantId cases (AT-13).
+- `forged-token.json` & `policy-coverage.yaml`: Cross-tenant vault token negatives and declarative coverage matrix.
 
-## Offline Cache & Failure-Injection Commands
+## Acceptance Matrix Coverage (AT-01 – AT-17)
 
-```bash
-# Run the 12-scenario runtime model cache protocol (offline reuse, revision upgrade, rollback, corruption, lock)
-sh scripts/run-cache-matrix.sh
-
-# Inject missing-detector request (asserts HTTP 503 fail-closed)
-curl -i -X POST "http://127.0.0.1:${PORT_SECURITY:-8080}/scan" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}" \
-  -d '{"schemaVersion":"openconnect.v1","requestId":"123e4567-e89b-42d3-a456-426614174020","text":"test","detectors":["rules","gliner-pii"]}'
-```
-
-## Evidence Filenames & Safe Teardown
-
-- Evidence artifacts are written by `../shared/scripts/collect-evidence.sh` to `../shared/evidence/<stamp>/security.log` and `result.json` (`openconnect.samples.workers.evidence/v1`).
-- **Safe Teardown (preserves named volume `oc_security_models`):**
-  ```bash
-  docker compose -f compose.e2e.yaml down --remove-orphans
-  ```
-  Never use `docker compose down -v` in ordinary teardown so verified model caches and post-mortem volumes are preserved.
-
-## Production Differences
-
-In production (`workers/security/compose.yaml`), the container runs on an internal workload network with mTLS/secret-mounted bearer tokens, no host port published (`ports:` omitted), and `OC_ENVIRONMENT=Production`.
+| ID | Scenario | Automated Coverage |
+|---|---|---|
+| AT-01 | Legacy `/scan` + SDK registrations | `test_wse2e_at_001_rules_only_starts_with_zero_weights` |
+| AT-02 | Worker auth & truthful readiness | `test_wse2e_at_005_optional_detectors_report_truthful_readiness` |
+| AT-03 | Runtime model cache (12 scenarios) | `test_wse2e_at_008_runtime_model_cache_12_scenarios` |
+| AT-04 | Rules + Unicode offsets + semantic PII | `test_wse2e_at_003_rules_pii_unicode_offsets_and_encrypted_vault` |
+| AT-05 | Image privacy & metadata scrubbing | `test_wse2e_at_007_vault_tenant_isolation_and_image_pixel_exif_redaction` |
+| AT-06 | Invalid image / missing coverage fail-closed | `test_wse2e_at_004_missing_semantic_or_image_detector_fails_closed`, `test_wse2e_at_006_malicious_detector_output_and_overlap_priority` |
+| AT-07 | Malware clean / EICAR / digest binding | `test_at_07_malware_fixtures_and_digest_binding` |
+| AT-08 | Prompt injection fail-closed | `test_wse2e_at_002_fail_closed_blocks_external_sink_zero_bytes` |
+| AT-09 | OWASP CRS WAF blocking & Blazor preservation | `test_at_09_waf_crs_configuration_and_private_network_isolation`, `test_live_waf_and_worker_acceptance` |
+| AT-10 | Service fencing allow/deny/SSRF/tenant | `test_at_10_service_fencing_destination_policy` |
+| AT-13 | Evidence v1 schema & tenant isolation | `test_at_13_evidence_v1_schema_and_isolation_contract` |
+| AT-15/17 | Playground UI & Compose volume preservation | `test_at_15_and_17_playground_ui_and_deployment_invariants` |

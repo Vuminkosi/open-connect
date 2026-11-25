@@ -1,0 +1,583 @@
+@page "/cloud/tenants/{TenantId:guid}/security/playground"
+@attribute [Authorize]
+@layout Layout.CloudLayout
+@rendermode InteractiveServer
+@implements IDisposable
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Forms
+@using OpenConnect.Abstractions
+@using OpenConnect.Docs.Cloud
+@inject IServiceProvider Services
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IConfiguration Configuration
+@inject SecurityPlaygroundRuntimeService Playground
+@inject ILogger<TenantSecurityPlayground> Logger
+
+<PageTitle>Security Playground | OpenConnect Cloud</PageTitle>
+
+<h1>Security Playground</h1>
+<p>
+    <a href="@($"/cloud/tenants/{TenantId}/security")">Back to security observations</a>
+    ·
+    <a href="@($"/cloud/tenants/{TenantId}/security/host-reports")">Host privacy reports</a>
+</p>
+<p>
+    Every check below executes real host policy and configured security engines. Capabilities that are not configured or not ready report
+    <code>not_configured</code> or <code>unavailable</code> and fail closed; no results, counts, or latencies are fabricated.
+</p>
+
+@if (_authorizing)
+{
+    <p role="status">Checking organization security access…</p>
+}
+else if (_authError is not null)
+{
+    <p role="status">@_authError</p>
+}
+else
+{
+    <section class="playground-panel" aria-label="Capability health">
+        <div class="playground-panel-header">
+            <h2>1. Capability health</h2>
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="RefreshHealthAsync">Refresh health</button>
+        </div>
+        <p>Distinguishes <strong>Configured</strong> from <strong>Verified Ready</strong> and <strong>Enforcing</strong>.</p>
+        @if (_capabilities.Count == 0)
+        {
+            <p>No capability health snapshot loaded yet.</p>
+        }
+        else
+        {
+            <table class="playground-table">
+                <thead>
+                    <tr>
+                        <th>Capability</th>
+                        <th>Configured</th>
+                        <th>Runtime State</th>
+                        <th>Enforcement</th>
+                        <th>Version</th>
+                        <th>Last Check (UTC)</th>
+                        <th>Availability Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cap in _capabilities)
+                    {
+                        <tr>
+                            <td><strong>@cap.DisplayName</strong> (<code>@cap.CapabilityId</code>)</td>
+                            <td>@(cap.Configured ? "Yes" : "No")</td>
+                            <td><code>@cap.State</code></td>
+                            <td>@cap.EnforcementStatus</td>
+                            <td><code>@cap.Version</code></td>
+                            <td>@cap.CheckedAtUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td>@cap.AvailabilityReason</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="Image privacy">
+        <h2>2. Image privacy (OCR + face regions + flattened PNG redaction)</h2>
+        <p>Upload a synthetic PNG (max 10 MiB) or use the built-in synthetic card fixture. Original bytes stay in temporary local preview only, are cleared on tenant/identity switch, and are never persisted to Cloud evidence.</p>
+        <div class="playground-actions">
+            <InputFile OnChange="OnImageSelectedAsync" accept="image/png" disabled="@(!_interactive || _busy)" />
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="RunBuiltInSyntheticCardAsync">Inspect synthetic customer card</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy || _selectedImageBytes is null)" @onclick="RunUploadedImageAsync">Inspect &amp; redact selected PNG</button>
+            <button class="button" type="button" disabled="@(!_interactive || _selectedImageBytes is null && _imageResult is null)" @onclick="ClearImageBuffers">Clear local preview</button>
+        </div>
+        @if (_imageError is not null)
+        {
+            <p role="alert">@_imageError</p>
+        }
+        <div class="playground-image-grid">
+            @if (_originalPreviewDataUrl is not null)
+            {
+                <figure>
+                    <figcaption>Temporary local preview (never stored in Cloud)</figcaption>
+                    <img src="@_originalPreviewDataUrl" alt="Temporary local synthetic image preview" />
+                </figure>
+            }
+            @if (_redactedPreviewDataUrl is not null)
+            {
+                <figure>
+                    <figcaption>Flattened redacted RGB24 PNG (metadata stripped)</figcaption>
+                    <img src="@_redactedPreviewDataUrl" alt="Flattened redacted PNG output" />
+                    <p><a href="@_redactedPreviewDataUrl" download="redacted-output.png">Download sanitized PNG</a></p>
+                </figure>
+            }
+        </div>
+        @if (_imageResult is not null)
+        {
+            <dl class="playground-kv">
+                <dt>Status / Decision</dt><dd><code>@_imageResult.Status</code> / <code>@_imageResult.Decision</code></dd>
+                <dt>Reason</dt><dd><code>@_imageResult.ReasonCode</code></dd>
+                <dt>Dimensions</dt><dd>@_imageResult.Width × @_imageResult.Height px</dd>
+                <dt>Redacted regions</dt><dd>@_imageResult.RedactedRegionCount (metadata stripped: @_imageResult.MetadataStripped)</dd>
+                <dt>Category counts</dt><dd>@(FormatCounts(_imageResult.CategoryCounts))</dd>
+                <dt>Measured latency</dt><dd>@_imageResult.DurationMs ms</dd>
+                <dt>Evidence ID / Trace ID</dt><dd><code>@_imageResult.EventId</code> / <code>@_imageResult.TraceId</code></dd>
+            </dl>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="Malware scanning">
+        <h2>3. Malware scanning (ClamAV upload release gate)</h2>
+        <p>Compares a clean synthetic document fixture against the harmless EICAR standard antivirus test string. Release is blocked unless ClamAV returns a verified clean scan matching the SHA-256 digest.</p>
+        <div class="playground-actions">
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunMalwareAsync(false)">Scan clean fixture</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunMalwareAsync(true)">Scan harmless EICAR fixture</button>
+        </div>
+        @if (_malwareResult is not null)
+        {
+            <dl class="playground-kv">
+                <dt>Fixture</dt><dd>@_malwareResult.FixtureLabel</dd>
+                <dt>Malware status</dt><dd><code>@_malwareResult.MalwareStatus</code></dd>
+                <dt>Host decision / Outcome</dt><dd><code>@_malwareResult.Decision</code> / <code>@_malwareResult.EnforcementOutcome</code></dd>
+                <dt>Reason</dt><dd><code>@_malwareResult.ReasonCode</code></dd>
+                <dt>Signature version</dt><dd><code>@(_malwareResult.SignatureVersion ?? "unavailable")</code></dd>
+                <dt>Content SHA-256</dt><dd><code>@_malwareResult.ContentSha256</code></dd>
+                <dt>Measured latency</dt><dd>@_malwareResult.DurationMs ms</dd>
+                <dt>Evidence ID / Trace ID</dt><dd><code>@_malwareResult.EventId</code> / <code>@_malwareResult.TraceId</code></dd>
+            </dl>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="AI firewall">
+        <h2>4. AI firewall (Prompt injection &amp; rules boundary)</h2>
+        <p>Runs real host rules plus configured DeBERTa prompt-injection inspection. Fails closed when the injection detector is unavailable.</p>
+        <div class="playground-actions">
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunAiFirewallAsync(false)">Test benign prompt</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunAiFirewallAsync(true)">Test synthetic injection fixture</button>
+        </div>
+        @if (_aiFirewallResult is not null)
+        {
+            <dl class="playground-kv">
+                <dt>Fixture</dt><dd>@_aiFirewallResult.FixtureLabel</dd>
+                <dt>Rules detector</dt><dd><code>@_aiFirewallResult.RulesStatus</code> (matches: @_aiFirewallResult.RulesMatchCount)</dd>
+                <dt>Injection detector</dt><dd><code>@_aiFirewallResult.InjectionDetectorStatus</code> (@(_aiFirewallResult.InjectionLabel ?? "n/a"), score: @(_aiFirewallResult.InjectionScore?.ToString("F3", CultureInfo.InvariantCulture) ?? "n/a"))</dd>
+                <dt>Model revision</dt><dd><code>@(_aiFirewallResult.ModelRevision ?? "unavailable")</code></dd>
+                <dt>Host action / Outcome</dt><dd><code>@_aiFirewallResult.HostDecision</code> / <code>@_aiFirewallResult.EnforcementOutcome</code></dd>
+                <dt>Reason</dt><dd><code>@_aiFirewallResult.ReasonCode</code></dd>
+                <dt>Measured latency</dt><dd>@_aiFirewallResult.DurationMs ms</dd>
+                <dt>Evidence ID / Trace ID</dt><dd><code>@_aiFirewallResult.EventId</code> / <code>@_aiFirewallResult.TraceId</code></dd>
+            </dl>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="WAF ingress protection">
+        <h2>5. WAF (OWASP CRS protected demo route)</h2>
+        <p>Sends fixed benign or standard CRS attack fixtures strictly to the preconfigured protected demo route and compares the real backend hit counter before and after.</p>
+        <div class="playground-actions">
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunWafAsync(false)">Send benign request</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunWafAsync(true)">Send CRS-blocked fixture</button>
+        </div>
+        @if (_wafResult is not null)
+        {
+            <dl class="playground-kv">
+                <dt>Request</dt><dd>@_wafResult.RequestLabel</dd>
+                <dt>Configured</dt><dd>@(_wafResult.Configured ? "Yes" : "No (not_configured)")</dd>
+                <dt>HTTP status</dt><dd>@(_wafResult.HttpStatusCode?.ToString(CultureInfo.InvariantCulture) ?? "n/a") (blocked: @_wafResult.BlockedByWaf)</dd>
+                <dt>Backend hit counter</dt><dd>Before: @(_wafResult.BackendHitsBefore?.ToString(CultureInfo.InvariantCulture) ?? "n/a") → After: @(_wafResult.BackendHitsAfter?.ToString(CultureInfo.InvariantCulture) ?? "n/a")</dd>
+                <dt>Enforcement outcome</dt><dd><code>@_wafResult.EnforcementOutcome</code> (<code>@_wafResult.ReasonCode</code>)</dd>
+                <dt>Measured latency</dt><dd>@_wafResult.DurationMs ms</dd>
+                @if (_wafResult.EventId is { } wafEv)
+                {
+                    <dt>Evidence ID / Trace ID</dt><dd><code>@wafEv</code> / <code>@_wafResult.TraceId</code></dd>
+                }
+            </dl>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="Service fencing">
+        <h2>6. Service fencing (SDK-mediated destination policy)</h2>
+        <p>Tests a registered approved internal service against a denied cloud-metadata SSRF destination blocked before any socket opens.</p>
+        <div class="playground-actions">
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunServiceFencingAsync(false)">Call registered approved service</button>
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="() => RunServiceFencingAsync(true)">Attempt denied SSRF destination</button>
+        </div>
+        @if (_fencingResult is not null)
+        {
+            <dl class="playground-kv">
+                <dt>Target</dt><dd>@_fencingResult.TargetLabel (<code>@_fencingResult.DestinationHost</code>)</dd>
+                <dt>Decision / Outcome</dt><dd><code>@_fencingResult.Decision</code> / <code>@_fencingResult.EnforcementOutcome</code></dd>
+                <dt>Reason</dt><dd><code>@_fencingResult.ReasonCode</code></dd>
+                <dt>Downstream HTTP status</dt><dd>@(_fencingResult.DownstreamHttpStatus?.ToString(CultureInfo.InvariantCulture) ?? "none (blocked pre-connection)")</dd>
+                <dt>Downstream hit counter</dt><dd>@(_fencingResult.DownstreamHitCount?.ToString(CultureInfo.InvariantCulture) ?? "n/a")</dd>
+                <dt>Measured latency</dt><dd>@_fencingResult.DurationMs ms</dd>
+                <dt>Evidence ID / Trace ID</dt><dd><code>@_fencingResult.EventId</code> / <code>@_fencingResult.TraceId</code></dd>
+            </dl>
+        }
+    </section>
+
+    <section class="playground-panel" aria-label="Agent trace and security evidence feed">
+        <h2>7. Agent trace &amp; Security evidence feed</h2>
+        <p>Tenant-scoped <code>openconnect.security-evidence.v1</code> events with trace correlation, safe reason codes, and measured duration. Empty until real enforcement events occur.</p>
+        <div class="playground-filter">
+            <label for="ev-cap">Capability</label>
+            <select id="ev-cap" @bind="_filterCapability" disabled="@(!_interactive || _busy)">
+                <option value="">All capabilities</option>
+                <option value="pii">pii</option>
+                <option value="image-privacy">image-privacy</option>
+                <option value="malware">malware</option>
+                <option value="prompt-injection">prompt-injection</option>
+                <option value="waf">waf</option>
+                <option value="service-fencing">service-fencing</option>
+                <option value="agent-tool">agent-tool</option>
+            </select>
+            <label for="ev-outcome">Outcome</label>
+            <select id="ev-outcome" @bind="_filterOutcome" disabled="@(!_interactive || _busy)">
+                <option value="">All outcomes</option>
+                <option value="executed">executed</option>
+                <option value="prevented">prevented</option>
+                <option value="not_executed">not_executed</option>
+                <option value="unknown">unknown</option>
+            </select>
+            <label for="ev-from">From (UTC)</label>
+            <input id="ev-from" type="date" value="@_filterFrom" @onchange="e => _filterFrom = e.Value?.ToString()" disabled="@(!_interactive || _busy)" />
+            <label for="ev-to">Through (UTC)</label>
+            <input id="ev-to" type="date" value="@_filterTo" @onchange="e => _filterTo = e.Value?.ToString()" disabled="@(!_interactive || _busy)" />
+            <button class="button" type="button" disabled="@(!_interactive || _busy)" @onclick="RefreshEvidenceAsync">Filter feed</button>
+        </div>
+
+        @if (_evidencePage is null || _evidencePage.Events.Count == 0)
+        {
+            <p>No security evidence events recorded for this tenant matching the current filter.</p>
+        }
+        else
+        {
+            <div class="playground-feed">
+                @foreach (var ev in _evidencePage.Events)
+                {
+                    <article class="security-observation">
+                        <h3>@ev.Capability — @ev.Decision (@ev.EnforcementOutcome)</h3>
+                        <dl class="playground-kv">
+                            <dt>Event ID</dt><dd><code>@ev.EventId</code></dd>
+                            <dt>Occurred at (UTC)</dt><dd>@ev.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                            <dt>Boundary</dt><dd>@ev.Boundary</dd>
+                            <dt>Detector</dt><dd>@ev.DetectorId (<code>@ev.DetectorVersion</code>)</dd>
+                            <dt>Policy revision</dt><dd><code>@ev.PolicyRevision</code></dd>
+                            <dt>Inspection status</dt><dd><code>@ev.InspectionStatus</code></dd>
+                            <dt>Reason</dt><dd><code>@ev.ReasonCode</code></dd>
+                            <dt>Categories</dt><dd>@FormatCounts(ev.CategoryCounts)</dd>
+                            <dt>Duration</dt><dd>@ev.DurationMs ms</dd>
+                            <dt>Request ID / Trace ID</dt><dd><code>@ev.RequestId</code> / <code>@(ev.TraceId ?? "n/a")</code></dd>
+                            <dt>Integrity digest</dt><dd><code>@ev.IntegrityDigest</code></dd>
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private const long MaxUploadBytes = 10 * 1024 * 1024;
+    [Parameter] public Guid TenantId { get; set; }
+
+    private bool _interactive, _authorizing = true, _busy, _disposed;
+    private string? _authError;
+    private int _generation;
+    private CancellationTokenSource? _workCts;
+    private CloudSubject? _authorizedSubject;
+
+    private IReadOnlyList<PlaygroundCapabilityRow> _capabilities = [];
+    private byte[]? _selectedImageBytes;
+    private string? _originalPreviewDataUrl;
+    private string? _redactedPreviewDataUrl;
+    private string? _imageError;
+    private PlaygroundImageResult? _imageResult;
+    private PlaygroundMalwareResult? _malwareResult;
+    private PlaygroundAiFirewallResult? _aiFirewallResult;
+    private PlaygroundWafResult? _wafResult;
+    private PlaygroundServiceFencingResult? _fencingResult;
+    private CloudSecurityEvidencePage? _evidencePage;
+
+    private string _filterCapability = string.Empty;
+    private string _filterOutcome = string.Empty;
+    private string? _filterFrom;
+    private string? _filterTo;
+
+    protected override void OnInitialized()
+        => AuthenticationStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interactive = true;
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Clear previews, cancel in-flight work, and re-authorize on every tenant change.
+        ResetTransientState();
+        await AuthorizeAndLoadAsync();
+    }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            ResetTransientState();
+            _authorizing = false;
+            _authError = "Your identity changed. Reopen the Security Playground to re-verify access.";
+            StateHasChanged();
+        });
+    }
+
+    private void ResetTransientState()
+    {
+        ++_generation;
+        CancelPendingWork();
+        ClearImageBuffers();
+        _capabilities = [];
+        _malwareResult = null;
+        _aiFirewallResult = null;
+        _wafResult = null;
+        _fencingResult = null;
+        _evidencePage = null;
+        _authorizedSubject = null;
+    }
+
+    private void CancelPendingWork()
+    {
+        try { _workCts?.Cancel(); } catch { }
+        _workCts?.Dispose();
+        _workCts = null;
+    }
+
+    private void ClearImageBuffers()
+    {
+        if (_selectedImageBytes is not null)
+        {
+            Array.Clear(_selectedImageBytes);
+            _selectedImageBytes = null;
+        }
+        _originalPreviewDataUrl = null;
+        _redactedPreviewDataUrl = null;
+        _imageError = null;
+        _imageResult = null;
+    }
+
+    private async Task AuthorizeAndLoadAsync()
+    {
+        var generation = _generation;
+        _authorizing = true;
+        _authError = null;
+        try
+        {
+            var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var identitySection = Configuration.GetSection("OpenConnect:Cloud:Identity");
+            var subject = CloudIdentity.IsEnabled(auth.User, identitySection)
+                ? CloudSubjectResolver.FromPrincipal(auth.User, identitySection["Authority"])
+                : null;
+
+            var queryService = Services.GetService(typeof(CloudSecurityEvidenceQueryService)) as CloudSecurityEvidenceQueryService;
+            if (subject is null)
+            {
+                _authError = "The authenticated identity is missing a valid Cloud subject.";
+                return;
+            }
+
+            if (queryService is null || !await queryService.IsAuthorizedForTenantAsync(subject, TenantId, CancellationToken.None))
+            {
+                _authError = "The organization was not found or your role does not allow Security Playground access.";
+                return;
+            }
+
+            if (generation != _generation) return;
+            _authorizedSubject = subject;
+            await RefreshHealthAsync();
+            await RefreshEvidenceAsync();
+        }
+        catch (Exception)
+        {
+            if (generation != _generation) return;
+            Logger.LogWarning("Security Playground authorization or initial load failed.");
+            _authError = "Security Playground is temporarily unavailable.";
+        }
+        finally
+        {
+            if (generation == _generation) _authorizing = false;
+        }
+    }
+
+    private async Task RefreshHealthAsync()
+    {
+        await RunGuardedAsync(async ct =>
+        {
+            _capabilities = await Playground.GetCapabilityHealthAsync(ct);
+        });
+    }
+
+    private async Task OnImageSelectedAsync(InputFileChangeEventArgs e)
+    {
+        ClearImageBuffers();
+        var file = e.File;
+        if (file.Size <= 0 || file.Size > MaxUploadBytes)
+        {
+            _imageError = "Image must be a PNG between 1 byte and 10 MiB.";
+            return;
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxUploadBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            if (bytes.Length < 8 || bytes[0] != 137 || bytes[1] != 80 || bytes[2] != 78 || bytes[3] != 71)
+            {
+                _imageError = "Unsupported image format. Only PNG images are accepted.";
+                return;
+            }
+            _selectedImageBytes = bytes;
+            _originalPreviewDataUrl = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+        }
+        catch (Exception)
+        {
+            _imageError = "Failed to read the selected PNG file.";
+        }
+    }
+
+    private async Task RunBuiltInSyntheticCardAsync()
+    {
+        ClearImageBuffers();
+        var bytes = SecurityPlaygroundRuntimeService.BuildSyntheticCustomerCardPng();
+        _selectedImageBytes = bytes;
+        _originalPreviewDataUrl = $"data:image/png;base64,{Convert.ToBase64String(bytes)}";
+        await RunUploadedImageAsync();
+    }
+
+    private async Task RunUploadedImageAsync()
+    {
+        if (_selectedImageBytes is null) return;
+        var bytesCopy = _selectedImageBytes.ToArray();
+        await RunGuardedAsync(async ct =>
+        {
+            _imageError = null;
+            _redactedPreviewDataUrl = null;
+            _imageResult = await Playground.RunImagePrivacyAsync(TenantId, bytesCopy, ct);
+            if (_imageResult.Succeeded && _imageResult.RedactedPngBytes is { Length: > 0 })
+            {
+                _redactedPreviewDataUrl = $"data:image/png;base64,{Convert.ToBase64String(_imageResult.RedactedPngBytes)}";
+            }
+            await RefreshEvidenceInternalAsync(ct);
+        });
+    }
+
+    private async Task RunMalwareAsync(bool useEicar)
+    {
+        await RunGuardedAsync(async ct =>
+        {
+            _malwareResult = await Playground.RunMalwareScanAsync(TenantId, useEicar, ct);
+            await RefreshEvidenceInternalAsync(ct);
+        });
+    }
+
+    private async Task RunAiFirewallAsync(bool useInjection)
+    {
+        await RunGuardedAsync(async ct =>
+        {
+            _aiFirewallResult = await Playground.RunAiFirewallAsync(TenantId, useInjection, ct);
+            await RefreshEvidenceInternalAsync(ct);
+        });
+    }
+
+    private async Task RunWafAsync(bool sendAttack)
+    {
+        await RunGuardedAsync(async ct =>
+        {
+            _wafResult = await Playground.RunWafCheckAsync(TenantId, sendAttack, ct);
+            await RefreshEvidenceInternalAsync(ct);
+        });
+    }
+
+    private async Task RunServiceFencingAsync(bool useDeniedTarget)
+    {
+        await RunGuardedAsync(async ct =>
+        {
+            _fencingResult = await Playground.RunServiceFencingCheckAsync(TenantId, useDeniedTarget, ct);
+            await RefreshEvidenceInternalAsync(ct);
+        });
+    }
+
+    private async Task RefreshEvidenceAsync()
+    {
+        await RunGuardedAsync(RefreshEvidenceInternalAsync);
+    }
+
+    private async Task RefreshEvidenceInternalAsync(CancellationToken ct)
+    {
+        if (_authorizedSubject is null) return;
+        var queryService = Services.GetService(typeof(CloudSecurityEvidenceQueryService)) as CloudSecurityEvidenceQueryService;
+        if (queryService is null) return;
+
+        SecurityEnforcementOutcome? outcome = _filterOutcome switch
+        {
+            "executed" => SecurityEnforcementOutcome.Executed,
+            "prevented" => SecurityEnforcementOutcome.Prevented,
+            "not_executed" => SecurityEnforcementOutcome.NotExecuted,
+            "unknown" => SecurityEnforcementOutcome.Unknown,
+            _ => null,
+        };
+        DateTimeOffset? fromUtc = DateOnly.TryParseExact(_filterFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var f)
+            ? new DateTimeOffset(f.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc))
+            : null;
+        DateTimeOffset? toUtc = DateOnly.TryParseExact(_filterTo, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) && t < DateOnly.MaxValue
+            ? new DateTimeOffset(t.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc))
+            : null;
+
+        var filter = new CloudSecurityEvidenceFilter(
+            Capability: string.IsNullOrWhiteSpace(_filterCapability) ? null : _filterCapability,
+            Outcome: outcome,
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Take: 50);
+
+        _evidencePage = await queryService.QueryTenantAsync(_authorizedSubject, TenantId, filter, ct);
+    }
+
+    private async Task RunGuardedAsync(Func<CancellationToken, Task> action)
+    {
+        if (_authorizedSubject is null) return;
+        var generation = _generation;
+        CancelPendingWork();
+        _workCts = new CancellationTokenSource();
+        var ct = _workCts.Token;
+        _busy = true;
+        try
+        {
+            await action(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected on tenant switch or component disposal.
+        }
+        finally
+        {
+            if (generation == _generation)
+            {
+                _busy = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private static string FormatCounts(IReadOnlyDictionary<string, int> counts)
+        => counts.Count == 0
+            ? "None"
+            : string.Join(", ", counts.Select(kv => $"{kv.Key}: {kv.Value}"));
+
+    public void Dispose()
+    {
+        _disposed = true;
+        AuthenticationStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        ResetTransientState();
+    }
+}

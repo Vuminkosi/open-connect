@@ -1,3 +1,4 @@
+using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using OpenConnect.Privacy.Rules;
+using OpenConnect.Privacy.Worker;
 
 var builder = WebApplication.CreateBuilder(args);
 var gatewayTrustSection = builder.Configuration.GetSection("OpenConnect:Cloud:GatewayTrust");
@@ -90,6 +92,25 @@ builder.Services.AddAntiforgery(options =>
 });
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<CloudOperatorAccess>();
+builder.Services.AddSingleton<ICloudSecurityEvidenceStore, CloudSecurityEvidenceStore>();
+builder.Services.AddSingleton<ISecurityEvidenceSink>(sp => sp.GetRequiredService<ICloudSecurityEvidenceStore>());
+builder.Services.AddSingleton<SecurityPlaygroundDemoCounters>();
+var securityWorkerSection = builder.Configuration.GetSection("OpenConnect:SecurityWorker");
+var securityWorkerEndpointRaw = securityWorkerSection["Endpoint"];
+if (Uri.TryCreate(securityWorkerEndpointRaw, UriKind.Absolute, out var securityWorkerEndpoint))
+{
+    var workerClientOptions = new SecurityWorkerClientOptions
+    {
+        Endpoint = securityWorkerEndpoint,
+        BearerToken = securityWorkerSection["BearerToken"],
+        RequireAuthenticatedTransport = securityWorkerSection.GetValue("RequireAuthenticatedTransport", true),
+        AllowInsecureLoopbackHttpInDevelopment = securityWorkerSection.GetValue("AllowInsecureLoopbackHttpInDevelopment", false),
+    };
+    builder.Services.AddSingleton<ISecurityWorkerClient>(sp =>
+        new HttpSecurityWorkerClient(workerClientOptions, timeProvider: sp.GetRequiredService<TimeProvider>()));
+}
+builder.Services.AddScoped<CloudSecurityEvidenceQueryService>();
+builder.Services.AddSingleton<SecurityPlaygroundRuntimeService>();
 
 var cloudOidc = builder.Configuration.GetSection("OpenConnect:Cloud:Identity");
 var cloudIdentityEnabled = cloudOidc.GetValue<bool>("Enabled");
@@ -314,7 +335,11 @@ if (gatewayTrust is not null)
     app.MapCloudClassificationCompletion(gatewayTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
 }
 if (hostPrivacyTrust is not null)
+{
     app.MapCloudHostPrivacyEvidence(hostPrivacyTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+    app.MapCloudSecurityEvidenceIngestion(hostPrivacyTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
+}
+app.MapSecurityPlaygroundDemoEndpoints();
 if (workerTrust is not null)
 {
     app.MapCloudClassificationConsumption(workerTrust, !string.IsNullOrWhiteSpace(cloudDatabaseConnection));
