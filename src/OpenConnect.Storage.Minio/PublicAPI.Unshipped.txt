@@ -1,7 +1,46 @@
 #nullable enable
 OpenConnect.Storage.Minio.ClamAvScanner
+OpenConnect.Storage.Minio.ClamAvScanner.ClamAvScanner(string! host, int port, System.TimeSpan timeout) -> void
 OpenConnect.Storage.Minio.ClamAvScanner.ClamAvScanner(string! socketPath, System.TimeSpan timeout) -> void
 OpenConnect.Storage.Minio.ClamAvScanner.ScanAsync(System.ReadOnlyMemory<byte> content, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+OpenConnect.Storage.Minio.ClamAvScanner.ScanWithReceiptAsync(System.ReadOnlyMemory<byte> content, string! policyRevision, System.TimeSpan receiptTtl, string? requestId = null, System.TimeProvider? timeProvider = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Storage.Minio.MalwareScanReceipt!>!
+OpenConnect.Storage.Minio.MalwareScanReceipt
+OpenConnect.Storage.Minio.MalwareScanReceipt.<Clone>$() -> OpenConnect.Storage.Minio.MalwareScanReceipt!
+OpenConnect.Storage.Minio.MalwareScanReceipt.Deconstruct(out string! RequestId, out OpenConnect.Storage.Minio.MalwareScanStatus Status, out string! Sha256, out int SizeBytes, out string! EngineId, out string? SignatureVersion, out string! PolicyRevision, out string! ReasonCode, out System.DateTimeOffset ScannedAt, out System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.EngineId.get -> string!
+OpenConnect.Storage.Minio.MalwareScanReceipt.EngineId.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.Equals(OpenConnect.Storage.Minio.MalwareScanReceipt? other) -> bool
+OpenConnect.Storage.Minio.MalwareScanReceipt.ExpiresAt.get -> System.DateTimeOffset
+OpenConnect.Storage.Minio.MalwareScanReceipt.ExpiresAt.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.MalwareScanReceipt(string! RequestId, OpenConnect.Storage.Minio.MalwareScanStatus Status, string! Sha256, int SizeBytes, string! EngineId, string? SignatureVersion, string! PolicyRevision, string! ReasonCode, System.DateTimeOffset ScannedAt, System.DateTimeOffset ExpiresAt) -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.PolicyRevision.get -> string!
+OpenConnect.Storage.Minio.MalwareScanReceipt.PolicyRevision.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.ReasonCode.get -> string!
+OpenConnect.Storage.Minio.MalwareScanReceipt.ReasonCode.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.RequestId.get -> string!
+OpenConnect.Storage.Minio.MalwareScanReceipt.RequestId.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.ScannedAt.get -> System.DateTimeOffset
+OpenConnect.Storage.Minio.MalwareScanReceipt.ScannedAt.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.Sha256.get -> string!
+OpenConnect.Storage.Minio.MalwareScanReceipt.Sha256.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.SignatureVersion.get -> string?
+OpenConnect.Storage.Minio.MalwareScanReceipt.SignatureVersion.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.SizeBytes.get -> int
+OpenConnect.Storage.Minio.MalwareScanReceipt.SizeBytes.init -> void
+OpenConnect.Storage.Minio.MalwareScanReceipt.Status.get -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanReceipt.Status.init -> void
+OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanStatus.Clean = 0 -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanStatus.Detected = 1 -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanStatus.LimitExceeded = 4 -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanStatus.Unavailable = 2 -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareScanStatus.Unsupported = 3 -> OpenConnect.Storage.Minio.MalwareScanStatus
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate.EvaluateRelease(string! tenantId, System.ReadOnlyMemory<byte> content, OpenConnect.Storage.Minio.MalwareScanReceipt? receipt, string! expectedPolicyRevision, bool quarantineOnDetection = false) -> OpenConnect.Storage.Minio.UploadReleaseDecision!
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate.MalwareUploadReleaseGate(OpenConnect.Storage.Minio.ClamAvScanner! scanner) -> void
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate.MalwareUploadReleaseGate(System.Func<System.ReadOnlyMemory<byte>, string!, System.Threading.CancellationToken, System.Threading.Tasks.Task<OpenConnect.Storage.Minio.MalwareScanReceipt!>!>! scanAsync, System.TimeSpan? maxReceiptAge = null, System.TimeProvider? timeProvider = null, string! requiredEngineId = "clamav", int maximumBytes = 20971520) -> void
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate.ScanAndEvaluateReleaseAsync(string! tenantId, System.ReadOnlyMemory<byte> content, string! policyRevision, bool quarantineOnDetection = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Storage.Minio.UploadReleaseDecision!>!
+OpenConnect.Storage.Minio.MalwareUploadReleaseGate.ValidateOrRescanAsync(string! tenantId, System.ReadOnlyMemory<byte> content, OpenConnect.Storage.Minio.MalwareScanReceipt? existingReceipt, string! policyRevision, bool quarantineOnDetection = false, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Storage.Minio.UploadReleaseDecision!>!
 OpenConnect.Storage.Minio.MinioDocumentDeleter
 OpenConnect.Storage.Minio.MinioDocumentDeleter.DeleteVersionAsync(string! tenantId, string! objectId, string! versionId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 OpenConnect.Storage.Minio.MinioDocumentDeleter.MinioDocumentDeleter(Minio.IMinioClient! client, string! bucket, System.Func<string!, string!, string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<bool>>! authorizeDeletion) -> void
@@ -16,3 +55,39 @@ OpenConnect.Storage.Minio.MinioDocumentWriter.StoreAsync(string! tenantId, Syste
 OpenConnect.Storage.Minio.MinioVersionedObjectReader
 OpenConnect.Storage.Minio.MinioVersionedObjectReader.MinioVersionedObjectReader(Minio.IMinioClient! client, string! bucket) -> void
 OpenConnect.Storage.Minio.MinioVersionedObjectReader.OpenVersionAsync(string! objectKey, string! version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.IO.Stream!>!
+OpenConnect.Storage.Minio.UploadReleaseDecision
+OpenConnect.Storage.Minio.UploadReleaseDecision.<Clone>$() -> OpenConnect.Storage.Minio.UploadReleaseDecision!
+OpenConnect.Storage.Minio.UploadReleaseDecision.DecidedAt.get -> System.DateTimeOffset
+OpenConnect.Storage.Minio.UploadReleaseDecision.DecidedAt.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.Deconstruct(out OpenConnect.Storage.Minio.UploadReleaseState State, out string! TenantId, out string! Sha256, out int SizeBytes, out string! PolicyRevision, out string! ReasonCode, out OpenConnect.Storage.Minio.MalwareScanReceipt? Receipt, out System.DateTimeOffset DecidedAt) -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.Equals(OpenConnect.Storage.Minio.UploadReleaseDecision? other) -> bool
+OpenConnect.Storage.Minio.UploadReleaseDecision.PolicyRevision.get -> string!
+OpenConnect.Storage.Minio.UploadReleaseDecision.PolicyRevision.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.ReasonCode.get -> string!
+OpenConnect.Storage.Minio.UploadReleaseDecision.ReasonCode.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.Receipt.get -> OpenConnect.Storage.Minio.MalwareScanReceipt?
+OpenConnect.Storage.Minio.UploadReleaseDecision.Receipt.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.Sha256.get -> string!
+OpenConnect.Storage.Minio.UploadReleaseDecision.Sha256.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.SizeBytes.get -> int
+OpenConnect.Storage.Minio.UploadReleaseDecision.SizeBytes.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.State.get -> OpenConnect.Storage.Minio.UploadReleaseState
+OpenConnect.Storage.Minio.UploadReleaseDecision.State.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.TenantId.get -> string!
+OpenConnect.Storage.Minio.UploadReleaseDecision.TenantId.init -> void
+OpenConnect.Storage.Minio.UploadReleaseDecision.UploadReleaseDecision(OpenConnect.Storage.Minio.UploadReleaseState State, string! TenantId, string! Sha256, int SizeBytes, string! PolicyRevision, string! ReasonCode, OpenConnect.Storage.Minio.MalwareScanReceipt? Receipt, System.DateTimeOffset DecidedAt) -> void
+OpenConnect.Storage.Minio.UploadReleaseState
+OpenConnect.Storage.Minio.UploadReleaseState.Pending = 0 -> OpenConnect.Storage.Minio.UploadReleaseState
+OpenConnect.Storage.Minio.UploadReleaseState.Quarantined = 2 -> OpenConnect.Storage.Minio.UploadReleaseState
+OpenConnect.Storage.Minio.UploadReleaseState.Rejected = 3 -> OpenConnect.Storage.Minio.UploadReleaseState
+OpenConnect.Storage.Minio.UploadReleaseState.Released = 1 -> OpenConnect.Storage.Minio.UploadReleaseState
+override OpenConnect.Storage.Minio.MalwareScanReceipt.Equals(object? obj) -> bool
+override OpenConnect.Storage.Minio.MalwareScanReceipt.GetHashCode() -> int
+override OpenConnect.Storage.Minio.MalwareScanReceipt.ToString() -> string!
+override OpenConnect.Storage.Minio.UploadReleaseDecision.Equals(object? obj) -> bool
+override OpenConnect.Storage.Minio.UploadReleaseDecision.GetHashCode() -> int
+override OpenConnect.Storage.Minio.UploadReleaseDecision.ToString() -> string!
+static OpenConnect.Storage.Minio.MalwareScanReceipt.operator !=(OpenConnect.Storage.Minio.MalwareScanReceipt? left, OpenConnect.Storage.Minio.MalwareScanReceipt? right) -> bool
+static OpenConnect.Storage.Minio.MalwareScanReceipt.operator ==(OpenConnect.Storage.Minio.MalwareScanReceipt? left, OpenConnect.Storage.Minio.MalwareScanReceipt? right) -> bool
+static OpenConnect.Storage.Minio.UploadReleaseDecision.operator !=(OpenConnect.Storage.Minio.UploadReleaseDecision? left, OpenConnect.Storage.Minio.UploadReleaseDecision? right) -> bool
+static OpenConnect.Storage.Minio.UploadReleaseDecision.operator ==(OpenConnect.Storage.Minio.UploadReleaseDecision? left, OpenConnect.Storage.Minio.UploadReleaseDecision? right) -> bool

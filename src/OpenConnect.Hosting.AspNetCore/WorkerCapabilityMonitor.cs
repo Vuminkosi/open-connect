@@ -9,6 +9,7 @@ namespace OpenConnect.Hosting.AspNetCore;
 /// <summary>Protected worker endpoint and exclusively owned logical capability IDs.</summary>
 public sealed class WorkerCapabilitySource
 {
+    internal const int MaxCapabilityIdsPerSource = 16;
     internal readonly string Endpoint;
     internal readonly string Token;
     internal readonly HashSet<string> Ids;
@@ -20,7 +21,7 @@ public sealed class WorkerCapabilitySource
     {
         ArgumentNullException.ThrowIfNull(capabilityIds);
         if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace) ||
-            capabilityIds.Count is < 1 or > 8) throw new ArgumentException("Invalid capability source.");
+            capabilityIds.Count is < 1 or > MaxCapabilityIdsPerSource) throw new ArgumentException("Invalid capability source.");
         var snapshot = capabilityIds.ToArray();
         var ids = snapshot.ToHashSet(StringComparer.Ordinal);
         if (ids.Count != snapshot.Length || (inference && (ids.Count != 1 || !ids.Contains("documents.extract"))))
@@ -40,6 +41,7 @@ public sealed class WorkerCapabilitySource
 /// <summary>Polls configured private workers and leases only their verified ready capabilities.</summary>
 public sealed class WorkerCapabilityMonitor : BackgroundService
 {
+    internal const int MaxSources = 16;
     private readonly ICapabilityRegistry _registry;
     private readonly (WorkerCapabilitySource Source, HttpClient Client)[] _sources;
     private readonly TimeSpan _interval;
@@ -59,7 +61,7 @@ public sealed class WorkerCapabilityMonitor : BackgroundService
     {
         ArgumentNullException.ThrowIfNull(registry); ArgumentNullException.ThrowIfNull(sources); ArgumentNullException.ThrowIfNull(createClient);
         var snapshot = sources.ToArray();
-        if (snapshot.Length is < 1 or > 8 || snapshot.Any(source => source is null)) throw new ArgumentException("Invalid capability sources.");
+        if (snapshot.Length is < 1 or > MaxSources || snapshot.Any(source => source is null)) throw new ArgumentException("Invalid capability sources.");
         var ids = snapshot.SelectMany(source => source.Ids).ToArray();
         if (ids.Distinct(StringComparer.Ordinal).Count() != ids.Length || ids.Any(id => registry.Get(new CapabilityId(id)) is not null))
             throw new ArgumentException("Capability source IDs must have exclusive ownership.");

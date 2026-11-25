@@ -17,7 +17,15 @@ internal static class WorkerCapabilityResponseParser
             ["knowledge.index"] = ("tool", CapabilityKind.Tool),
             ["vision.analyze"] = ("image", CapabilityKind.Model),
             ["vision.embed"] = ("image", CapabilityKind.Model),
-            ["analytics.analyze"] = ("tool", CapabilityKind.Tool)
+            ["analytics.analyze"] = ("tool", CapabilityKind.Tool),
+            ["security.rules"] = ("security", CapabilityKind.Security),
+            ["security.gliner-pii"] = ("security", CapabilityKind.Security),
+            ["security.deberta-injection"] = ("security", CapabilityKind.Security),
+            ["security.qwen3-guard"] = ("security", CapabilityKind.Security),
+            ["security.paddle-ocr"] = ("security", CapabilityKind.Security),
+            ["security.yunet"] = ("security", CapabilityKind.Security),
+            ["security.malware"] = ("security", CapabilityKind.Security),
+            ["security.clamav"] = ("security", CapabilityKind.Security)
         };
 
     internal static IReadOnlyList<CapabilityDescriptor> Parse(JsonElement root, IReadOnlySet<string> allowed, bool inference)

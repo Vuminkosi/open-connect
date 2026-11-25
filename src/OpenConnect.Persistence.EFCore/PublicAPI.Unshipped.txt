@@ -1,4 +1,10 @@
 #nullable enable
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.Allowed = "allowed" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.MissingOperationContext = "missing_operation_context" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.OperationNotRegistered = "operation_not_registered" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.PrincipalMismatch = "principal_mismatch" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.TenantMismatch = "tenant_mismatch" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.WriteNotAllowed = "write_not_allowed" -> string!
 OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
 OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode.DedicatedDbContext = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
 OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode.ExistingDbContext = 0 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfIntegrationMode
@@ -54,6 +60,118 @@ OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory
 OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.Create(Microsoft.EntityFrameworkCore.DbContext! context, bool designTime) -> object!
 OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.OpenConnectModelCacheKeyFactory() -> void
 OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.AsyncLocalDatabaseFencingContextAccessor() -> void
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.BeginScope(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext! context) -> System.IDisposable!
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.Current.get -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.DatabaseFencingDeniedException(string! operationId, string! reasonCode, System.Guid evidenceId, string! message) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.EvidenceId.get -> System.Guid
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.ReasonCode.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.<Clone>$() -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.AppliedTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.AppliedTimeoutSeconds.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Boundary.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Boundary.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Capability.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Capability.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.CommandKind.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.CommandKind.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DatabaseFencingEvidence(string! SchemaVersion, System.Guid EventId, string! RequestId, string? TraceId, System.DateTimeOffset OccurredAt, string! Capability, string! Boundary, string! OperationId, string! CommandKind, string! PolicyRevision, OpenConnect.Abstractions.TenantId? TenantId, OpenConnect.Abstractions.PrincipalId? PrincipalId, int AppliedTimeoutSeconds, int MaxRows, string! Decision, string! EnforcementOutcome, string! ReasonCode, long DurationMs) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Decision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Decision.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Deconstruct(out string! SchemaVersion, out System.Guid EventId, out string! RequestId, out string? TraceId, out System.DateTimeOffset OccurredAt, out string! Capability, out string! Boundary, out string! OperationId, out string! CommandKind, out string! PolicyRevision, out OpenConnect.Abstractions.TenantId? TenantId, out OpenConnect.Abstractions.PrincipalId? PrincipalId, out int AppliedTimeoutSeconds, out int MaxRows, out string! Decision, out string! EnforcementOutcome, out string! ReasonCode, out long DurationMs) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DurationMs.get -> long
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DurationMs.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EnforcementOutcome.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EnforcementOutcome.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Equals(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? other) -> bool
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EventId.get -> System.Guid
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EventId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.MaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.MaxRows.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OccurredAt.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OperationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PolicyRevision.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PrincipalId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ReasonCode.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ReasonCode.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.RequestId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.RequestId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.SchemaVersion.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.SchemaVersion.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TenantId.get -> OpenConnect.Abstractions.TenantId?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TenantId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TraceId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TraceId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.<Clone>$() -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ApplicationId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ApplicationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.DatabaseFencingOperationContext(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! OperationId, string? ApplicationId = null, string? RequestId = null, string? TraceId = null) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! OperationId, out string? ApplicationId, out string? RequestId, out string? TraceId) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Equals(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? other) -> bool
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.OperationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.PrincipalId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.RequestId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.RequestId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TenantId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TraceId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TraceId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowAnyAuthenticatedTenant.get -> bool
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowAnyAuthenticatedTenant.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowedPrincipals.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.PrincipalId>!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowedTenants.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.TenantId>!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.FencedDatabaseOperationPolicy() -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxCommandTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxCommandTimeoutSeconds.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxRows.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.OperationId.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.PolicyRevision.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.ReadOnly.get -> bool
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.ReadOnly.set -> void
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor.BeginScope(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext! context) -> System.IDisposable!
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor.Current.get -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext?
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.InMemoryDatabaseFencingEvidenceSink(int capacity = 512) -> void
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.Snapshot() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence!>!
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.NullDatabaseFencingEvidenceSink() -> void
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingExtensions
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxCommandTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxCommandTimeoutSeconds.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxRows.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.FencedContextTypes.get -> System.Collections.Generic.IReadOnlySet<System.Type!>!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.OpenConnectDatabaseFencingOptions() -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.Operations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy!>!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.PolicyRevision.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.RegisterFencedContext<TContext>() -> OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.RegisterOperation(OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy! policy) -> OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.TryGetOperation(string! operationId, out OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy? policy) -> bool
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.OpenConnectFencedDbCommandInterceptor(OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions! options, OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor! contextAccessor, OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink? evidenceSink = null, OpenConnect.Abstractions.ISecurityEvidenceSink? securityEvidenceSink = null, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider
 OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider.ModelOptions.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions
@@ -193,6 +311,18 @@ OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.TryAdd
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.EfSessionUuidResolver(TContext! context) -> void
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.ResolveAsync(System.Guid publicId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.SessionId?>!
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Equals(object? obj) -> bool
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.GetHashCode() -> int
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ToString() -> string!
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Equals(object? obj) -> bool
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.GetHashCode() -> int
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ToString() -> string!
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.NonQueryExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.NonQueryExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ReaderExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ReaderExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!>>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ScalarExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ScalarExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!>>
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Equals(object? obj) -> bool
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.ToString() -> string!
@@ -215,6 +345,12 @@ override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Equals(o
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ToString() -> string!
 static OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions.AddOpenConnectEntityFramework<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.operator !=(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.operator ==(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.operator !=(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.operator ==(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.Instance.get -> OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink!
+static OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingExtensions.UseOpenConnectDatabaseFencing(this Microsoft.EntityFrameworkCore.DbContextOptionsBuilder! optionsBuilder, OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor! interceptor) -> Microsoft.EntityFrameworkCore.DbContextOptionsBuilder!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Default.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.operator !=(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? left, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? right) -> bool
