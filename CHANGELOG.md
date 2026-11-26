@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed `InMemoryBudgetGuard.Settle` and `Release` (#99) to use the stored reservation's scope and amount instead of the caller-supplied `BudgetReservation`. A forged or inflated `Amount` or an unknown `ScopeKey` can no longer corrupt reserved/spent totals, throw `KeyNotFoundException`, or block the wrong scope under `MissingCostPolicy.Deny`. Calls with an unknown reservation Id remain idempotent no-ops. No public API shape change.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

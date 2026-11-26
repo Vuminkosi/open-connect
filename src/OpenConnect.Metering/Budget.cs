@@ -11,10 +11,10 @@ public interface IBudgetGuard
     /// <summary>Reserves an estimated amount against a scope. Returns null when it would exceed the hard limit (fail closed).</summary>
     BudgetReservation? TryReserve(string scopeKey, decimal estimatedAmount);
 
-    /// <summary>Settles a reservation with the actual cost (null = cost unknown, handled per <see cref="MissingCostPolicy"/>). Idempotent.</summary>
+    /// <summary>Settles a reservation with the actual cost (null = cost unknown, handled per <see cref="MissingCostPolicy"/>). Idempotent. The guard's stored reservation (matched by <see cref="BudgetReservation.Id"/>) is authoritative: caller-supplied <see cref="BudgetReservation.ScopeKey"/> and <see cref="BudgetReservation.Amount"/> are ignored, and an unknown Id is a no-op.</summary>
     void Settle(BudgetReservation reservation, decimal? actualCost);
 
-    /// <summary>Releases a reservation without spending (e.g. request never sent). Idempotent.</summary>
+    /// <summary>Releases a reservation without spending (e.g. request never sent). Idempotent. The stored reservation's scope and amount are authoritative; caller-supplied values are ignored and an unknown Id is a no-op.</summary>
     void Release(BudgetReservation reservation);
 }
 
@@ -67,13 +67,14 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
             throw new ArgumentOutOfRangeException(nameof(actualCost));
         lock (_gate)
         {
-            if (!_open.Remove(reservation.Id))
+            // The stored reservation is authoritative; caller-supplied ScopeKey and Amount are ignored.
+            if (!_open.Remove(reservation.Id, out var stored))
                 return;
-            _reserved[reservation.ScopeKey] -= reservation.Amount;
+            _reserved[stored.ScopeKey] -= stored.Amount;
             if (actualCost is null && _missingCostPolicy == MissingCostPolicy.Deny)
-                _blocked.Add(reservation.ScopeKey);
-            var charge = actualCost ?? reservation.Amount;
-            _spent[reservation.ScopeKey] = _spent.GetValueOrDefault(reservation.ScopeKey) + charge;
+                _blocked.Add(stored.ScopeKey);
+            var charge = actualCost ?? stored.Amount;
+            _spent[stored.ScopeKey] = _spent.GetValueOrDefault(stored.ScopeKey) + charge;
         }
     }
 
@@ -82,8 +83,8 @@ public sealed class InMemoryBudgetGuard : IBudgetGuard
         ArgumentNullException.ThrowIfNull(reservation);
         lock (_gate)
         {
-            if (_open.Remove(reservation.Id))
-                _reserved[reservation.ScopeKey] -= reservation.Amount;
+            if (_open.Remove(reservation.Id, out var stored))
+                _reserved[stored.ScopeKey] -= stored.Amount;
         }
     }
 }
