@@ -1192,6 +1192,13 @@
           "OpenConnect.Core": "[1.0.0, )"
         }
       },
+      "openconnect.imessaging": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
       "openconnect.knowledge": {
         "type": "Project",
         "dependencies": {
@@ -1295,11 +1302,13 @@
           "OpenConnect.Core": "[1.0.0, )",
           "OpenConnect.Documents": "[1.0.0, )",
           "OpenConnect.Hosting.AspNetCore": "[1.0.0, )",
+          "OpenConnect.IMessaging": "[1.0.0, )",
           "OpenConnect.Knowledge": "[1.0.0, )",
           "OpenConnect.LiveUI.Blazor": "[1.0.0, )",
           "OpenConnect.Persistence.EFCore": "[1.0.0, )",
           "OpenConnect.Samples.Shared": "[1.0.0, )",
-          "OpenConnect.Samples.Workers.Host": "[1.0.0, )"
+          "OpenConnect.Samples.Workers.Host": "[1.0.0, )",
+          "OpenConnect.Tools": "[1.0.0, )"
         }
       },
       "openconnect.samples.shared": {
