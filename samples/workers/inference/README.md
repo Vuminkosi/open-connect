@@ -35,7 +35,7 @@ sh samples/workers/inference/tests/t1_contract.sh
 
 ## 4. Expected Capabilities & Model Manifest / Licensing Status
 
-- **Capabilities (`/internal/v1/capabilities`)**: Truthfully reports `baseCapabilities` (`chat`, `stream`). Optional capabilities (`tools`, `structured-output`, `embeddings`) are advertised only when both enabled and a model identity is configured (`WSE2E-AT-021`).
+- **Capabilities (`/internal/v1/capabilities`)**: Truthfully reports `baseCapabilities` (`chat`, `stream`). Optional capabilities (`tools`, `structured-output`, `embeddings`) are reserved until an adapter implements their request and result contracts. Configuration flags and a model identity alone do not advertise them (`WSE2E-AT-021`).
 - **Streaming Contract (`WSE2E-AT-024`)**: Chunks have contiguous `seq` starting at 0, content deltas carry `done: false`, and exactly one final terminal chunk carries `done: true` with an empty delta.
 - **Privacy Firewall Gate (`WSE2E-AT-028`)**: Strict-local privacy zone terminates cloud egress with HTTP 503 `privacy_blocked`.
 - **Production Guardrail (`WSE2E-AT-027`)**: Fake engine requests in `OPENCONNECT_ENV=production` are rejected with HTTP 503 `fake_not_allowed_in_production`.

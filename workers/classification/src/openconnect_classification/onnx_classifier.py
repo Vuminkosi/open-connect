@@ -8,16 +8,18 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
-import onnxruntime as ort
 from pydantic import BaseModel, ConfigDict, Field
-from tokenizers import Tokenizer
 
 from openconnect_classification.cloud_consumption import _unique_object
 from openconnect_classification.label_sets import get_label_set
 from openconnect_classification.manifest import PRE_APPROVED_LICENSES
+
+if TYPE_CHECKING:
+    import onnxruntime as ort
+    from tokenizers import Tokenizer
 
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 
@@ -105,6 +107,10 @@ def load_bundle(root: str, manifest_sha256: str, license_accepted: bool) -> Onnx
         tokenizer = _read_file(directory, "tokenizer.json", 8388608)
         if hashlib.sha256(model).hexdigest() != contract.modelSha256 or hashlib.sha256(tokenizer).hexdigest() != contract.tokenizerSha256:
             raise BundleUnavailableError("bundle asset digest mismatch")
+        # The offline fake engine does not need native model runtime dependencies.
+        import onnxruntime as ort
+        from tokenizers import Tokenizer
+
         tokenizer_instance = Tokenizer.from_str(tokenizer.decode("utf-8"))
         tokenizer_instance.no_truncation()
         options = ort.SessionOptions()
