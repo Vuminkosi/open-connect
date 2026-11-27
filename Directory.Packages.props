@@ -12,7 +12,7 @@
     <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.28.0" />
     <PackageVersion Include="Microsoft.Agents.AI.Workflows.Declarative.Mcp" Version="1.28.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.Razor.Language" Version="6.0.36" />
     <!--
       TFM-aligned EF Core families (CF-IMP-003). net8.0 rows preserve the
