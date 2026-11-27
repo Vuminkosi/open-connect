@@ -1,0 +1,87 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+@if (Call is not null)
+{
+    <section class="oc-msg-call-controls"
+             role="region"
+             aria-label="@($"Active call with {Call.CounterpartyDisplayName}")">
+        <div class="oc-msg-call-controls__info">
+            <div class="oc-msg-call-controls__peer">@Call.CounterpartyDisplayName</div>
+            <div class="oc-msg-call-controls__meta">
+                <span class="oc-msg-call-controls__state" role="status" aria-live="polite">@Call.StateLabel</span>
+                <span aria-hidden="true">·</span>
+                <span class="oc-msg-call-controls__security">
+                    @(Call.MediaSecurityMode == MessagingCallSecurityKind.EndpointE2EE
+                        ? "Endpoint E2EE audio"
+                        : "Transport-encrypted audio (not E2EE)")
+                </span>
+            </div>
+        </div>
+
+        <div class="oc-msg-call-controls__actions" role="group" aria-label="Call controls">
+            <MudButton Variant="@(Call.IsMuted ? Variant.Filled : Variant.Outlined)"
+                       Color="@(Call.IsMuted ? Color.Warning : Color.Default)"
+                       StartIcon="@(Call.IsMuted ? Icons.Material.Filled.MicOff : Icons.Material.Filled.Mic)"
+                       Class="oc-msg-touch-target"
+                       aria-pressed="@Call.IsMuted.ToString().ToLowerInvariant()"
+                       OnClick="@(() => OnToggleMute.InvokeAsync())">
+                @(Call.IsMuted ? "Unmute" : "Mute")
+            </MudButton>
+
+            @if (Call.IsCounterpartySpeaking)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.RecordVoiceOver"
+                           Class="oc-msg-touch-target"
+                           OnClick="@(() => OnInterrupt.InvokeAsync())">
+                    Interrupt
+                </MudButton>
+            }
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.CallEnd"
+                       Class="oc-msg-touch-target"
+                       OnClick="@(() => OnEndCall.InvokeAsync(Call.CallId))">
+                End call
+            </MudButton>
+        </div>
+    </section>
+}
+
+<style>
+    .oc-msg-call-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 8px;
+        background-color: var(--mud-palette-surface, #ffffff);
+    }
+    .oc-msg-call-controls__peer { font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-call-controls__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-call-controls__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public MessagingActiveCall? Call { get; set; }
+
+    [Parameter] public EventCallback OnToggleMute { get; set; }
+
+    [Parameter] public EventCallback OnInterrupt { get; set; }
+
+    [Parameter] public EventCallback<string> OnEndCall { get; set; }
+}

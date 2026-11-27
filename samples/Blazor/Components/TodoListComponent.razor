@@ -1,5 +1,8 @@
+@using System.Text.Json
+@using OpenConnect.Abstractions
 @using OpenConnect.Samples.Blazor.Models
 @inject ITodoStore Store
+@inject IServiceProvider Services
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
 @inject ILogger<TodoListComponent> Logger
@@ -16,7 +19,7 @@
         <div>
             <MudText Typo="Typo.h6" Class="font-weight-bold">Workflows & Tasks</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Tasks tracked by OpenConnect runtime and lead agent.
+                Tasks tracked by OpenConnect runtime and operational agents.
             </MudText>
         </div>
 
@@ -26,7 +29,12 @@
                 <MudTabPanel Text="Active" />
                 <MudTabPanel Text="Completed" />
             </MudTabs>
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="@LoadItemsAsync" />
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                           Color="Color.Default"
+                           Size="Size.Small"
+                           Class="oc-touch-target"
+                           aria-label="Refresh tasks"
+                           OnClick="@LoadItemsAsync" />
         </div>
     </div>
 
@@ -46,17 +54,25 @@
 
     <div class="d-flex flex-wrap align-center gap-3 mb-3">
         <label for="todo-sort">Sort tasks</label>
-        <select id="todo-sort" @bind="_sort" @bind:after="ResetPage">
+        <select id="todo-sort" class="oc-native-select" @bind="_sort" @bind:after="ResetPage">
             <option value="priority">Priority</option>
             <option value="deadline">Earliest deadline</option>
         </select>
         <label for="todo-priority-filter">Priority filter</label>
-        <select id="todo-priority-filter" @bind="_priorityFilter" @bind:after="ResetPage">
+        <select id="todo-priority-filter" class="oc-native-select" aria-label="Priority filter" @bind="_priorityFilter" @bind:after="ResetPage">
             <option value="all">All priorities</option>
             @foreach (var priority in Enum.GetValues<TodoPriority>())
             {
                 <option value="@priority">@priority</option>
             }
+        </select>
+        <label for="todo-due-filter">Due date filter</label>
+        <select id="todo-due-filter" class="oc-native-select" aria-label="Due date filter" @bind="_dueDateFilter" @bind:after="ResetPage">
+            <option value="all">All due dates</option>
+            <option value="today">Due today</option>
+            <option value="tomorrow">Due tomorrow</option>
+            <option value="this-week">Due this week</option>
+            <option value="overdue">Overdue</option>
         </select>
         <label for="todo-overdue-filter">
             <input id="todo-overdue-filter" type="checkbox" @bind="_overdueOnly" @bind:after="ResetPage" />
@@ -70,16 +86,16 @@
 
     @if (_loading)
     {
-        <div class="pa-8 d-flex justify-center align-center flex-column">
+        <div class="pa-8 d-flex justify-center align-center flex-column" role="status" aria-label="Loading tasks">
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-3" />
             <MudText Typo="Typo.body2" Color="Color.Secondary">Loading tasks...</MudText>
         </div>
     }
     else if (filteredItems.Count == 0)
     {
-        <div class="pa-12 d-flex flex-column align-center justify-center text-center">
+        <div class="pa-12 d-flex flex-column align-center justify-center text-center" role="status">
             <MudAvatar Color="Color.Surface" Variant="Variant.Outlined" Size="Size.Large" Class="mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Color="Color.Secondary" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Color="Color.Secondary" Size="Size.Large" aria-hidden="true" />
             </MudAvatar>
             <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-1">No tasks to display</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary" Style="max-width: 380px;">
@@ -87,7 +103,7 @@
                 {
                     <span>No tasks match the filter "@_searchQuery". Try clearing your search query.</span>
                 }
-                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _activeTab != 0)
+                else if (_overdueOnly || _oldCompletedOnly || _priorityFilter != "all" || _dueDateFilter != "all" || _activeTab != 0)
                 {
                     <span>No tasks match the selected filters. Change the filters to see other tasks.</span>
                 }
@@ -103,45 +119,95 @@
         <MudList T="TodoItem" Dense="false" Class="pa-0">
             @foreach (var item in filteredItems.Skip((currentPage - 1) * PageSize).Take(PageSize))
             {
+                var isOverdue = !item.IsCompleted && item.Status != TodoStatus.Completed && item.Status != TodoStatus.Cancelled
+                    && item.DueDateUtc is { } dueCheck && dueCheck < DateTime.UtcNow;
+                var effectiveStatus = item.IsCompleted ? TodoStatus.Completed : item.Status;
+                var approvals = ParseApprovals(item.ApprovalsJson);
+                var auditEntries = ParseAuditHistory(item.AuditHistoryJson);
+                var auditExpanded = _expandedAuditIds.Contains(item.Id);
+
                 <MudListItem @key="item.Id" T="TodoItem" Class="px-3 py-3 border-b border-solid mud-border-lines-default"
                              Style="transition: background-color 0.15s ease;">
-                    <div class="d-flex align-center justify-space-between w-100 gap-2">
-                        <div class="d-flex align-center" style="flex: 1; min-width: 0;">
+                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 gap-2">
+                        <div class="d-flex align-start" style="flex: 1; min-width: 0;">
                             <MudCheckBox T="bool" Value="@item.IsCompleted"
                                          ValueChanged="@(completed => OnStatusChangedAsync(item, completed))"
-                                         Color="Color.Success" Dense="true" Class="mr-3" />
+                                         Color="Color.Success" Dense="true" Class="mr-3"
+                                         aria-label="@($"Mark {item.Title} completed")" />
                             <div style="flex: 1; min-width: 0;">
-                                <MudText Typo="Typo.body1"
-                                         Class="@(item.IsCompleted ? "text-decoration-line-through text-muted" : "font-weight-medium")"
-                                         Style="@(item.IsCompleted ? "opacity: 0.55;" : "")">
-                                    @item.Title
-                                </MudText>
+                                <div class="d-flex flex-wrap align-center gap-2">
+                                    <MudText Typo="Typo.body1"
+                                             Class="@(item.IsCompleted ? "text-decoration-line-through text-muted" : "font-weight-medium")"
+                                             Style="@(item.IsCompleted ? "opacity: 0.55;" : "")">
+                                        @item.Title
+                                    </MudText>
+                                    <span class="oc-status-badge @GetStatusBadgeClass(effectiveStatus)">
+                                        @FormatStatus(effectiveStatus)
+                                    </span>
+                                    @if (isOverdue)
+                                    {
+                                        <span class="oc-overdue-banner" role="status">
+                                            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Size="Size.Small" aria-hidden="true" />
+                                            <span>Overdue</span>
+                                        </span>
+                                    }
+                                    @if (approvals.Count > 0)
+                                    {
+                                        var latestApproval = approvals[^1];
+                                        <span class="oc-status-badge @GetApprovalBadgeClass(latestApproval.Status)">
+                                            <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Size="Size.Small" aria-hidden="true" />
+                                            <span>Approval: @latestApproval.Status</span>
+                                        </span>
+                                    }
+                                </div>
+
                                 @if (!string.IsNullOrWhiteSpace(item.Description))
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block text-truncate"
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block text-truncate mt-1"
                                              Style="@(item.IsCompleted ? "opacity: 0.5;" : "")">
                                         @item.Description
                                     </MudText>
                                 }
-                                <div class="d-flex align-center mt-1 gap-2">
+
+                                <div class="d-flex flex-wrap align-center mt-1 gap-2">
+                                    @if (!string.IsNullOrWhiteSpace(item.AssignedPrincipalId))
+                                    {
+                                        <span class="oc-status-badge">
+                                            <MudIcon Icon="@Icons.Material.Outlined.PersonOutline" Size="Size.Small" aria-hidden="true" />
+                                            <span>@ResolveAssigneeLabel(item.AssignedPrincipalId)</span>
+                                        </span>
+                                    }
                                     @if (item.DueDateUtc is { } dueDate)
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">Due @dueDate.ToLocalTime().ToString("yyyy-MM-dd")</MudText>
+                                        <MudText Typo="Typo.caption" Color="@(isOverdue ? Color.Error : Color.Secondary)" Class="oc-tabular">
+                                            Due @dueDate.ToLocalTime().ToString("yyyy-MM-dd")
+                                        </MudText>
                                     }
                                     @if (item.IsCompleted)
                                     {
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="oc-tabular">
                                             @(item.CompletedAtUtc is { } completedAt ? $"Completed {completedAt.ToLocalTime():yyyy-MM-dd}" : "Completion date unavailable")
                                         </MudText>
                                     }
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-size: 0.72rem;">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="oc-tabular" Style="font-size: 0.72rem;">
                                         @item.CreatedAtUtc.ToLocalTime().ToString("MMM dd, HH:mm")
                                     </MudText>
+                                    @if (auditEntries.Count > 0)
+                                    {
+                                        <button type="button"
+                                                class="oc-status-badge"
+                                                style="cursor: pointer;"
+                                                aria-expanded="@(auditExpanded ? "true" : "false")"
+                                                @onclick="@(() => ToggleAudit(item.Id))">
+                                            <MudIcon Icon="@(auditExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.History)" Size="Size.Small" aria-hidden="true" />
+                                            <span>Audit (@auditEntries.Count)</span>
+                                        </button>
+                                    }
                                 </div>
                             </div>
                         </div>
 
-                        <div class="d-flex align-center gap-2">
+                        <div class="d-flex align-center gap-1">
                             <MudChip T="string"
                                      Size="Size.Small"
                                      Variant="Variant.Filled"
@@ -152,38 +218,72 @@
                             <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
                                            Color="Color.Error"
                                            Size="Size.Small"
+                                           Class="oc-touch-target"
                                            OnClick="@(() => OnDeleteAsync(item))"
                                            aria-label="Delete task" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                            Color="Color.Primary"
                                            Size="Size.Small"
+                                           Class="oc-touch-target"
                                            OnClick="@(() => BeginEdit(item))"
                                            aria-label="Edit task" />
                         </div>
                     </div>
+
+                    @if (auditExpanded && auditEntries.Count > 0)
+                    {
+                        <div class="oc-audit-panel" role="region" aria-label="@($"Audit history for {item.Title}")">
+                            <MudText Typo="Typo.caption" Class="font-weight-bold d-block mb-2">Audit Trail</MudText>
+                            <div class="oc-audit-list">
+                                @foreach (var entry in auditEntries.OrderByDescending(e => e.TimestampUtc))
+                                {
+                                    <div class="oc-audit-row">
+                                        <div>
+                                            <strong>@entry.Action</strong> · <span class="oc-mono">@entry.ActorId</span>
+                                            <div style="color: var(--mud-palette-text-secondary);">@entry.Summary</div>
+                                        </div>
+                                        <span class="oc-tabular" style="color: var(--mud-palette-text-secondary);">
+                                            @entry.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
                     @if (_editingId == item.Id)
                     {
                         <div class="d-flex flex-column gap-2 mt-3" aria-label="Edit task details">
                             <label for="edit-task-title">Task title</label>
-                            <input id="edit-task-title" maxlength="200" @bind="_editTitle" />
+                            <input id="edit-task-title" class="oc-native-input" maxlength="200" @bind="_editTitle" />
                             <label for="edit-task-description">Description</label>
-                            <textarea id="edit-task-description" @bind="_editDescription"></textarea>
+                            <textarea id="edit-task-description" class="oc-native-textarea" @bind="_editDescription"></textarea>
                             <label for="edit-task-due-date">Due date</label>
-                            <input id="edit-task-due-date" type="date" @bind="_editDueDate" />
+                            <input id="edit-task-due-date" class="oc-native-input" type="date" @bind="_editDueDate" />
                             <label for="edit-task-priority">Priority</label>
-                            <select id="edit-task-priority" @bind="_editPriority">
+                            <select id="edit-task-priority" class="oc-native-select" @bind="_editPriority">
                                 @foreach (var priority in Enum.GetValues<TodoPriority>())
                                 {
                                     <option value="@priority">@priority</option>
                                 }
                             </select>
+                            @if (!string.IsNullOrWhiteSpace(item.TenantId))
+                            {
+                                <label for="edit-task-status">Workflow status</label>
+                                <select id="edit-task-status" class="oc-native-select" @bind="_editStatus">
+                                    @foreach (var status in Enum.GetValues<TodoStatus>())
+                                    {
+                                        <option value="@status">@FormatStatus(status)</option>
+                                    }
+                                </select>
+                            }
                             @if (!string.IsNullOrEmpty(_editError))
                             {
                                 <MudText Color="Color.Error" role="alert">@_editError</MudText>
                             }
                             <div class="d-flex gap-2">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="SaveEditAsync">Save changes</MudButton>
-                                <MudButton Variant="Variant.Text" Disabled="@_saving" OnClick="CancelEdit">Cancel</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="oc-touch-target" Disabled="@_saving" OnClick="SaveEditAsync">Save changes</MudButton>
+                                <MudButton Variant="Variant.Text" Class="oc-touch-target" Disabled="@_saving" OnClick="CancelEdit">Cancel</MudButton>
                             </div>
                         </div>
                     }
@@ -193,25 +293,27 @@
         @if (totalPages > 1)
         {
             <nav aria-label="Task pages" class="d-flex align-center justify-space-between gap-2 mt-4">
-                <MudButton Variant="Variant.Text" Disabled="@(currentPage <= 1)" OnClick="PreviousPage" aria-label="Previous task page">Previous</MudButton>
+                <MudButton Variant="Variant.Text" Class="oc-touch-target" Disabled="@(currentPage <= 1)" OnClick="PreviousPage" aria-label="Previous task page">Previous</MudButton>
                 <div class="d-flex align-center gap-2">
                     <label for="todo-page">Page</label>
-                    <select id="todo-page" aria-label="Task page" @bind="PageSelection">
+                    <select id="todo-page" class="oc-native-select" aria-label="Task page" @bind="PageSelection">
                         @for (var number = 1; number <= totalPages; number++)
                         {
                             <option value="@number">@number</option>
                         }
                     </select>
-                    <MudText Typo="Typo.body2" aria-live="polite">Page @currentPage of @totalPages</MudText>
+                    <MudText Typo="Typo.body2" Class="oc-tabular" aria-live="polite">Page @currentPage of @totalPages</MudText>
                 </div>
-                <MudButton Variant="Variant.Text" Disabled="@(currentPage >= totalPages)" OnClick="NextPage" aria-label="Next task page">Next</MudButton>
+                <MudButton Variant="Variant.Text" Class="oc-touch-target" Disabled="@(currentPage >= totalPages)" OnClick="NextPage" aria-label="Next task page">Next</MudButton>
             </nav>
         }
     }
 </MudPaper>
 
 @code {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private IReadOnlyList<TodoItem> _items = Array.Empty<TodoItem>();
+    private readonly HashSet<Guid> _expandedAuditIds = new();
     private string _searchQuery = string.Empty;
     private int _activeTab = 0;
     private bool _loading = true;
@@ -219,14 +321,17 @@
     private int _page = 1;
     private string _sort = "priority";
     private string _priorityFilter = "all";
+    private string _dueDateFilter = "all";
     private bool _overdueOnly;
     private bool _oldCompletedOnly;
     private Guid? _editingId;
+    private string? _editTenantId;
     private long _editRevision;
     private string _editTitle = string.Empty;
     private string? _editDescription;
     private DateTime? _editDueDate;
     private TodoPriority _editPriority;
+    private TodoStatus _editStatus;
     private string? _editError;
     private bool _saving;
 
@@ -236,6 +341,12 @@
     private void ResetPage() => _page = 1;
     private void PreviousPage() => _page = Math.Max(1, CurrentPage - 1);
     private void NextPage() => _page = Math.Min(PageCount, CurrentPage + 1);
+
+    private void ToggleAudit(Guid id)
+    {
+        if (!_expandedAuditIds.Add(id))
+            _expandedAuditIds.Remove(id);
+    }
 
     private List<TodoItem> FilteredItems
     {
@@ -259,8 +370,21 @@
                     (!string.IsNullOrEmpty(i.Description) && i.Description.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)));
             }
 
-            if (Enum.TryParse<TodoPriority>(_priorityFilter, out var priority))
+            if (Enum.TryParse<TodoPriority>(_priorityFilter, ignoreCase: true, out var priority))
                 query = query.Where(i => i.Priority == priority);
+            var normalizedDueFilter = _dueDateFilter.Trim().ToLowerInvariant();
+            if (normalizedDueFilter != "all")
+            {
+                var today = DateTime.Today;
+                query = normalizedDueFilter switch
+                {
+                    "today" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today),
+                    "tomorrow" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date == today.AddDays(1)),
+                    "this-week" => query.Where(i => i.DueDateUtc is { } due && due.ToLocalTime().Date >= today && due.ToLocalTime().Date <= today.AddDays(7)),
+                    "overdue" => query.Where(i => !i.IsCompleted && i.DueDateUtc is { } due && due.ToLocalTime().Date < today),
+                    _ => query
+                };
+            }
             if (_overdueOnly)
             {
                 var today = DateTime.Today;
@@ -295,17 +419,20 @@
     private void BeginEdit(TodoItem item)
     {
         _editingId = item.Id;
+        _editTenantId = item.TenantId;
         _editRevision = item.Revision;
         _editTitle = item.Title;
         _editDescription = item.Description;
         _editDueDate = item.DueDateUtc?.ToLocalTime().Date;
         _editPriority = item.Priority;
+        _editStatus = item.IsCompleted ? TodoStatus.Completed : item.Status;
         _editError = null;
     }
 
     private void CancelEdit()
     {
         _editingId = null;
+        _editTenantId = null;
         _editError = null;
     }
 
@@ -324,6 +451,18 @@
             var result = await Store.EditAsync(id, _editRevision, new TodoEdit(_editTitle, _editDescription, _editPriority, dueDateUtc));
             if (result == TodoEditResult.Updated)
             {
+                if (!string.IsNullOrWhiteSpace(_editTenantId)
+                    && TryParseUlid(_editTenantId, out var tenantUlid)
+                    && Services.GetService<SqliteTodoStore>() is { } sqliteStore)
+                {
+                    var persona = Services.GetService<TodoDevelopmentPersonaState>()?.Current;
+                    await sqliteStore.UpdateWorkflowStatusAsync(
+                        new TenantId(tenantUlid),
+                        id,
+                        _editStatus,
+                        persona?.Key ?? "desktop-user");
+                }
+
                 CancelEdit();
                 await LoadItemsAsync();
                 Snackbar.Add("Task updated", Severity.Success);
@@ -364,6 +503,84 @@
         }, result == TodoDeleteResult.Deleted ? Severity.Info : Severity.Warning);
         await LoadItemsAsync();
     }
+
+    private static string ResolveAssigneeLabel(string principalId)
+    {
+        if (TryParseUlid(principalId, out var ulid))
+        {
+            var pid = new PrincipalId(ulid);
+            var seed = TodoDirectorySeed.Principals.FirstOrDefault(p => p.PrincipalId == pid);
+            if (seed is not null)
+                return seed.DisplayName;
+        }
+        return principalId;
+    }
+
+    private static bool TryParseUlid(string? text, out Ulid ulid)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            try
+            {
+                ulid = Ulid.Parse(text);
+                return true;
+            }
+            catch (FormatException) { }
+        }
+        ulid = default;
+        return false;
+    }
+
+    private static IReadOnlyList<TodoApprovalEntry> ParseApprovals(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<TodoApprovalEntry>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<TodoApprovalEntry>>(json, JsonOptions) ?? [];
+        }
+        catch
+        {
+            return Array.Empty<TodoApprovalEntry>();
+        }
+    }
+
+    private static IReadOnlyList<TodoAuditEntry> ParseAuditHistory(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return Array.Empty<TodoAuditEntry>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<TodoAuditEntry>>(json, JsonOptions) ?? [];
+        }
+        catch
+        {
+            return Array.Empty<TodoAuditEntry>();
+        }
+    }
+
+    private static string FormatStatus(TodoStatus status) => status switch
+    {
+        TodoStatus.InProgress => "In Progress",
+        TodoStatus.AwaitingApproval => "Awaiting Approval",
+        _ => status.ToString()
+    };
+
+    private static string GetStatusBadgeClass(TodoStatus status) => status switch
+    {
+        TodoStatus.Completed => "oc-status-badge--success",
+        TodoStatus.InProgress => "oc-status-badge--info",
+        TodoStatus.AwaitingApproval => "oc-status-badge--warning",
+        TodoStatus.Blocked => "oc-status-badge--error",
+        _ => string.Empty
+    };
+
+    private static string GetApprovalBadgeClass(string status) => status.ToLowerInvariant() switch
+    {
+        "approved" => "oc-status-badge--success",
+        "denied" or "rejected" => "oc-status-badge--error",
+        _ => "oc-status-badge--warning"
+    };
 
     private Color GetPriorityColor(TodoPriority priority) => priority switch
     {

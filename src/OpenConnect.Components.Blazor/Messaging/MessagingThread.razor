@@ -1,0 +1,308 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+<section class="oc-msg-thread" aria-label="@($"Conversation {Title}")">
+    <header class="oc-msg-thread__header">
+        <div class="oc-msg-thread__title-group">
+            <h2 class="oc-msg-thread__title">@Title</h2>
+            <span class="oc-msg-thread__security" title="@GetSecurityDescription(SecurityProfile)">
+                <MudIcon Icon="@GetSecurityIcon(SecurityProfile)" Size="Size.Small" aria-hidden="true" />
+                <span>@GetSecurityLabel(SecurityProfile)</span>
+            </span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(PresenceLabel))
+        {
+            <span class="oc-msg-thread__presence" role="status" aria-live="polite">@PresenceLabel</span>
+        }
+    </header>
+
+    @if (ConversationState == MessagingConversationLifecycleState.Closed)
+    {
+        <div class="oc-msg-thread__closed-banner" role="status">
+            This conversation is closed because no human participants remain. Sending new messages is disabled.
+        </div>
+    }
+
+    <div class="oc-msg-thread__messages" role="log" aria-live="polite" aria-label="Messages">
+        @if (IsLoading)
+        {
+            <MudSkeleton Height="48px" Class="mb-2" />
+            <MudSkeleton Height="64px" />
+        }
+        else if (Messages is null || Messages.Count == 0)
+        {
+            <div class="oc-msg-thread__empty" role="status">
+                No messages in this conversation yet.
+            </div>
+        }
+        else
+        {
+            @foreach (var msg in Messages)
+            {
+                <MudChat @key="msg.MessageId"
+                         ChatPosition="@(msg.IsOwnMessage ? ChatBubblePosition.End : ChatBubblePosition.Start)"
+                         Dense="true"
+                         Color="@(msg.IsOwnMessage ? Color.Primary : Color.Default)"
+                         Variant="@(msg.IsOwnMessage ? Variant.Filled : Variant.Outlined)"
+                         Class="oc-msg-mudchat">
+                    <MudAvatar Size="Size.Small"
+                               Color="@(msg.IsAgentSender ? Color.Secondary : (msg.IsOwnMessage ? Color.Primary : Color.Surface))"
+                               aria-hidden="true">
+                        @GetInitials(msg.SenderDisplayName)
+                    </MudAvatar>
+                    <MudChatHeader Name="@(msg.IsAgentSender ? $"{msg.SenderDisplayName} (Agent)" : msg.SenderDisplayName)"
+                                   Time="@($"{msg.SentAtUtc:HH:mm} · {(msg.IsDecrypted ? $"E{msg.CryptoEpoch}" : "Undecrypted")}")" />
+                    <MudChatBubble>
+                        @if (msg.IsVoiceNote)
+                        {
+                            <div class="oc-msg-bubble__voice-note">
+                                <MudIcon Icon="@Icons.Material.Outlined.GraphicEq" Size="Size.Small" aria-hidden="true" />
+                                <span>Encrypted voice note@(string.IsNullOrWhiteSpace(msg.AttachmentName) ? "" : $": {msg.AttachmentName}")</span>
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(msg.AttachmentName))
+                        {
+                            <div class="oc-msg-bubble__attachment">
+                                <MudIcon Icon="@Icons.Material.Outlined.AttachFile" Size="Size.Small" aria-hidden="true" />
+                                <span>@msg.AttachmentName</span>
+                            </div>
+                        }
+                        <span class="oc-msg-bubble__text">@msg.BodyText</span>
+                        @if (msg.IsIncompleteGeneration)
+                        {
+                            <span class="oc-msg-bubble__incomplete" role="status">Response interrupted before completion</span>
+                        }
+                    </MudChatBubble>
+                    <MudChatFooter Text="@GetReceiptLabel(msg.ReceiptKind)" />
+                </MudChat>
+            }
+        }
+
+        @if (!string.IsNullOrWhiteSpace(TypingIndicator))
+        {
+            <div class="oc-msg-thread__typing" role="status" aria-live="polite">@TypingIndicator</div>
+        }
+    </div>
+
+    @if (PendingApprovals is not null && PendingApprovals.Count > 0)
+    {
+        <div class="oc-msg-thread__approvals">
+            @foreach (var approval in PendingApprovals)
+            {
+                <ApprovalRequestCard @key="approval.ApprovalRequestId"
+                                     Request="approval"
+                                     OnConfirm="OnConfirmApproval"
+                                     OnDeny="OnDenyApproval" />
+            }
+        </div>
+    }
+
+    <footer class="oc-msg-thread__composer">
+        <MudTextField T="string"
+                      Value="@_draft"
+                      ValueChanged="v => _draft = v ?? string.Empty"
+                      Placeholder="@(ConversationState == MessagingConversationLifecycleState.Closed ? "Conversation closed" : "Write an encrypted message…")"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Disabled="@(ConversationState == MessagingConversationLifecycleState.Closed || IsSending)"
+                      aria-label="Message input"
+                      Class="oc-msg-thread__input" />
+        @if (OnAttachFile.HasDelegate)
+        {
+            <MudIconButton Icon="@Icons.Material.Outlined.AttachFile"
+                           Class="oc-msg-touch-target"
+                           Disabled="@(ConversationState == MessagingConversationLifecycleState.Closed || IsSending)"
+                           aria-label="Attach encrypted file"
+                           OnClick="OnAttachFile" />
+        }
+        @if (OnRecordVoiceNote.HasDelegate)
+        {
+            <MudIconButton Icon="@Icons.Material.Outlined.Mic"
+                           Class="oc-msg-touch-target"
+                           Disabled="@(ConversationState == MessagingConversationLifecycleState.Closed || IsSending)"
+                           aria-label="Record encrypted voice note"
+                           OnClick="OnRecordVoiceNote" />
+        }
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Class="oc-msg-touch-target"
+                   Disabled="@(ConversationState == MessagingConversationLifecycleState.Closed || IsSending || string.IsNullOrWhiteSpace(_draft))"
+                   OnClick="SendDraftAsync">
+            Send
+        </MudButton>
+    </footer>
+</section>
+
+<style>
+    .oc-msg-thread {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 10px;
+        padding: 16px;
+        background-color: var(--mud-palette-surface, #ffffff);
+    }
+    .oc-msg-thread__header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+    }
+    .oc-msg-thread__title-group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .oc-msg-thread__title { margin: 0; font-size: 1rem; font-weight: 600; }
+    .oc-msg-thread__security {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-thread__presence { font-size: 0.75rem; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-thread__closed-banner {
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        background-color: var(--mud-palette-background-gray, #f1f5f9);
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-thread__messages { display: flex; flex-direction: column; gap: 10px; min-height: 160px; }
+    .oc-msg-thread__empty { padding: 24px 0; text-align: center; font-size: 0.875rem; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-bubble {
+        max-width: 82%;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+    }
+    .oc-msg-bubble--own { align-self: flex-end; background-color: var(--mud-palette-action-default-hover, rgba(94, 106, 210, 0.08)); }
+    .oc-msg-bubble--peer { align-self: flex-start; }
+    .oc-msg-bubble__header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.75rem; }
+    .oc-msg-bubble__sender { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .oc-msg-bubble__agent-tag {
+        font-size: 0.6875rem;
+        padding: 1px 5px;
+        border-radius: 4px;
+        border: 1px solid var(--mud-palette-primary, #5e6ad2);
+        color: var(--mud-palette-primary, #5e6ad2);
+    }
+    .oc-msg-bubble__epoch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-bubble__text { margin: 0; font-size: 0.875rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .oc-msg-bubble__voice-note, .oc-msg-bubble__attachment {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8125rem;
+        margin-bottom: 6px;
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-bubble__incomplete { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--mud-palette-warning, #b45309); }
+    .oc-msg-bubble__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-thread__typing { font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #64748b); font-style: italic; }
+    .oc-msg-thread__approvals { display: flex; flex-direction: column; gap: 8px; }
+    .oc-msg-thread__composer { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--mud-palette-lines-default, #e2e8f0); }
+    .oc-msg-thread__input { flex: 1; }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    private string _draft = string.Empty;
+
+    [Parameter] public string Title { get; set; } = "Conversation";
+
+    [Parameter] public MessagingSecurityProfileKind SecurityProfile { get; set; } = MessagingSecurityProfileKind.PrivateE2EE;
+
+    [Parameter] public MessagingConversationLifecycleState ConversationState { get; set; } = MessagingConversationLifecycleState.Active;
+
+    [Parameter] public string? PresenceLabel { get; set; }
+
+    [Parameter] public string? TypingIndicator { get; set; }
+
+    [Parameter] public IReadOnlyList<MessagingThreadMessage>? Messages { get; set; }
+
+    [Parameter] public IReadOnlyList<MessagingApprovalRequest>? PendingApprovals { get; set; }
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public bool IsSending { get; set; }
+
+    [Parameter] public EventCallback<string> OnSendMessage { get; set; }
+
+    [Parameter] public EventCallback OnAttachFile { get; set; }
+
+    [Parameter] public EventCallback OnRecordVoiceNote { get; set; }
+
+    [Parameter] public EventCallback<string> OnConfirmApproval { get; set; }
+
+    [Parameter] public EventCallback<string> OnDenyApproval { get; set; }
+
+    private async Task SendDraftAsync()
+    {
+        var text = _draft.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        _draft = string.Empty;
+        await OnSendMessage.InvokeAsync(text);
+    }
+
+    private static string GetInitials(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+            return "?";
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}"
+            : displayName[..Math.Min(2, displayName.Length)].ToUpperInvariant();
+    }
+
+    private static string GetReceiptLabel(MessagingReceiptStatus kind) => kind switch
+    {
+        MessagingReceiptStatus.Queued => "Queued",
+        MessagingReceiptStatus.Committed => "Sent",
+        MessagingReceiptStatus.Delivered => "Delivered",
+        MessagingReceiptStatus.Read => "Read",
+        MessagingReceiptStatus.Failed => "Failed",
+        _ => kind.ToString()
+    };
+
+    private static string GetSecurityLabel(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => "PrivateE2EE",
+        MessagingSecurityProfileKind.AgentE2EE => "AgentE2EE",
+        MessagingSecurityProfileKind.Governed => "Governed (not E2EE)",
+        _ => "Unknown"
+    };
+
+    private static string GetSecurityDescription(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => "Verified human devices only; no server or agent plaintext.",
+        MessagingSecurityProfileKind.AgentE2EE => "End-to-end encrypted between human devices and the authorized agent crypto endpoint.",
+        MessagingSecurityProfileKind.Governed => "Organizationally managed encryption with permitted retention/inspection. Not E2EE.",
+        _ => string.Empty
+    };
+
+    private static string GetSecurityIcon(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => Icons.Material.Outlined.Lock,
+        MessagingSecurityProfileKind.AgentE2EE => Icons.Material.Outlined.EnhancedEncryption,
+        MessagingSecurityProfileKind.Governed => Icons.Material.Outlined.Policy,
+        _ => Icons.Material.Outlined.HelpOutline
+    };
+}

@@ -1,0 +1,200 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+@if (Session is not null)
+{
+    var remaining = Session.ExpiresAtUtc - UtcNow;
+    var isExpired = remaining <= TimeSpan.Zero || Session.State == MessagingPairingState.Expired;
+    var remainingSeconds = Math.Max(0, (int)Math.Ceiling(remaining.TotalSeconds));
+
+    <section class="oc-msg-pairing"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="oc-pairing-title">
+        <header class="oc-msg-pairing__header">
+            <div>
+                <h3 id="oc-pairing-title" class="oc-msg-pairing__title">Link OpenConnect Mobile</h3>
+                <p class="oc-msg-pairing__subtitle">@Session.CompanyDisplayName · @Session.ApplicationDisplayName</p>
+            </div>
+            <span class="oc-msg-pairing__timer" role="status" aria-live="polite">
+                @(isExpired ? "Expired" : $"Expires in {remainingSeconds}s")
+            </span>
+        </header>
+
+        <div class="oc-msg-pairing__notice" role="note">
+            <MudIcon Icon="@Icons.Material.Outlined.Security" Size="Size.Small" aria-hidden="true" />
+            <span>Single-use enrollment credential only — your desktop session token is never placed in this QR code.</span>
+        </div>
+
+        @if (!isExpired && Session.State == MessagingPairingState.Pending)
+        {
+            <div class="oc-msg-pairing__qr-panel">
+                <div class="oc-msg-pairing__code-box" aria-label="Verification code">
+                    <span class="oc-msg-pairing__code-label">Verification code</span>
+                    <strong class="oc-msg-pairing__code-value">@Session.VerificationCode</strong>
+                </div>
+                <div class="oc-msg-pairing__payload">
+                    <label for="oc-qr-payload-text" class="oc-msg-pairing__payload-label">QR Enrollment Payload</label>
+                    <textarea id="oc-qr-payload-text"
+                              class="oc-msg-pairing__payload-input"
+                              readonly
+                              rows="4"
+                              aria-label="QR enrollment JSON payload">@Session.QrPayloadJson</textarea>
+                </div>
+            </div>
+        }
+        else if (Session.State == MessagingPairingState.Claimed)
+        {
+            <div class="oc-msg-pairing__confirm-box" role="alert">
+                <p class="oc-msg-pairing__confirm-title">Confirm mobile device pairing</p>
+                <p class="oc-msg-pairing__confirm-body">
+                    Device <strong>@(Session.ClaimedDeviceName ?? "OpenConnect Mobile")</strong>
+                    (@(Session.ClaimedDevicePlatform ?? "Mobile")) scanned this QR code.
+                    Verify that the short code on your mobile screen matches:
+                </p>
+                <div class="oc-msg-pairing__code-box">
+                    <strong class="oc-msg-pairing__code-value">@Session.VerificationCode</strong>
+                </div>
+                <div class="oc-msg-pairing__actions">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="oc-msg-touch-target"
+                               Disabled="@IsBusy"
+                               OnClick="@(() => OnConfirmApproval.InvokeAsync(Session.EnrollmentId))">
+                        Approve device
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               Class="oc-msg-touch-target"
+                               Disabled="@IsBusy"
+                               OnClick="@(() => OnDeny.InvokeAsync(Session.EnrollmentId))">
+                        Deny
+                    </MudButton>
+                </div>
+            </div>
+        }
+        else if (Session.State == MessagingPairingState.Approved || Session.State == MessagingPairingState.Consumed)
+        {
+            <div class="oc-msg-pairing__success" role="status">
+                <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" Color="Color.Success" aria-hidden="true" />
+                <span>Device approved. Mobile is completing enrollment with its own scoped credentials.</span>
+            </div>
+        }
+        else
+        {
+            <div class="oc-msg-pairing__expired" role="status">
+                <span>This pairing code is no longer valid (@Session.State). Generate a fresh code to continue.</span>
+            </div>
+        }
+
+        <footer class="oc-msg-pairing__footer">
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       Class="oc-msg-touch-target"
+                       Disabled="@IsBusy"
+                       OnClick="OnRegenerate">
+                Regenerate QR
+            </MudButton>
+            <MudButton Variant="Variant.Text"
+                       Class="oc-msg-touch-target"
+                       Disabled="@IsBusy"
+                       OnClick="OnCancel">
+                Cancel
+            </MudButton>
+        </footer>
+    </section>
+}
+
+<style>
+    .oc-msg-pairing {
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 10px;
+        padding: 20px;
+        background-color: var(--mud-palette-surface, #ffffff);
+        color: var(--mud-palette-text-primary, #0f172a);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    .oc-msg-pairing__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .oc-msg-pairing__title { margin: 0; font-size: 1.0625rem; font-weight: 600; }
+    .oc-msg-pairing__subtitle { margin: 2px 0 0 0; font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-pairing__timer {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+    }
+    .oc-msg-pairing__notice {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        background-color: var(--mud-palette-background-gray, #f8fafc);
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-pairing__qr-panel { display: flex; flex-direction: column; gap: 12px; }
+    .oc-msg-pairing__code-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+        border-radius: 8px;
+    }
+    .oc-msg-pairing__code-label { font-size: 0.75rem; color: var(--mud-palette-text-secondary, #64748b); text-transform: uppercase; letter-spacing: 0.04em; }
+    .oc-msg-pairing__code-value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 1.375rem;
+        letter-spacing: 0.14em;
+        font-variant-numeric: tabular-nums;
+    }
+    .oc-msg-pairing__payload-label { display: block; font-size: 0.75rem; margin-bottom: 4px; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-pairing__payload-input {
+        width: 100%;
+        box-sizing: border-box;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.75rem;
+        padding: 8px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+    }
+    .oc-msg-pairing__confirm-box {
+        padding: 16px;
+        border: 1px solid var(--mud-palette-primary, #5e6ad2);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .oc-msg-pairing__confirm-title { margin: 0; font-weight: 600; }
+    .oc-msg-pairing__confirm-body { margin: 0; font-size: 0.875rem; }
+    .oc-msg-pairing__actions, .oc-msg-pairing__footer { display: flex; flex-wrap: wrap; gap: 8px; }
+    .oc-msg-pairing__success { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+    .oc-msg-pairing__expired { font-size: 0.875rem; color: var(--mud-palette-error, #dc2626); }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public MessagingPairingSession? Session { get; set; }
+
+    [Parameter] public bool IsBusy { get; set; }
+
+    [Parameter] public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+
+    [Parameter] public EventCallback<string> OnConfirmApproval { get; set; }
+
+    [Parameter] public EventCallback<string> OnDeny { get; set; }
+
+    [Parameter] public EventCallback OnRegenerate { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

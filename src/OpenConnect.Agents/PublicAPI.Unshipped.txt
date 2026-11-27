@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 OpenConnect.Agents.Catalog.AgentCatalog
 OpenConnect.Agents.Catalog.AgentCatalog.AgentCatalog() -> void
 OpenConnect.Agents.Catalog.AgentCatalog.Get(OpenConnect.Abstractions.AgentId agentId) -> OpenConnect.Abstractions.AgentDefinition?
@@ -152,6 +152,9 @@ OpenConnect.Agents.Execution.AttachmentObjectRef.Sha256Hash.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.Sha256Hash.init -> void
 OpenConnect.Agents.Execution.AttachmentObjectRef.TenantId.get -> string!
 OpenConnect.Agents.Execution.AttachmentObjectRef.TenantId.init -> void
+OpenConnect.Agents.Execution.BrokeredSecurityAIFunction
+OpenConnect.Agents.Execution.BrokeredSecurityAIFunction.BrokeredSecurityAIFunction(OpenConnect.Abstractions.ToolId toolId, string! name, string! description, System.Text.Json.JsonElement jsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! invokeBroker, OpenConnect.Privacy.IEgressGate? egressGate = null, OpenConnect.Agents.Execution.IEgressContextProvider? contextProvider = null) -> void
+OpenConnect.Agents.Execution.BrokeredSecurityAIFunction.ToolId.get -> OpenConnect.Abstractions.ToolId
 OpenConnect.Agents.Execution.ChildContextRestrictionGate
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest
 OpenConnect.Agents.Execution.ChildContextRestrictionRequest.<Clone>$() -> OpenConnect.Agents.Execution.ChildContextRestrictionRequest!
@@ -303,6 +306,7 @@ OpenConnect.Agents.Execution.ExecutionTraceRecord.StartedAt.get -> System.DateTi
 OpenConnect.Agents.Execution.ExecutionTraceRecord.StartedAt.init -> void
 OpenConnect.Agents.Execution.FirewallGuardedChatClient
 OpenConnect.Agents.Execution.FirewallGuardedChatClient.FirewallGuardedChatClient(Microsoft.Extensions.AI.IChatClient! inner, OpenConnect.Privacy.IEgressGate! gate, OpenConnect.Agents.Execution.IEgressContextProvider! contextProvider) -> void
+OpenConnect.Agents.Execution.FirewallGuardedChatClient.FirewallGuardedChatClient(Microsoft.Extensions.AI.IChatClient! inner, OpenConnect.Privacy.IEgressGate! gate, OpenConnect.Agents.Execution.IEgressContextProvider! contextProvider, OpenConnect.Abstractions.ISecurityWorkerClient? securityWorkerClient, OpenConnect.Agents.Execution.PromptInjectionGuardOptions? promptInjectionOptions = null, OpenConnect.Abstractions.ISecurityEvidenceSink? evidenceSink = null, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Agents.Execution.FirewallGuardedChatClientExtensions
 OpenConnect.Agents.Execution.FixedEgressContextProvider
 OpenConnect.Agents.Execution.FixedEgressContextProvider.FixedEgressContextProvider(OpenConnect.Privacy.EgressContext! context) -> void
@@ -397,6 +401,7 @@ OpenConnect.Agents.Execution.MafConversationRunner.MafConversationRunner(OpenCon
 OpenConnect.Agents.Execution.MafConversationRunner.PinnedCatalogRevision.get -> string?
 OpenConnect.Agents.Execution.MafConversationRunner.TurnAsync(string! prompt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken), string? tenant = null) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
 OpenConnect.Agents.Execution.MafConversationRunner.TurnDurableAsync(string! prompt, OpenConnect.Agents.Execution.AgentExecutionContext! executionContext, OpenConnect.Agents.Execution.IsExecutionRevoked! isExecutionRevoked, OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext! persistenceContext, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
+OpenConnect.Agents.Execution.MafConversationRunner.TurnDurableStreamingAsync(string! prompt, OpenConnect.Agents.Execution.AgentExecutionContext! executionContext, OpenConnect.Agents.Execution.IsExecutionRevoked! isExecutionRevoked, OpenConnect.Agents.Execution.NativeSessionTurnPersistenceContext! persistenceContext, System.Func<string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? onTextDelta = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Microsoft.Agents.AI.AgentResponse!>!
 OpenConnect.Agents.Execution.MafRealAgentFactory
 OpenConnect.Agents.Execution.MafRealAgentFactory.CreateAgent(OpenConnect.Abstractions.AgentId agentId, System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.AITool!>? tools = null, string? instructions = null) -> Microsoft.Agents.AI.AIAgent!
 OpenConnect.Agents.Execution.MafRealAgentFactory.GetTrace() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Execution.ExecutionTraceRecord!>!
@@ -552,6 +557,29 @@ OpenConnect.Agents.Execution.ParallelPartialFailureException.Error.get -> System
 OpenConnect.Agents.Execution.ParallelPartialFailureException.FailedChildId.get -> string!
 OpenConnect.Agents.Execution.ParallelPartialFailureException.ParallelPartialFailureException(string! failedChildId, System.Exception! error, System.Collections.Generic.IReadOnlyList<string!>! completedIds, System.Collections.Generic.IReadOnlyList<string!>! cancelledIds) -> void
 OpenConnect.Agents.Execution.PerCallToolReauthorizer
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.<Clone>$() -> OpenConnect.Agents.Execution.PromptInjectionGuardOptions!
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Action.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Action.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.ApplicationId.get -> string!
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.ApplicationId.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Deconstruct(out bool Enabled, out bool Required, out double Threshold, out OpenConnect.Abstractions.SecurityPolicyAction Action, out bool MarkUntrustedContent, out string! DetectorId, out string! PolicyRevision, out string! ApplicationId, out int MaxPromptBytes) -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.DetectorId.get -> string!
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.DetectorId.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Enabled.get -> bool
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Enabled.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Equals(OpenConnect.Agents.Execution.PromptInjectionGuardOptions? other) -> bool
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.MarkUntrustedContent.get -> bool
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.MarkUntrustedContent.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.MaxPromptBytes.get -> int
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.MaxPromptBytes.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.PolicyRevision.get -> string!
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.PolicyRevision.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.PromptInjectionGuardOptions(bool Enabled = false, bool Required = true, double Threshold = 0.8, OpenConnect.Abstractions.SecurityPolicyAction Action = OpenConnect.Abstractions.SecurityPolicyAction.Block, bool MarkUntrustedContent = true, string! DetectorId = "deberta-injection", string! PolicyRevision = "1", string! ApplicationId = "openconnect-agent", int MaxPromptBytes = 65536) -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Required.get -> bool
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Required.init -> void
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Threshold.get -> double
+OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Threshold.init -> void
 OpenConnect.Agents.Execution.QuarantinedChildResult
 OpenConnect.Agents.Execution.QuarantinedChildResult.<Clone>$() -> OpenConnect.Agents.Execution.QuarantinedChildResult!
 OpenConnect.Agents.Execution.QuarantinedChildResult.Deconstruct(out OpenConnect.Agents.Execution.ChildResult! Result, out string! Reason) -> void
@@ -613,6 +641,23 @@ OpenConnect.Agents.Execution.TransitionAuthorization.Equals(OpenConnect.Agents.E
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.get -> bool
 OpenConnect.Agents.Execution.TransitionAuthorization.RequiresFreshUserTask.init -> void
 OpenConnect.Agents.Execution.TransitionAuthorization.TransitionAuthorization(bool Allowed, bool RequiresFreshUserTask) -> void
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.BrokeredMessagingAIFunction(OpenConnect.Abstractions.ToolId toolId, string! name, string! description, System.Text.Json.JsonElement jsonSchema, System.Func<System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! invokeBroker, OpenConnect.Privacy.IEgressGate? egressGate = null, OpenConnect.Agents.Execution.IEgressContextProvider? contextProvider = null) -> void
+OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.<Clone>$() -> OpenConnect.Agents.Messaging.MessagingAgentToolBinding!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Deconstruct(out OpenConnect.Abstractions.ToolId ToolId, out string! Name, out string! Description, out string! JsonSchema) -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Description.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Description.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Equals(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? other) -> bool
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.JsonSchema.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.JsonSchema.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.MessagingAgentToolBinding(OpenConnect.Abstractions.ToolId ToolId, string! Name, string! Description, string! JsonSchema) -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Name.get -> string!
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Name.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToolId.get -> OpenConnect.Abstractions.ToolId
+OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToolId.init -> void
+OpenConnect.Agents.Messaging.MessagingAgentToolkit
 OpenConnect.Agents.Providers.EchoProvider
 OpenConnect.Agents.Providers.EchoProvider.Descriptor.get -> OpenConnect.Agents.Providers.ProviderDescriptor!
 OpenConnect.Agents.Providers.EchoProvider.EchoProvider() -> void
@@ -840,6 +885,9 @@ override OpenConnect.Agents.Execution.AgentRun.ToString() -> string!
 override OpenConnect.Agents.Execution.AttachmentObjectRef.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.AttachmentObjectRef.GetHashCode() -> int
 override OpenConnect.Agents.Execution.AttachmentObjectRef.ToString() -> string!
+override OpenConnect.Agents.Execution.BrokeredSecurityAIFunction.Description.get -> string!
+override OpenConnect.Agents.Execution.BrokeredSecurityAIFunction.JsonSchema.get -> System.Text.Json.JsonElement
+override OpenConnect.Agents.Execution.BrokeredSecurityAIFunction.Name.get -> string!
 override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.GetHashCode() -> int
 override OpenConnect.Agents.Execution.ChildContextRestrictionRequest.ToString() -> string!
@@ -894,6 +942,9 @@ override OpenConnect.Agents.Execution.MergedAgentResult.ToString() -> string!
 override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.GetHashCode() -> int
 override OpenConnect.Agents.Execution.ModelHistoryProviderPolicy.ToString() -> string!
+override OpenConnect.Agents.Execution.PromptInjectionGuardOptions.Equals(object? obj) -> bool
+override OpenConnect.Agents.Execution.PromptInjectionGuardOptions.GetHashCode() -> int
+override OpenConnect.Agents.Execution.PromptInjectionGuardOptions.ToString() -> string!
 override OpenConnect.Agents.Execution.QuarantinedChildResult.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.QuarantinedChildResult.GetHashCode() -> int
 override OpenConnect.Agents.Execution.QuarantinedChildResult.ToString() -> string!
@@ -903,6 +954,12 @@ override OpenConnect.Agents.Execution.StructuredOutputValidationResult.ToString(
 override OpenConnect.Agents.Execution.TransitionAuthorization.Equals(object? obj) -> bool
 override OpenConnect.Agents.Execution.TransitionAuthorization.GetHashCode() -> int
 override OpenConnect.Agents.Execution.TransitionAuthorization.ToString() -> string!
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.Description.get -> string!
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.JsonSchema.get -> System.Text.Json.JsonElement
+override OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction.Name.get -> string!
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.Equals(object? obj) -> bool
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.GetHashCode() -> int
+override OpenConnect.Agents.Messaging.MessagingAgentToolBinding.ToString() -> string!
 override OpenConnect.Agents.Providers.ProviderDescriptor.Equals(object? obj) -> bool
 override OpenConnect.Agents.Providers.ProviderDescriptor.GetHashCode() -> int
 override OpenConnect.Agents.Providers.ProviderDescriptor.ToString() -> string!
@@ -964,6 +1021,7 @@ static OpenConnect.Agents.Execution.ConversationTurnEvent.operator ==(OpenConnec
 static OpenConnect.Agents.Execution.ExecutionTraceRecord.operator !=(OpenConnect.Agents.Execution.ExecutionTraceRecord? left, OpenConnect.Agents.Execution.ExecutionTraceRecord? right) -> bool
 static OpenConnect.Agents.Execution.ExecutionTraceRecord.operator ==(OpenConnect.Agents.Execution.ExecutionTraceRecord? left, OpenConnect.Agents.Execution.ExecutionTraceRecord? right) -> bool
 static OpenConnect.Agents.Execution.FirewallGuardedChatClientExtensions.AddFirewallGuardedChatClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, OpenConnect.Privacy.EgressContext! context) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Agents.Execution.FirewallGuardedChatClientExtensions.AddFirewallGuardedChatClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, OpenConnect.Privacy.EgressContext! context, OpenConnect.Agents.Execution.PromptInjectionGuardOptions! promptInjectionOptions) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Agents.Execution.LeadSynthesisOutcome.operator !=(OpenConnect.Agents.Execution.LeadSynthesisOutcome? left, OpenConnect.Agents.Execution.LeadSynthesisOutcome? right) -> bool
 static OpenConnect.Agents.Execution.LeadSynthesisOutcome.operator ==(OpenConnect.Agents.Execution.LeadSynthesisOutcome? left, OpenConnect.Agents.Execution.LeadSynthesisOutcome? right) -> bool
 static OpenConnect.Agents.Execution.MafCapabilityProbe.operator !=(OpenConnect.Agents.Execution.MafCapabilityProbe? left, OpenConnect.Agents.Execution.MafCapabilityProbe? right) -> bool
@@ -999,6 +1057,8 @@ static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateAgentProf
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateExecutionProfile(string! profile) -> void
 static OpenConnect.Agents.Execution.OrchestrationProfileRouter.ValidateRuntimeProfile(string! profile) -> void
 static OpenConnect.Agents.Execution.PerCallToolReauthorizer.Wrap(Microsoft.Extensions.AI.AIFunction! inner, OpenConnect.Abstractions.ToolId toolId, OpenConnect.Abstractions.ToolImpact impact, System.Func<OpenConnect.Abstractions.ToolId, bool>! isToolGranted, OpenConnect.Agents.Execution.IsExecutionRevoked! isRevoked, OpenConnect.Agents.Execution.AgentExecutionContext! context, OpenConnect.Agents.Execution.RunBudgetLedger? ledger = null) -> Microsoft.Extensions.AI.AIFunction!
+static OpenConnect.Agents.Execution.PromptInjectionGuardOptions.operator !=(OpenConnect.Agents.Execution.PromptInjectionGuardOptions? left, OpenConnect.Agents.Execution.PromptInjectionGuardOptions? right) -> bool
+static OpenConnect.Agents.Execution.PromptInjectionGuardOptions.operator ==(OpenConnect.Agents.Execution.PromptInjectionGuardOptions? left, OpenConnect.Agents.Execution.PromptInjectionGuardOptions? right) -> bool
 static OpenConnect.Agents.Execution.QuarantinedChildResult.operator !=(OpenConnect.Agents.Execution.QuarantinedChildResult? left, OpenConnect.Agents.Execution.QuarantinedChildResult? right) -> bool
 static OpenConnect.Agents.Execution.QuarantinedChildResult.operator ==(OpenConnect.Agents.Execution.QuarantinedChildResult? left, OpenConnect.Agents.Execution.QuarantinedChildResult? right) -> bool
 static OpenConnect.Agents.Execution.RateLimitServiceCollectionExtensions.AddTenantApplicationRateLimiting(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
@@ -1007,6 +1067,9 @@ static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator !=
 static OpenConnect.Agents.Execution.StructuredOutputValidationResult.operator ==(OpenConnect.Agents.Execution.StructuredOutputValidationResult? left, OpenConnect.Agents.Execution.StructuredOutputValidationResult? right) -> bool
 static OpenConnect.Agents.Execution.TransitionAuthorization.operator !=(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
 static OpenConnect.Agents.Execution.TransitionAuthorization.operator ==(OpenConnect.Agents.Execution.TransitionAuthorization? left, OpenConnect.Agents.Execution.TransitionAuthorization? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolBinding.operator !=(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? left, OpenConnect.Agents.Messaging.MessagingAgentToolBinding? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolBinding.operator ==(OpenConnect.Agents.Messaging.MessagingAgentToolBinding? left, OpenConnect.Agents.Messaging.MessagingAgentToolBinding? right) -> bool
+static OpenConnect.Agents.Messaging.MessagingAgentToolkit.CreateFunctions(System.Collections.Generic.IEnumerable<OpenConnect.Agents.Messaging.MessagingAgentToolBinding!>! bindings, System.Func<OpenConnect.Abstractions.ToolId, System.Text.Json.JsonElement, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<System.Text.Json.JsonElement>>! invokeBroker, OpenConnect.Privacy.IEgressGate? egressGate = null, OpenConnect.Agents.Execution.IEgressContextProvider? contextProvider = null) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Agents.Messaging.BrokeredMessagingAIFunction!>!
 static OpenConnect.Agents.Providers.ModelRouteSelector.SelectProvider(OpenConnect.Abstractions.ModelRequirement! requirement, System.Collections.Generic.IEnumerable<OpenConnect.Agents.Providers.ProviderDescriptor!>! availableProviders) -> OpenConnect.Agents.Providers.ProviderDescriptor!
 static OpenConnect.Agents.Providers.ProviderDescriptor.operator !=(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool
 static OpenConnect.Agents.Providers.ProviderDescriptor.operator ==(OpenConnect.Agents.Providers.ProviderDescriptor? left, OpenConnect.Agents.Providers.ProviderDescriptor? right) -> bool

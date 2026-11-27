@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "openconnect.security-inspection.v1",
+  "requestId": "e2c42bdb-5e3d-4f0d-b4d5-860a482df3e1",
+  "policyRevision": "demo-1",
+  "modality": "text",
+  "detectors": ["rules"],
+  "text": "Contact demo@example.com"
+}

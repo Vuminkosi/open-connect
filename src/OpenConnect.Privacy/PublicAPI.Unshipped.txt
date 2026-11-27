@@ -80,6 +80,7 @@ OpenConnect.Privacy.Gates.EgressGate.EgressGate(OpenConnect.Privacy.IPrivacyFire
 OpenConnect.Privacy.Gates.EgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.Gates.ModalityEgressGate
 OpenConnect.Privacy.Gates.ModalityEgressGate.EvaluateModality(OpenConnect.Privacy.Gates.ModalityEgressRequest! request, OpenConnect.Abstractions.FirewallMode mode) -> OpenConnect.Privacy.EgressDecision!
+OpenConnect.Privacy.Gates.ModalityEgressGate.EvaluateRedactedImage(OpenConnect.Privacy.Image.ImageRedactionResult! redactionResult, OpenConnect.Privacy.EgressContext! context, OpenConnect.Abstractions.FirewallMode mode) -> OpenConnect.Privacy.EgressDecision!
 OpenConnect.Privacy.Gates.ModalityEgressGate.ModalityEgressGate(OpenConnect.Privacy.IPrivacyFirewall! firewall) -> void
 OpenConnect.Privacy.Gates.ModalityEgressRequest
 OpenConnect.Privacy.Gates.ModalityEgressRequest.<Clone>$() -> OpenConnect.Privacy.Gates.ModalityEgressRequest!
@@ -100,9 +101,16 @@ OpenConnect.Privacy.HostPrivacyEvidence.Action.get -> OpenConnect.Abstractions.S
 OpenConnect.Privacy.HostPrivacyEvidence.Allowed.get -> bool
 OpenConnect.Privacy.HostPrivacyEvidence.Categories.get -> System.Collections.Generic.IReadOnlyDictionary<string!, int>!
 OpenConnect.Privacy.HostPrivacyEvidence.Destination.get -> OpenConnect.Privacy.EgressDestination
+OpenConnect.Privacy.HostPrivacyEvidence.EnforcementAuthority.get -> string!
 OpenConnect.Privacy.HostPrivacyEvidence.EventId.get -> System.Guid
+OpenConnect.Privacy.HostPrivacyEvidence.IntegrityDigest.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.OccurredAt.get -> System.DateTimeOffset?
+OpenConnect.Privacy.HostPrivacyEvidence.PolicyId.get -> string?
+OpenConnect.Privacy.HostPrivacyEvidence.PolicyRevision.get -> string?
 OpenConnect.Privacy.HostPrivacyEvidence.ReasonCode.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.RequestId.get -> string?
 OpenConnect.Privacy.HostPrivacyEvidence.TenantId.get -> string!
+OpenConnect.Privacy.HostPrivacyEvidence.TraceId.get -> string?
 OpenConnect.Privacy.IEgressGate
 OpenConnect.Privacy.IEgressGate.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.IHostPrivacyEvidenceSink
@@ -115,6 +123,36 @@ OpenConnect.Privacy.ISecurityDetector.DetectAndSanitizeAsync(string! content, Op
 OpenConnect.Privacy.ITokenVault
 OpenConnect.Privacy.ITokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 OpenConnect.Privacy.ITokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
+OpenConnect.Privacy.Image.HostImageRedactor
+OpenConnect.Privacy.Image.HostImageRedactor.HostImageRedactor(int maxImageBytes = 10485760, int maxMegapixels = 20, int defaultPaddingPixels = 4) -> void
+OpenConnect.Privacy.Image.HostImageRedactor.RedactFromInspection(System.ReadOnlySpan<byte> sourceBytes, OpenConnect.Abstractions.SecurityInspectionResponse! inspection, System.Collections.Generic.IReadOnlySet<string!>? requiredDetectors = null, int? paddingPixels = null, System.Func<System.ReadOnlyMemory<byte>, bool>? recheckCallback = null) -> OpenConnect.Privacy.Image.ImageRedactionResult!
+OpenConnect.Privacy.Image.HostImageRedactor.RedactPng(System.ReadOnlySpan<byte> sourceBytes, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityImageRegion!>! regions, int? paddingPixels = null, System.Func<System.ReadOnlyMemory<byte>, bool>? recheckCallback = null) -> OpenConnect.Privacy.Image.ImageRedactionResult!
+OpenConnect.Privacy.Image.ImageRedactionResult
+OpenConnect.Privacy.Image.ImageRedactionResult.<Clone>$() -> OpenConnect.Privacy.Image.ImageRedactionResult!
+OpenConnect.Privacy.Image.ImageRedactionResult.Deconstruct(out bool Succeeded, out byte[]? RedactedPngBytes, out string? OutputSha256Digest, out int Width, out int Height, out int RedactedRegionCount, out bool MetadataStripped, out string! ReasonCode) -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.Equals(OpenConnect.Privacy.Image.ImageRedactionResult? other) -> bool
+OpenConnect.Privacy.Image.ImageRedactionResult.Height.get -> int
+OpenConnect.Privacy.Image.ImageRedactionResult.Height.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.ImageRedactionResult(bool Succeeded, byte[]? RedactedPngBytes, string? OutputSha256Digest, int Width, int Height, int RedactedRegionCount, bool MetadataStripped, string! ReasonCode) -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.MetadataStripped.get -> bool
+OpenConnect.Privacy.Image.ImageRedactionResult.MetadataStripped.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.OutputSha256Digest.get -> string?
+OpenConnect.Privacy.Image.ImageRedactionResult.OutputSha256Digest.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.ReasonCode.get -> string!
+OpenConnect.Privacy.Image.ImageRedactionResult.ReasonCode.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.RedactedPngBytes.get -> byte[]?
+OpenConnect.Privacy.Image.ImageRedactionResult.RedactedPngBytes.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.RedactedRegionCount.get -> int
+OpenConnect.Privacy.Image.ImageRedactionResult.RedactedRegionCount.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.Succeeded.get -> bool
+OpenConnect.Privacy.Image.ImageRedactionResult.Succeeded.init -> void
+OpenConnect.Privacy.Image.ImageRedactionResult.Width.get -> int
+OpenConnect.Privacy.Image.ImageRedactionResult.Width.init -> void
+OpenConnect.Privacy.InMemorySecurityEvidenceSink
+OpenConnect.Privacy.InMemorySecurityEvidenceSink.GetById(string! tenantId, string! applicationId, System.Guid eventId) -> OpenConnect.Abstractions.SecurityEvidenceEvent?
+OpenConnect.Privacy.InMemorySecurityEvidenceSink.InMemorySecurityEvidenceSink(int maxStoredEvents = 10000) -> void
+OpenConnect.Privacy.InMemorySecurityEvidenceSink.Query(string! tenantId, string? applicationId = null, string? capability = null, int skip = 0, int take = 100) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityEvidenceEvent!>!
+OpenConnect.Privacy.InMemorySecurityEvidenceSink.RecordAsync(OpenConnect.Abstractions.SecurityEvidenceEvent! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityEvidenceRecordResult!>
 OpenConnect.Privacy.Policy.PolicyEngine
 OpenConnect.Privacy.Policy.PolicyEngine.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, OpenConnect.Abstractions.FirewallMode mode, bool enabled, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.Policy.PolicyEngine.PolicyEngine(OpenConnect.Privacy.ISecurityDetector? detector = null) -> void
@@ -200,9 +238,98 @@ OpenConnect.Privacy.Tokenization.TokenGenerator.CreateAsync(string! value, strin
 OpenConnect.Privacy.Tokenization.TokenGenerator.TokenGenerator(OpenConnect.Privacy.ITokenVault! vault) -> void
 OpenConnect.Privacy.Tokenization.TokenVault
 OpenConnect.Privacy.Tokenization.TokenVault.Dispose() -> void
+OpenConnect.Privacy.Tokenization.TokenVault.IsSecretToken(string! token, OpenConnect.Privacy.PrivacyScope! scope) -> bool
 OpenConnect.Privacy.Tokenization.TokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 OpenConnect.Privacy.Tokenization.TokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Tokenization.TokenVault.TokenVault(byte[]! key, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.Dispose() -> void
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.GetCapabilitiesAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityCapabilitiesSnapshot!>
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.HttpSecurityWorkerClient(OpenConnect.Privacy.Worker.SecurityWorkerClientOptions! options, System.Net.Http.HttpMessageHandler? messageHandler = null, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.InspectFileAsync(OpenConnect.Abstractions.SecurityFileInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.InspectImageAsync(OpenConnect.Abstractions.SecurityImageInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.InspectPromptAsync(OpenConnect.Abstractions.SecurityPromptInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Privacy.Worker.HttpSecurityWorkerClient.InspectTextAsync(OpenConnect.Abstractions.SecurityTextInspectionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.SecurityInspectionResponse!>
+OpenConnect.Privacy.Worker.ResolvedTextSpan
+OpenConnect.Privacy.Worker.ResolvedTextSpan.<Clone>$() -> OpenConnect.Privacy.Worker.ResolvedTextSpan!
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Action.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Action.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Deconstruct(out int Utf16Start, out int Utf16Length, out int ScalarStart, out int ScalarLength, out string! WinningCategory, out System.Collections.Generic.IReadOnlyList<string!>! MergedCategories, out OpenConnect.Abstractions.SecurityPolicyAction Action, out double MaxConfidence) -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Equals(OpenConnect.Privacy.Worker.ResolvedTextSpan? other) -> bool
+OpenConnect.Privacy.Worker.ResolvedTextSpan.MaxConfidence.get -> double
+OpenConnect.Privacy.Worker.ResolvedTextSpan.MaxConfidence.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.MergedCategories.get -> System.Collections.Generic.IReadOnlyList<string!>!
+OpenConnect.Privacy.Worker.ResolvedTextSpan.MergedCategories.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.ResolvedTextSpan(int Utf16Start, int Utf16Length, int ScalarStart, int ScalarLength, string! WinningCategory, System.Collections.Generic.IReadOnlyList<string!>! MergedCategories, OpenConnect.Abstractions.SecurityPolicyAction Action, double MaxConfidence) -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.ScalarLength.get -> int
+OpenConnect.Privacy.Worker.ResolvedTextSpan.ScalarLength.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.ScalarStart.get -> int
+OpenConnect.Privacy.Worker.ResolvedTextSpan.ScalarStart.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Utf16Length.get -> int
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Utf16Length.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Utf16Start.get -> int
+OpenConnect.Privacy.Worker.ResolvedTextSpan.Utf16Start.init -> void
+OpenConnect.Privacy.Worker.ResolvedTextSpan.WinningCategory.get -> string!
+OpenConnect.Privacy.Worker.ResolvedTextSpan.WinningCategory.init -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.AllowInsecureLoopbackHttpInDevelopment.get -> bool
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.AllowInsecureLoopbackHttpInDevelopment.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.BearerToken.get -> string?
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.BearerToken.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.CapabilityLeaseDuration.get -> System.TimeSpan
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.CapabilityLeaseDuration.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.Endpoint.get -> System.Uri?
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.Endpoint.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxConcurrentRequests.get -> int
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxConcurrentRequests.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxFileBytes.get -> int
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxFileBytes.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxImageBytes.get -> int
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxImageBytes.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxResponseBytes.get -> int
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxResponseBytes.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxTextBytes.get -> int
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.MaxTextBytes.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.RequestTimeout.get -> System.TimeSpan
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.RequestTimeout.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.RequireAuthenticatedTransport.get -> bool
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.RequireAuthenticatedTransport.set -> void
+OpenConnect.Privacy.Worker.SecurityWorkerClientOptions.SecurityWorkerClientOptions() -> void
+OpenConnect.Privacy.Worker.SecurityWorkerDetector
+OpenConnect.Privacy.Worker.SecurityWorkerDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
+OpenConnect.Privacy.Worker.SecurityWorkerDetector.SecurityWorkerDetector(OpenConnect.Abstractions.ISecurityWorkerClient! client, System.Collections.Generic.IReadOnlyList<string!>! detectors, System.Collections.Generic.IReadOnlySet<string!>? requiredDetectors = null, string! policyRevision = "default-1", OpenConnect.Privacy.ITokenVault? vault = null, System.Collections.Generic.IReadOnlyDictionary<string!, OpenConnect.Abstractions.SecurityPolicyAction>? categoryPolicies = null) -> void
+OpenConnect.Privacy.Worker.TextOverlapResolver
+OpenConnect.Privacy.Worker.TextSanitizationResult
+OpenConnect.Privacy.Worker.TextSanitizationResult.<Clone>$() -> OpenConnect.Privacy.Worker.TextSanitizationResult!
+OpenConnect.Privacy.Worker.TextSanitizationResult.Allowed.get -> bool
+OpenConnect.Privacy.Worker.TextSanitizationResult.Allowed.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.Deconstruct(out bool Allowed, out string? SanitizedContent, out OpenConnect.Abstractions.SecurityPolicyAction EffectiveAction, out System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Worker.ResolvedTextSpan!>! ResolvedSpans, out System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! EntitySpans, out string! ReasonCode) -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.EffectiveAction.get -> OpenConnect.Abstractions.SecurityPolicyAction
+OpenConnect.Privacy.Worker.TextSanitizationResult.EffectiveAction.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.EntitySpans.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>!
+OpenConnect.Privacy.Worker.TextSanitizationResult.EntitySpans.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.Equals(OpenConnect.Privacy.Worker.TextSanitizationResult? other) -> bool
+OpenConnect.Privacy.Worker.TextSanitizationResult.ReasonCode.get -> string!
+OpenConnect.Privacy.Worker.TextSanitizationResult.ReasonCode.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.ResolvedSpans.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Worker.ResolvedTextSpan!>!
+OpenConnect.Privacy.Worker.TextSanitizationResult.ResolvedSpans.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.SanitizedContent.get -> string?
+OpenConnect.Privacy.Worker.TextSanitizationResult.SanitizedContent.init -> void
+OpenConnect.Privacy.Worker.TextSanitizationResult.TextSanitizationResult(bool Allowed, string? SanitizedContent, OpenConnect.Abstractions.SecurityPolicyAction EffectiveAction, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Worker.ResolvedTextSpan!>! ResolvedSpans, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.EntitySpan!>! EntitySpans, string! ReasonCode) -> void
+OpenConnect.Privacy.Worker.UnicodeScalarOffsetConverter
+OpenConnect.Privacy.Worker.Utf16TextSpan
+OpenConnect.Privacy.Worker.Utf16TextSpan.Deconstruct(out int Start, out int Length, out int ScalarStart, out int ScalarLength) -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.Equals(OpenConnect.Privacy.Worker.Utf16TextSpan other) -> bool
+OpenConnect.Privacy.Worker.Utf16TextSpan.Length.get -> int
+OpenConnect.Privacy.Worker.Utf16TextSpan.Length.init -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.ScalarLength.get -> int
+OpenConnect.Privacy.Worker.Utf16TextSpan.ScalarLength.init -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.ScalarStart.get -> int
+OpenConnect.Privacy.Worker.Utf16TextSpan.ScalarStart.init -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.Start.get -> int
+OpenConnect.Privacy.Worker.Utf16TextSpan.Start.init -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.Utf16TextSpan() -> void
+OpenConnect.Privacy.Worker.Utf16TextSpan.Utf16TextSpan(int Start, int Length, int ScalarStart, int ScalarLength) -> void
 override OpenConnect.Privacy.DetectorResult.Equals(object? obj) -> bool
 override OpenConnect.Privacy.DetectorResult.GetHashCode() -> int
 override OpenConnect.Privacy.DetectorResult.ToString() -> string!
@@ -218,6 +345,9 @@ override OpenConnect.Privacy.EntitySpan.ToString() -> string!
 override OpenConnect.Privacy.Gates.ModalityEgressRequest.Equals(object? obj) -> bool
 override OpenConnect.Privacy.Gates.ModalityEgressRequest.GetHashCode() -> int
 override OpenConnect.Privacy.Gates.ModalityEgressRequest.ToString() -> string!
+override OpenConnect.Privacy.Image.ImageRedactionResult.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Image.ImageRedactionResult.GetHashCode() -> int
+override OpenConnect.Privacy.Image.ImageRedactionResult.ToString() -> string!
 override OpenConnect.Privacy.PrivacyScope.Equals(object? obj) -> bool
 override OpenConnect.Privacy.PrivacyScope.GetHashCode() -> int
 override OpenConnect.Privacy.PrivacyScope.ToString() -> string!
@@ -227,6 +357,13 @@ override OpenConnect.Privacy.Restoration.RestorationContext.ToString() -> string
 override OpenConnect.Privacy.Rules.CustomDetectorRule.Equals(object? obj) -> bool
 override OpenConnect.Privacy.Rules.CustomDetectorRule.GetHashCode() -> int
 override OpenConnect.Privacy.Rules.CustomDetectorRule.ToString() -> string!
+override OpenConnect.Privacy.Worker.ResolvedTextSpan.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Worker.ResolvedTextSpan.GetHashCode() -> int
+override OpenConnect.Privacy.Worker.ResolvedTextSpan.ToString() -> string!
+override OpenConnect.Privacy.Worker.TextSanitizationResult.Equals(object? obj) -> bool
+override OpenConnect.Privacy.Worker.TextSanitizationResult.GetHashCode() -> int
+override OpenConnect.Privacy.Worker.TextSanitizationResult.ToString() -> string!
+override OpenConnect.Privacy.Worker.Utf16TextSpan.GetHashCode() -> int
 static OpenConnect.Privacy.CloudTenantIdentity.ToHostTenantId(System.Guid cloudTenantId) -> OpenConnect.Abstractions.TenantId
 static OpenConnect.Privacy.DetectorResult.operator !=(OpenConnect.Privacy.DetectorResult? left, OpenConnect.Privacy.DetectorResult? right) -> bool
 static OpenConnect.Privacy.DetectorResult.operator ==(OpenConnect.Privacy.DetectorResult? left, OpenConnect.Privacy.DetectorResult? right) -> bool
@@ -239,7 +376,12 @@ static OpenConnect.Privacy.EntitySpan.operator ==(OpenConnect.Privacy.EntitySpan
 static OpenConnect.Privacy.EvidenceRecordingPrivacyServiceCollectionExtensions.AddRecordedPrivacyFirewall(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Func<System.IServiceProvider!, OpenConnect.Privacy.IPrivacyFirewall!>! innerFactory) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator !=(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
 static OpenConnect.Privacy.Gates.ModalityEgressRequest.operator ==(OpenConnect.Privacy.Gates.ModalityEgressRequest? left, OpenConnect.Privacy.Gates.ModalityEgressRequest? right) -> bool
+static OpenConnect.Privacy.HostPrivacyEvidence.ComputeIntegrityDigest(System.Guid eventId, string! tenantId, OpenConnect.Privacy.EgressDestination destination, bool allowed, OpenConnect.Abstractions.SecurityPolicyAction action, string! reasonCode, System.Collections.Generic.IReadOnlyDictionary<string!, int>! categories, string! enforcementAuthority = "application-host", string? traceId = null, string? requestId = null, System.DateTimeOffset? occurredAt = null, string? policyId = null, string? policyRevision = null) -> string!
 static OpenConnect.Privacy.HostPrivacyEvidence.Create(System.Guid eventId, OpenConnect.Privacy.EgressContext! context, OpenConnect.Privacy.EgressDecision! decision) -> OpenConnect.Privacy.HostPrivacyEvidence!
+static OpenConnect.Privacy.HostPrivacyEvidence.Create(System.Guid eventId, OpenConnect.Privacy.EgressContext! context, OpenConnect.Privacy.EgressDecision! decision, string? traceId, string? requestId = null, System.DateTimeOffset? occurredAt = null, string? policyId = null, string? policyRevision = null) -> OpenConnect.Privacy.HostPrivacyEvidence!
+static OpenConnect.Privacy.Image.HostImageRedactor.EncodeRgb24Png(int width, int height, System.ReadOnlySpan<byte> rgbPixels) -> byte[]!
+static OpenConnect.Privacy.Image.ImageRedactionResult.operator !=(OpenConnect.Privacy.Image.ImageRedactionResult? left, OpenConnect.Privacy.Image.ImageRedactionResult? right) -> bool
+static OpenConnect.Privacy.Image.ImageRedactionResult.operator ==(OpenConnect.Privacy.Image.ImageRedactionResult? left, OpenConnect.Privacy.Image.ImageRedactionResult? right) -> bool
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandEmbeddingResponseUnchangedAsync(OpenConnect.Privacy.IPrivacyFirewall! firewall, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandGateEmbeddingResponseUnchangedAsync(OpenConnect.Privacy.IEgressGate! gate, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 static OpenConnect.Privacy.PrivacyJsonInspection.DemandGateUnchangedAsync(OpenConnect.Privacy.IEgressGate! gate, System.Text.Json.JsonElement value, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
@@ -255,3 +397,18 @@ static OpenConnect.Privacy.Rules.CustomDetectorRule.operator !=(OpenConnect.Priv
 static OpenConnect.Privacy.Rules.CustomDetectorRule.operator ==(OpenConnect.Privacy.Rules.CustomDetectorRule? left, OpenConnect.Privacy.Rules.CustomDetectorRule? right) -> bool
 static OpenConnect.Privacy.Rules.RulesSecurityDetector.CountUnicodeCodePoints(string! str, int startIndex, int length) -> int
 static OpenConnect.Privacy.Rules.RulesSecurityDetector.PassesLuhnCheck(string! digits) -> bool
+static OpenConnect.Privacy.Worker.ResolvedTextSpan.operator !=(OpenConnect.Privacy.Worker.ResolvedTextSpan? left, OpenConnect.Privacy.Worker.ResolvedTextSpan? right) -> bool
+static OpenConnect.Privacy.Worker.ResolvedTextSpan.operator ==(OpenConnect.Privacy.Worker.ResolvedTextSpan? left, OpenConnect.Privacy.Worker.ResolvedTextSpan? right) -> bool
+static OpenConnect.Privacy.Worker.TextOverlapResolver.IsSecretCategory(string? category) -> bool
+static OpenConnect.Privacy.Worker.TextOverlapResolver.ResolveOverlaps(System.Collections.Generic.IReadOnlyList<(OpenConnect.Abstractions.SecurityFinding! Finding, OpenConnect.Privacy.Worker.Utf16TextSpan Utf16Span)>! validatedFindings, System.Collections.Generic.IReadOnlyDictionary<string!, OpenConnect.Abstractions.SecurityPolicyAction>? categoryPolicies = null) -> System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Worker.ResolvedTextSpan!>!
+static OpenConnect.Privacy.Worker.TextOverlapResolver.SanitizeAsync(string! content, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Worker.ResolvedTextSpan!>! resolvedSpans, OpenConnect.Privacy.EgressContext! context, OpenConnect.Privacy.ITokenVault? vault = null, System.TimeSpan? tokenTtl = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.Worker.TextSanitizationResult!>
+static OpenConnect.Privacy.Worker.TextSanitizationResult.operator !=(OpenConnect.Privacy.Worker.TextSanitizationResult? left, OpenConnect.Privacy.Worker.TextSanitizationResult? right) -> bool
+static OpenConnect.Privacy.Worker.TextSanitizationResult.operator ==(OpenConnect.Privacy.Worker.TextSanitizationResult? left, OpenConnect.Privacy.Worker.TextSanitizationResult? right) -> bool
+static OpenConnect.Privacy.Worker.UnicodeScalarOffsetConverter.BuildScalarToUtf16Map(string! content) -> int[]!
+static OpenConnect.Privacy.Worker.UnicodeScalarOffsetConverter.TryConvertScalarRangeToUtf16(int[]! scalarToUtf16Map, int scalarStart, int scalarEnd, out OpenConnect.Privacy.Worker.Utf16TextSpan span) -> bool
+static OpenConnect.Privacy.Worker.UnicodeScalarOffsetConverter.TryValidateTextFindings(string! content, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityFinding!>! findings, out System.Collections.Generic.IReadOnlyList<(OpenConnect.Abstractions.SecurityFinding! Finding, OpenConnect.Privacy.Worker.Utf16TextSpan Utf16Span)>! validated) -> bool
+static OpenConnect.Privacy.Worker.UnicodeScalarOffsetConverter.ValidateImageFindings(OpenConnect.Abstractions.SecurityImageDimensions? dimensions, System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.SecurityFinding!>! findings) -> bool
+static OpenConnect.Privacy.Worker.Utf16TextSpan.operator !=(OpenConnect.Privacy.Worker.Utf16TextSpan left, OpenConnect.Privacy.Worker.Utf16TextSpan right) -> bool
+static OpenConnect.Privacy.Worker.Utf16TextSpan.operator ==(OpenConnect.Privacy.Worker.Utf16TextSpan left, OpenConnect.Privacy.Worker.Utf16TextSpan right) -> bool
+~override OpenConnect.Privacy.Worker.Utf16TextSpan.Equals(object obj) -> bool
+~override OpenConnect.Privacy.Worker.Utf16TextSpan.ToString() -> string

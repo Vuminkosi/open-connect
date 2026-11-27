@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "task-presence-0001",
+  "kind": "messaging.presence",
+  "tenantId": "tenant-acme-01",
+  "nonce": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+  "issuedAt": "2026-11-25T12:00:00Z",
+  "expiresAt": "2026-11-25T12:02:00Z",
+  "payload": {
+    "eventId": "evt-pres-0001",
+    "principalId": "usr-0001",
+    "deviceId": "dev-human-01",
+    "gatewayId": "gw-eu-01",
+    "status": "online",
+    "conversationIds": ["conv-0001"],
+    "ttlSeconds": 60,
+    "occurredAt": "2026-11-25T12:00:00Z"
+  }
+}

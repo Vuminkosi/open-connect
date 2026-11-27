@@ -1,0 +1,29 @@
+[project]
+name = "openconnect-imessaging-worker"
+version = "0.1.0"
+description = "Private real-time delivery, presence, call signaling, and opaque push worker for OpenConnect IMessaging"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.162.5",
+  "httpx==0.28.1",
+  "openconnect-worker-common",
+  "pydantic==2.11.3",
+  "uvicorn[standard]==0.54.0",
+]
+
+[project.optional-dependencies]
+nats = ["nats-py==2.10.0"]
+
+[tool.uv.sources]
+openconnect-worker-common = { path = "../common" }
+
+[dependency-groups]
+dev = ["jsonschema==4.26.0", "pytest==9.2.0", "ruff==0.17.5"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

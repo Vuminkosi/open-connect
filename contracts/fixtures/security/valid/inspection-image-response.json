@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "openconnect.security-inspection.v1",
+  "requestId": "5a9e91f1-28fd-4a2b-a892-62e23650d1e9",
+  "modality": "image",
+  "status": "completed",
+  "detectors": [
+    {
+      "id": "yunet",
+      "version": "rev-yunet-1",
+      "status": "completed",
+      "reasonCode": null
+    }
+  ],
+  "findings": [
+    {
+      "kind": "image_region",
+      "detectorId": "yunet",
+      "category": "FACE",
+      "x": 20,
+      "y": 16,
+      "width": 64,
+      "height": 64,
+      "confidence": 0.94,
+      "recommendedAction": "redact"
+    }
+  ],
+  "offsetUnit": null,
+  "contentSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "contentType": "image/png",
+  "imageMetadata": {
+    "width": 256,
+    "height": 256,
+    "coordinateSpace": "top-left-pixels",
+    "orientationNormalized": true
+  },
+  "durationMs": 22
+}

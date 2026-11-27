@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using OpenConnect.Docs.Services.Voice;
+using OpenConnect.Components.Blazor.Voice;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -55,10 +55,10 @@ public sealed class DocumentationVoiceBridgeTests
     }
 
     private sealed class Fixture(WebApplication gateway, WebApplication site, X509Certificate2 certificate,
-        string siteAddress, DocumentationVoiceTickets tickets, TaskCompletionSource<string> authorization,
+        string siteAddress, OpenConnectVoiceTicketStore tickets, TaskCompletionSource<string> authorization,
         TaskCompletionSource echoObserved, TaskCompletionSource gatewayCloseSent) : IAsyncDisposable
     {
-        public DocumentationVoiceTickets Tickets { get; } = tickets;
+        public OpenConnectVoiceTicketStore Tickets { get; } = tickets;
         public TaskCompletionSource<string> Authorization { get; } = authorization;
         public Uri VoiceUri(string session) => new($"{siteAddress.Replace("https://", "wss://", StringComparison.Ordinal)}/openconnect/v1/voice/realtime/{session}");
 
@@ -111,13 +111,15 @@ public sealed class DocumentationVoiceBridgeTests
             siteBuilder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
             await gateway.StartAsync();
             var gatewayAddress = gateway.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            var tickets = new DocumentationVoiceTickets();
-            var bridge = new DocumentationVoiceBridge(tickets, new Uri(gatewayAddress));
-            siteBuilder.Services.AddSingleton(bridge);
-            siteBuilder.Services.AddSingleton<IStartupFilter, DocumentationVoiceStartupFilter>();
+            siteBuilder.Services.AddOpenConnectVoiceBridge(options =>
+            {
+                options.GatewayBaseAddress = new Uri(gatewayAddress);
+                options.AllowLoopbackHttp = true;
+            });
             var site = siteBuilder.Build();
             site.Run(_ => Task.CompletedTask);
             await site.StartAsync();
+            var tickets = site.Services.GetRequiredService<OpenConnectVoiceTicketStore>();
             var siteAddress = site.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
             return new Fixture(gateway, site, certificate, siteAddress, tickets, authorization, echoObserved, gatewayCloseSent);
         }

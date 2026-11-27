@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using OpenConnect.Abstractions.Speech;
 
 namespace OpenConnect.Client;
 
@@ -23,6 +24,9 @@ public static class OpenConnectClientServiceCollectionExtensions
         var normalizedBaseAddress = new Uri(baseAddress.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
         services.TryAddSingleton(new OpenConnectClientOptions { ApiBaseAddress = normalizedBaseAddress });
         var builder = services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client => client.BaseAddress = normalizedBaseAddress);
+        services.TryAddTransient<IRealtimeVoiceClient>(sp =>
+            sp.GetRequiredService<IOpenConnectClient>() as IRealtimeVoiceClient
+            ?? throw new InvalidOperationException("The registered IOpenConnectClient does not implement IRealtimeVoiceClient."));
         configure?.Invoke(builder);
         return services;
     }
@@ -44,6 +48,9 @@ public static class OpenConnectClientServiceCollectionExtensions
 
         var normalizedBaseAddress = new Uri(options.ApiBaseAddress!.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
         var builder = services.AddHttpClient<IOpenConnectClient, OpenConnectClient>(client => client.BaseAddress = normalizedBaseAddress);
+        services.TryAddTransient<IRealtimeVoiceClient>(sp =>
+            sp.GetRequiredService<IOpenConnectClient>() as IRealtimeVoiceClient
+            ?? throw new InvalidOperationException("The registered IOpenConnectClient does not implement IRealtimeVoiceClient."));
         AddDevelopmentIdentityHeaders(builder, options);
         return services;
     }

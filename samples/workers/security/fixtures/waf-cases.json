@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "openconnect.security-waf-fixtures.v1",
+  "fixtureId": "fw-060-waf-cases",
+  "cases": [
+    {
+      "id": "benign-echo",
+      "method": "GET",
+      "path": "/api/waf-demo/echo?probe=benign-health-check",
+      "expectedStatus": 200,
+      "expectedBackendHitDelta": 1,
+      "expectedEnforcementOutcome": "executed"
+    },
+    {
+      "id": "crs-sqli-xss-block",
+      "method": "GET",
+      "path": "/api/waf-demo/echo?probe=%3Cscript%3Ealert(1)%3C/script%3E&id=1%27%20OR%20%271%27=%271",
+      "expectedStatus": 403,
+      "expectedBackendHitDelta": 0,
+      "expectedEnforcementOutcome": "prevented"
+    },
+    {
+      "id": "blazor-signalr-negotiate",
+      "method": "POST",
+      "path": "/_blazor/negotiate",
+      "expectedStatus": 200,
+      "expectedBackendHitDelta": 0,
+      "expectedEnforcementOutcome": "executed"
+    }
+  ]
+}

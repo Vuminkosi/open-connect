@@ -1,0 +1,23 @@
+@page "/thread/{ConversationIdValue}"
+@inject IMessagingProfileManager ProfileManager
+
+<section aria-label="Conversation thread" style="max-width: 760px; margin: 0 auto;">
+    @if (ProfileManager.ActiveProfile is null)
+    {
+        <div role="status" style="padding: 24px 16px; border: 1px dashed var(--oc-mobile-border); border-radius: 8px; text-align: center;">
+            Activate a company profile to view this conversation.
+        </div>
+    }
+    else
+    {
+        <MessagingThread Title="@($"Conversation {ConversationIdValue}")"
+                         SecurityProfile="MessagingSecurityProfileKind.PrivateE2EE"
+                         Messages="_messages" />
+    }
+</section>
+
+@code {
+    [Parameter] public string ConversationIdValue { get; set; } = string.Empty;
+
+    private IReadOnlyList<MessagingThreadMessage> _messages = Array.Empty<MessagingThreadMessage>();
+}

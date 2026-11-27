@@ -83,8 +83,16 @@ public sealed class TokenRestorationService(ITokenVault vault) : ITokenRestorati
             }
 
             var token = match.Value;
-            var resolved = await _vault.ResolveAsync(token, scope, cancellationToken).ConfigureAwait(false);
-            sb.Append(resolved ?? token);
+            // Secrets must never be restored through generic restoration policies.
+            if (_vault is TokenVault tokenVault && tokenVault.IsSecretToken(token, scope))
+            {
+                sb.Append(token);
+            }
+            else
+            {
+                var resolved = await _vault.ResolveAsync(token, scope, cancellationToken).ConfigureAwait(false);
+                sb.Append(resolved ?? token);
+            }
             lastIndex = match.Index + match.Length;
         }
 

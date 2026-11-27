@@ -5,6 +5,7 @@
 @using OpenConnect.Docs.Components.DocumentDemo
 @using OpenConnect.Docs.Components.KnowledgeDemo
 @using OpenConnect.Docs.Components.AnalyticsDemo
+@using OpenConnect.Docs.Components.VoiceBenchmark
 
 @if (Document is null)
 {
@@ -30,6 +31,10 @@ else
             @if (Document.Version == "v1" && Document.Slug == "supported-services")
             {
                 <DocumentationAnalyticsExample />
+            }
+            @if (Document.Version == "v1" && Document.Slug == "voice-and-translation")
+            {
+                <LiveVoiceBenchmarkDashboard />
             }
             <MarkdownRenderer Markdown="@Document.Markdown" />
             <p class="edit-link"><a href="https://github.com/Vuminkosi/open-connect/edit/master/site/OpenConnect.Docs/Content/@Document.Version/@($"{Document.Slug}.md")">Edit this page on GitHub</a></p>

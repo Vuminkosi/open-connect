@@ -1,0 +1,78 @@
+.playground-panel {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color, #d0d7de);
+    border-radius: 0.5rem;
+}
+
+.playground-panel-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.playground-actions,
+.playground-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.playground-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.75rem;
+    font-size: 0.92rem;
+}
+
+.playground-table th,
+.playground-table td {
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border-color, #d0d7de);
+    vertical-align: top;
+}
+
+.playground-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.playground-image-grid figure {
+    margin: 0;
+}
+
+.playground-image-grid img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border-color, #d0d7de);
+    border-radius: 0.25rem;
+}
+
+.playground-kv {
+    display: grid;
+    grid-template-columns: minmax(10rem, auto) minmax(0, 1fr);
+    gap: 0.35rem 1rem;
+    margin: 0.75rem 0 0;
+}
+
+.playground-kv dt {
+    font-weight: 600;
+}
+
+.playground-kv dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.playground-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}

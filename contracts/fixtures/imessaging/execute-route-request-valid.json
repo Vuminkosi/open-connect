@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "openconnect.v1",
+  "taskId": "task-route-0001",
+  "kind": "messaging.route",
+  "tenantId": "tenant-acme-01",
+  "nonce": "9f86d081884c7d659a2feaa0c55ad015",
+  "issuedAt": "2026-11-25T12:00:00Z",
+  "expiresAt": "2026-11-25T12:02:00Z",
+  "payload": {
+    "eventId": "evt-msg-0001",
+    "conversationId": "conv-0001",
+    "sequence": 42,
+    "targetGateways": ["gw-eu-01"],
+    "targetDeviceIds": ["dev-human-01", "dev-human-02"],
+    "securityProfile": "PrivateE2EE",
+    "protocol": "mls-1.0",
+    "epoch": 3,
+    "ciphertextBase64": "Y2lwaGVydGV4dC1wYXlsb2FkLWJ5dGVz",
+    "occurredAt": "2026-11-25T12:00:00Z",
+    "ttlSeconds": 300
+  }
+}

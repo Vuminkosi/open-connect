@@ -45,6 +45,44 @@ public sealed class TodoLiveUIActionAuthorizerTests
     }
 
     [Fact]
+    public async Task AllowsDueDateAndPriorityFilterSelectionsWithValidatedValues()
+    {
+        var dueTarget = Target(
+            "route.root.components-todolistcomponent-razor-select-due-date-filter",
+            LiveUITargetKind.Select,
+            "Due date filter");
+        var priorityTarget = Target(
+            "route.root.components-todolistcomponent-razor-select-priority-filter",
+            LiveUITargetKind.Select,
+            "Priority filter");
+
+        foreach (var window in new[] { "this-week", "tomorrow", "today", "overdue", "all", "Due this week" })
+        {
+            var decision = await AuthorizeAsync(dueTarget, LiveUIActionType.Select, new LiveUIActionParameters(Value: window));
+            Assert.True(decision.Allowed, $"Expected due-date value '{window}' to be allowed.");
+            Assert.Equal("todo_due_date_filter", decision.Code);
+        }
+
+        foreach (var priority in new[] { "High", "high", "Urgent", "Medium", "Low", "all" })
+        {
+            var decision = await AuthorizeAsync(priorityTarget, LiveUIActionType.Select, new LiveUIActionParameters(Value: priority));
+            Assert.True(decision.Allowed, $"Expected priority value '{priority}' to be allowed.");
+            Assert.Equal("todo_priority_filter", decision.Code);
+        }
+
+        var invalidDue = await AuthorizeAsync(dueTarget, LiveUIActionType.Select, new LiveUIActionParameters(Value: "next-year"));
+        var invalidPriority = await AuthorizeAsync(priorityTarget, LiveUIActionType.Select, new LiveUIActionParameters(Value: "critical"));
+        var spoofedDue = await AuthorizeAsync(
+            Target("other.due-filter", LiveUITargetKind.Select, "Due date filter"),
+            LiveUIActionType.Select,
+            new LiveUIActionParameters(Value: "this-week"));
+
+        Assert.False(invalidDue.Allowed);
+        Assert.False(invalidPriority.Allowed);
+        Assert.False(spoofedDue.Allowed);
+    }
+
+    [Fact]
     public async Task DeniesTaskCreationAndUnrecognizedTargets()
     {
         var addTask = await AuthorizeAsync(

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.security-evidence.v1/security-evidence-v1.json",
+  "title": "Security evidence event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "requestId",
+    "occurredAt",
+    "capability",
+    "boundary",
+    "detectorId",
+    "detectorVersion",
+    "policyRevision",
+    "inspectionStatus",
+    "decision",
+    "enforcementOutcome",
+    "reasonCode",
+    "categoryCounts",
+    "durationMs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.security-evidence.v1"
+    },
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "not": { "const": "00000000-0000-0000-0000-000000000000" }
+    },
+    "requestId": {
+      "type": "string",
+      "format": "uuid",
+      "not": { "const": "00000000-0000-0000-0000-000000000000" }
+    },
+    "traceId": {
+      "type": ["string", "null"],
+      "maxLength": 128
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capability": {
+      "type": "string",
+      "enum": [
+        "pii",
+        "malware",
+        "image-privacy",
+        "prompt-injection",
+        "waf",
+        "service-fencing",
+        "database-fencing",
+        "agent-tool"
+      ]
+    },
+    "boundary": {
+      "type": "string",
+      "enum": [
+        "text-ingress",
+        "text-egress",
+        "upload-release",
+        "image-egress",
+        "prompt-ingress",
+        "tool-invocation",
+        "tool-result",
+        "http-egress",
+        "gateway-ingress",
+        "database-query"
+      ]
+    },
+    "detectorId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "detectorVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "policyRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "inspectionStatus": {
+      "type": "string",
+      "enum": ["completed", "partial", "unavailable", "unsupported", "limit_exceeded", "skipped"]
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["allow", "mask", "redact", "block", "quarantine", "review", "unavailable"]
+    },
+    "enforcementOutcome": {
+      "type": "string",
+      "enum": ["not_executed", "executed", "prevented", "unknown"]
+    },
+    "reasonCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9_.-]+$"
+    },
+    "categoryCounts": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64,
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100000
+      }
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600000
+    }
+  }
+}

@@ -9,6 +9,12 @@ public sealed record CloudHostPrivacyObservation(Guid EventId, Guid ApplicationI
     string Action, DateTimeOffset ReceivedAt, IReadOnlyList<CloudPrivacyCategoryCount> Categories)
 {
     public string ReasonCode { get; init; } = "not_recorded";
+    public string? TraceId { get; init; }
+    public string? RequestId { get; init; }
+    public DateTimeOffset? OccurredAt { get; init; }
+    public string? PolicyId { get; init; }
+    public string? PolicyRevision { get; init; }
+    public string? IntegrityDigest { get; init; }
 }
 public sealed record CloudHostPrivacyStatistics(long OtherDestinations, long OutputDecisions, long Allowed, long Blocked,
     IReadOnlyList<CloudPrivacyCategoryTotal> Categories)
@@ -112,7 +118,8 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
             await connection.OpenAsync(cancellationToken);
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT e."EventId", e."ApplicationId", e."Destination", e."Allowed", e."Action", e."ReceivedAt", e."CategoryCounts"::text, e."ReasonCode"
+                SELECT e."EventId", e."ApplicationId", e."Destination", e."Allowed", e."Action", e."ReceivedAt", e."CategoryCounts"::text, e."ReasonCode",
+                       e."TraceId", e."RequestId", e."OccurredAt", e."PolicyId", e."PolicyRevision", e."IntegrityDigest"
                 FROM cloud.host_privacy_evidence e WHERE e."TenantId"=@tenant AND e."EventId"=@id
                   AND EXISTS (SELECT 1 FROM cloud.memberships m WHERE m."TenantId"=e."TenantId"
                     AND m."SubjectIssuer"=@issuer AND m."SubjectId"=@subject AND m."Role" IN ('Owner', 'Administrator', 'SecurityAnalyst'))
@@ -130,7 +137,15 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
                         .Select(item => new CloudPrivacyCategoryCount(item.Key, item.Value)).ToArray();
                     observation = new(result.GetGuid(0), result.GetGuid(1), result.GetString(2), result.GetBoolean(3),
                         result.GetString(4), result.GetFieldValue<DateTimeOffset>(5), counts)
-                    { ReasonCode = result.GetString(7) };
+                    {
+                        ReasonCode = result.GetString(7),
+                        TraceId = result.IsDBNull(8) ? null : result.GetString(8),
+                        RequestId = result.IsDBNull(9) ? null : result.GetString(9),
+                        OccurredAt = result.IsDBNull(10) ? null : result.GetFieldValue<DateTimeOffset>(10),
+                        PolicyId = result.IsDBNull(11) ? null : result.GetString(11),
+                        PolicyRevision = result.IsDBNull(12) ? null : result.GetString(12),
+                        IntegrityDigest = result.IsDBNull(13) ? null : result.GetString(13),
+                    };
                 }
             }
             role = await actor.Select(item => item.Role).SingleOrDefaultAsync(cancellationToken);
@@ -173,7 +188,8 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
             await connection.OpenAsync(cancellationToken);
             await using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT e."EventId", e."ApplicationId", e."Destination", e."Allowed", e."Action", e."ReceivedAt", e."CategoryCounts"::text, e."ReasonCode"
+                SELECT e."EventId", e."ApplicationId", e."Destination", e."Allowed", e."Action", e."ReceivedAt", e."CategoryCounts"::text, e."ReasonCode",
+                       e."TraceId", e."RequestId", e."OccurredAt", e."PolicyId", e."PolicyRevision", e."IntegrityDigest"
                 FROM cloud.host_privacy_evidence e WHERE e."TenantId"=@tenant
                   AND EXISTS (SELECT 1 FROM cloud.memberships m WHERE m."TenantId"=e."TenantId"
                     AND m."SubjectIssuer"=@issuer AND m."SubjectId"=@subject AND m."Role" IN ('Owner', 'Administrator', 'SecurityAnalyst'))
@@ -194,7 +210,15 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
                         .Select(item => new CloudPrivacyCategoryCount(item.Key, item.Value)).ToArray();
                     rows.Add(new(result.GetGuid(0), result.GetGuid(1), result.GetString(2), result.GetBoolean(3), result.GetString(4),
                         result.GetFieldValue<DateTimeOffset>(5), counts)
-                    { ReasonCode = result.GetString(7) });
+                    {
+                        ReasonCode = result.GetString(7),
+                        TraceId = result.IsDBNull(8) ? null : result.GetString(8),
+                        RequestId = result.IsDBNull(9) ? null : result.GetString(9),
+                        OccurredAt = result.IsDBNull(10) ? null : result.GetFieldValue<DateTimeOffset>(10),
+                        PolicyId = result.IsDBNull(11) ? null : result.GetString(11),
+                        PolicyRevision = result.IsDBNull(12) ? null : result.GetString(12),
+                        IntegrityDigest = result.IsDBNull(13) ? null : result.GetString(13),
+                    });
                 }
             }
             await using (var totals = connection.CreateCommand())

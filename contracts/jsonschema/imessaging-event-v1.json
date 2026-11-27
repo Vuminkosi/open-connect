@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/imessaging-event-v1.json",
+  "title": "IMessaging Realtime Event Envelope v1",
+  "description": "Versioned realtime and replay event envelope for user/device streams and NATS messaging subjects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "type",
+    "conversationId",
+    "sequence",
+    "cursor",
+    "occurredAt",
+    "payload"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "messaging.message.committed",
+        "messaging.message.delivered",
+        "messaging.message.read",
+        "messaging.membership.changed",
+        "messaging.key.commit",
+        "messaging.presence.changed",
+        "messaging.typing.changed",
+        "messaging.call.invited",
+        "messaging.call.accepted",
+        "messaging.call.declined",
+        "messaging.call.ended",
+        "messaging.call.missed",
+        "messaging.followup.due",
+        "messaging.approval.requested",
+        "messaging.approval.resolved",
+        "messaging.device.revoked",
+        "messaging.capabilities.changed"
+      ]
+    },
+    "conversationId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "sequence": {
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}

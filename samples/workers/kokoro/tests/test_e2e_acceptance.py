@@ -114,7 +114,7 @@ class KokoroWorkerAcceptanceTests(unittest.TestCase):
                 if accepted:
                     self.assertEqual(Settings.from_environment().voices, ('af_heart',))
                 else:
-                    with self.assertRaisesRegex(ValueError, 'only af_heart'):
+                    with self.assertRaisesRegex(ValueError, r' af_heart$'):
                         Settings.from_environment()
         with self.assertRaises(VoiceUnknown):
             self.synthesize(voice_id='af_bella')

@@ -256,6 +256,30 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
         Assert.Equal(1, notifications);
     }
 
+    [Fact]
+    public async Task ReadAloudSkipsFencedCodeSamplesAndSummarizesInstead()
+    {
+        using var context = new OpenConnectBunitContext();
+        var client = new FakeOpenConnectClient();
+        Configure(context, client);
+        var session = NewSession();
+        var sessionId = new SessionId(Ulid.NewUlid());
+        RenderMiniComposer(context, session, startOpen: true);
+
+        session.BeginSend("How do I register voice?");
+        session.ApplyEvent(new EventRecord(
+            sessionId,
+            1,
+            "message.delta",
+            "Register voice on your host.\n\n```csharp\nbuilder.Services.AddOpenConnectSpeechToText(builder.Configuration);\n```\n\nWant me to open LiveUI next?"));
+        session.ApplyEvent(new EventRecord(sessionId, 2, "message.completed", string.Empty));
+
+        await Task.Delay(100);
+        var spoken = string.Join(" ", client.SynthesizedTexts);
+        Assert.DoesNotContain("builder.Services.AddOpenConnectSpeechToText", spoken, StringComparison.Ordinal);
+        Assert.Contains("See the highlighted code sample", spoken, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ComposerSession NewSession(string sessionId = "S1")
     {
         var session = new ComposerSession();
@@ -318,12 +342,14 @@ public sealed class MiniComposerRenderTests : OpenConnectBunitContext
     private sealed class FakeOpenConnectClient : IOpenConnectClient
     {
         public List<string> CreatedTaskMessages { get; } = new();
+        public List<string> SynthesizedTexts { get; } = new();
         public Exception? SpeechSynthesisFailure { get; init; }
         public int SpeechSynthesisCallCount { get; private set; }
 
         public Task<SpeechSynthesisResult> SynthesizeSpeechAsync(SpeechSynthesisRequest request, CancellationToken cancellationToken = default)
         {
             SpeechSynthesisCallCount++;
+            SynthesizedTexts.Add(request.Text);
             return SpeechSynthesisFailure is null
                 ? Task.FromResult(new SpeechSynthesisResult("af_heart", "pcm", 24_000, 1, string.Empty))
                 : Task.FromException<SpeechSynthesisResult>(SpeechSynthesisFailure);

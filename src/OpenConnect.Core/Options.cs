@@ -74,6 +74,12 @@ public sealed class PrivacyOptions
     public DetectorOptions Qwen3Guard { get; } = new();
     public DetectorOptions PaddleOcr { get; } = new();
     public DetectorOptions YuNet { get; } = new();
+    public DetectorOptions Malware { get; } = new();
+    public SecurityAgentToolsOptions AgentTools { get; } = new();
+    public SecurityPromptInjectionOptions PromptInjection { get; } = new();
+    public SecurityImageRedactionOptions ImageRedaction { get; } = new();
+    public SecurityTransportLimitsOptions Limits { get; } = new();
+    public ISet<SecurityCoverage> RequiredCoverage { get; } = new HashSet<SecurityCoverage>();
     /// <summary>Gets the security coverage policies.</summary>
     public SecurityPolicyOptions Policies { get; } = new();
 }
@@ -93,8 +99,49 @@ public sealed class SecurityPolicyOptions
     public SecurityPolicyAction? ImageText { get; set; }
     /// <summary>Gets the optional action for face detection.</summary>
     public SecurityPolicyAction? FaceDetection { get; set; }
+    /// <summary>Gets the optional action for malware detection.</summary>
+    public SecurityPolicyAction? Malware { get; set; }
     /// <summary>Gets or sets the action when required coverage is unavailable.</summary>
     public SecurityCoverageUnavailableAction UnsupportedRequiredCoverage { get; set; } = SecurityCoverageUnavailableAction.Block;
+}
+
+/// <summary>Configures authorized security tools exposed to agents via ToolBroker.</summary>
+public sealed class SecurityAgentToolsOptions
+{
+    public bool Enabled { get; set; } = false;
+    public ISet<string> AllowedToolIds { get; } = new HashSet<string>(StringComparer.Ordinal);
+}
+
+/// <summary>Configures host prompt-injection enforcement thresholds and actions.</summary>
+public sealed class SecurityPromptInjectionOptions
+{
+    public bool Enabled { get; set; } = false;
+    public double Threshold { get; set; } = 0.80;
+    public SecurityPolicyAction Action { get; set; } = SecurityPolicyAction.Block;
+    public bool MarkUntrustedContent { get; set; } = true;
+}
+
+/// <summary>Configures host-owned flattened raster image redaction.</summary>
+public sealed class SecurityImageRedactionOptions
+{
+    public bool Enabled { get; set; } = false;
+    public int RegionPaddingPixels { get; set; } = 4;
+    public bool StripMetadata { get; set; } = true;
+    public bool RecheckRedactedOutput { get; set; } = true;
+    public int MaxImageBytes { get; set; } = 10 * 1024 * 1024;
+    public int MaxImageMegapixels { get; set; } = 20;
+}
+
+/// <summary>Configures bounded byte, pixel, concurrency, and timeout limits for security inspection transport.</summary>
+public sealed class SecurityTransportLimitsOptions
+{
+    public int MaxTextBytes { get; set; } = 64 * 1024;
+    public int MaxImageBytes { get; set; } = 10 * 1024 * 1024;
+    public int MaxImageMegapixels { get; set; } = 20;
+    public int MaxFileBytes { get; set; } = 20 * 1024 * 1024;
+    public int MaxResponseBytes { get; set; } = 2 * 1024 * 1024;
+    public int MaxConcurrentRequests { get; set; } = 2;
+    public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(15);
 }
 
 public sealed class DetectorOptions
@@ -167,6 +214,17 @@ public sealed class OpenConnectVoiceOptions
     public bool EnableLiveTranscription { get; set; } = true;
     public bool EnableRecordedTranscription { get; set; } = true;
     public bool EnableSpeechOutput { get; set; } = true;
+    public bool EnableContinuousConversation { get; set; }
+    public bool EnableStreamingSpeechOutput { get; set; }
+    public bool EnableSemanticTurnDetection { get; set; }
+    public long MaxUtteranceAudioBytes { get; set; } = 32L * 1024 * 1024;
+    public long MaxRollingSessionAudioBytes { get; set; } = 256L * 1024 * 1024;
+    public int RollingSessionWindowSeconds { get; set; } = 3600;
+    public int MaxBufferedOutputFrames { get; set; } = 256;
+    public int PhraseFlushTimeoutMs { get; set; } = 350;
+    public int MinPhraseWords { get; set; } = 8;
+    public int MaxPhraseWords { get; set; } = 25;
+    public bool ConservativeEndpointing { get; set; }
     public VoiceVadOptions Vad { get; } = new();
 }
 
@@ -194,6 +252,9 @@ public sealed class SecurityWorkerOptions
     public Uri? Endpoint { get; set; }
     public bool Required { get; set; } = true;
     public bool RequireAuthenticatedTransport { get; set; } = true;
+    public bool AllowInsecureLoopbackHttpInDevelopment { get; set; } = false;
+    public string? BearerToken { get; set; }
+    public string? CredentialReference { get; set; }
     public WorkerEngine Engine { get; set; } = WorkerEngine.Real;
     public string Environment { get; set; } = "Production";
     public DetectorOptions Rules { get; } = new() { Enabled = true };
@@ -204,6 +265,12 @@ public sealed class SecurityWorkerOptions
     public DetectorOptions Qwen3Guard { get; } = new();
     public DetectorOptions PaddleOcr { get; } = new();
     public DetectorOptions YuNet { get; } = new();
+    public DetectorOptions Malware { get; } = new();
+    public SecurityAgentToolsOptions AgentTools { get; } = new();
+    public SecurityPromptInjectionOptions PromptInjection { get; } = new();
+    public SecurityImageRedactionOptions ImageRedaction { get; } = new();
+    public SecurityTransportLimitsOptions Limits { get; } = new();
+    public ISet<string> RequiredCapabilities { get; } = new HashSet<string>(StringComparer.Ordinal);
 }
 
 public sealed class ClassificationWorkerOptions

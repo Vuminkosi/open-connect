@@ -49,11 +49,606 @@ OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.Non
 OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.ValidateModel = 1 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
 OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode.ValidateSchemaAndVersion = 2 -> OpenConnect.Persistence.EFCore.Configuration.OpenConnectSchemaValidationMode
 OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingAttachments.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingCalls.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingContinuations.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingConversations.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingDevices.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingEnrollments.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingFollowUps.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingKeyPackages.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingMessages.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingParticipants.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingPushRegistrations.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingReceipts.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity!>!
+OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.MessagingRefreshGrants.get -> Microsoft.EntityFrameworkCore.DbSet<OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity!>!
 OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext.OpenConnectDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<OpenConnect.Persistence.EFCore.Context.OpenConnectDbContext!>! options) -> void
 OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory
 OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.Create(Microsoft.EntityFrameworkCore.DbContext! context, bool designTime) -> object!
 OpenConnect.Persistence.EFCore.Context.OpenConnectModelCacheKeyFactory.OpenConnectModelCacheKeyFactory() -> void
 OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.AsyncLocalDatabaseFencingContextAccessor() -> void
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.BeginScope(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext! context) -> System.IDisposable!
+OpenConnect.Persistence.EFCore.Fencing.AsyncLocalDatabaseFencingContextAccessor.Current.get -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.DatabaseFencingDeniedException(string! operationId, string! reasonCode, System.Guid evidenceId, string! message) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.EvidenceId.get -> System.Guid
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingDeniedException.ReasonCode.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.<Clone>$() -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.AppliedTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.AppliedTimeoutSeconds.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Boundary.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Boundary.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Capability.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Capability.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.CommandKind.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.CommandKind.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DatabaseFencingEvidence(string! SchemaVersion, System.Guid EventId, string! RequestId, string? TraceId, System.DateTimeOffset OccurredAt, string! Capability, string! Boundary, string! OperationId, string! CommandKind, string! PolicyRevision, OpenConnect.Abstractions.TenantId? TenantId, OpenConnect.Abstractions.PrincipalId? PrincipalId, int AppliedTimeoutSeconds, int MaxRows, string! Decision, string! EnforcementOutcome, string! ReasonCode, long DurationMs) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Decision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Decision.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Deconstruct(out string! SchemaVersion, out System.Guid EventId, out string! RequestId, out string? TraceId, out System.DateTimeOffset OccurredAt, out string! Capability, out string! Boundary, out string! OperationId, out string! CommandKind, out string! PolicyRevision, out OpenConnect.Abstractions.TenantId? TenantId, out OpenConnect.Abstractions.PrincipalId? PrincipalId, out int AppliedTimeoutSeconds, out int MaxRows, out string! Decision, out string! EnforcementOutcome, out string! ReasonCode, out long DurationMs) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DurationMs.get -> long
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.DurationMs.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EnforcementOutcome.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EnforcementOutcome.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Equals(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? other) -> bool
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EventId.get -> System.Guid
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.EventId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.MaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.MaxRows.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OccurredAt.get -> System.DateTimeOffset
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OccurredAt.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.OperationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PolicyRevision.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.PrincipalId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ReasonCode.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ReasonCode.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.RequestId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.RequestId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.SchemaVersion.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.SchemaVersion.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TenantId.get -> OpenConnect.Abstractions.TenantId?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TenantId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TraceId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.TraceId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.<Clone>$() -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ApplicationId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ApplicationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.DatabaseFencingOperationContext(OpenConnect.Abstractions.TenantId TenantId, OpenConnect.Abstractions.PrincipalId PrincipalId, string! OperationId, string? ApplicationId = null, string? RequestId = null, string? TraceId = null) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out OpenConnect.Abstractions.PrincipalId PrincipalId, out string! OperationId, out string? ApplicationId, out string? RequestId, out string? TraceId) -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Equals(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? other) -> bool
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.OperationId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.PrincipalId.get -> OpenConnect.Abstractions.PrincipalId
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.PrincipalId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.RequestId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.RequestId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TenantId.get -> OpenConnect.Abstractions.TenantId
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TenantId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TraceId.get -> string?
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.TraceId.init -> void
+OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowAnyAuthenticatedTenant.get -> bool
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowAnyAuthenticatedTenant.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowedPrincipals.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.PrincipalId>!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.AllowedTenants.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.TenantId>!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.FencedDatabaseOperationPolicy() -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxCommandTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxCommandTimeoutSeconds.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.MaxRows.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.OperationId.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.OperationId.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.PolicyRevision.set -> void
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.ReadOnly.get -> bool
+OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy.ReadOnly.set -> void
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor.BeginScope(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext! context) -> System.IDisposable!
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor.Current.get -> OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext?
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.InMemoryDatabaseFencingEvidenceSink(int capacity = 512) -> void
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.InMemoryDatabaseFencingEvidenceSink.Snapshot() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence!>!
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.NullDatabaseFencingEvidenceSink() -> void
+OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.RecordAsync(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingExtensions
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxCommandTimeoutSeconds.get -> int
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxCommandTimeoutSeconds.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxRows.get -> int
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.DefaultMaxRows.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.FencedContextTypes.get -> System.Collections.Generic.IReadOnlySet<System.Type!>!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.OpenConnectDatabaseFencingOptions() -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.Operations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy!>!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.PolicyRevision.get -> string!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.PolicyRevision.set -> void
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.RegisterFencedContext<TContext>() -> OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.RegisterOperation(OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy! policy) -> OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions!
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions.TryGetOperation(string! operationId, out OpenConnect.Persistence.EFCore.Fencing.FencedDatabaseOperationPolicy? policy) -> bool
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor
+OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.OpenConnectFencedDbCommandInterceptor(OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingOptions! options, OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingContextAccessor! contextAccessor, OpenConnect.Persistence.EFCore.Fencing.IDatabaseFencingEvidenceSink? evidenceSink = null, OpenConnect.Abstractions.ISecurityEvidenceSink? securityEvidenceSink = null, System.TimeProvider? timeProvider = null) -> void
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.CreateEnrollmentAsync(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! enrollment, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.CreateRefreshGrantAsync(OpenConnect.Abstractions.Messaging.RefreshGrantRecord! grant, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.RefreshGrantRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.EfDeviceEnrollmentStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.GetDeviceAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.GetEnrollmentAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.EnrollmentId enrollmentId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.GetEnrollmentByTokenHashAsync(string! tokenHashSha256, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.GetRefreshGrantByTokenHashAsync(string! tokenHashSha256, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.RefreshGrantRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.ListDevicesAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.DeviceRecord!>!>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.PublishKeyPackageAsync(OpenConnect.Abstractions.Messaging.DeviceKeyPackage! keyPackage, string! applicationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceKeyPackage!>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.RevokeAllDeviceRefreshGrantsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.RevokeDevicePushRegistrationsAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.RevokeRefreshFamilyAsync(OpenConnect.Abstractions.TenantId tenantId, string! familyId, System.DateTimeOffset revokedAt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.TryConsumeKeyPackageAsync(OpenConnect.Abstractions.TenantId tenantId, string! applicationId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.DateTimeOffset utcNow, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceKeyPackage?>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.TryUpdateEnrollmentAsync(OpenConnect.Abstractions.Messaging.DeviceEnrollmentRecord! updated, OpenConnect.Abstractions.Messaging.EnrollmentState expectedState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.TryUpdateRefreshGrantAsync(OpenConnect.Abstractions.Messaging.RefreshGrantRecord! updated, OpenConnect.Abstractions.Messaging.RefreshGrantStatus expectedStatus, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.UpsertDeviceAsync(OpenConnect.Abstractions.Messaging.DeviceRecord! device, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.DeviceRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfDeviceEnrollmentStore<TContext>.UpsertPushRegistrationAsync(OpenConnect.Abstractions.Messaging.PushRegistrationRecord! registration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.PushRegistrationRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.ClaimDueFollowUpsAsync(System.DateTimeOffset utcNow, string! leaseOwner, System.TimeSpan leaseDuration, int maxBatchSize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.CreateContinuationAsync(OpenConnect.Abstractions.Messaging.ContinuationRecord! continuation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ContinuationRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.CreateFollowUpAsync(OpenConnect.Abstractions.Messaging.FollowUpRecord! followUp, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.EfFollowUpStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.GetActiveFollowUpsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.PrincipalId recipientPrincipalId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.FollowUpRecord!>!>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.GetFollowUpAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.TryResolveHumanReplyRaceAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.FollowUpId followUpId, OpenConnect.Abstractions.Messaging.FollowUpState expectedState, long expectedLeaseFence, OpenConnect.Abstractions.Messaging.ContinuationRecord! continuation, System.DateTimeOffset utcNow, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.FollowUpRaceResolution?>
+OpenConnect.Persistence.EFCore.Messaging.EfFollowUpStore<TContext>.TryTransitionFollowUpAsync(OpenConnect.Abstractions.Messaging.FollowUpRecord! updated, OpenConnect.Abstractions.Messaging.FollowUpState expectedState, long expectedLeaseFence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>.CreateCallAsync(OpenConnect.Abstractions.Messaging.MessagingCallRecord! call, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>.EfMessagingCallStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>.GetActiveCallsForConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessagingCallRecord!>!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>.GetCallAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessagingCallRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingCallStore<TContext>.TryTransitionCallAsync(OpenConnect.Abstractions.Messaging.MessagingCallRecord! updated, OpenConnect.Abstractions.Messaging.CallState expectedState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.CommitMessageAsync(OpenConnect.Abstractions.Messaging.MessageRecord! message, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.CreateConversationAsync(OpenConnect.Abstractions.Messaging.ConversationRecord! conversation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.EfMessagingConversationStore(TContext! context) -> void
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.GetConversationAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.GetMessageAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.MessageId messageId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.GetMessageByClientOperationIdAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, string! clientOperationId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.GetReceiptAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.MessageId messageId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord?>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.ReplayMessagesAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId, OpenConnect.Abstractions.Messaging.ParticipantKind participantKind, OpenConnect.Abstractions.PrincipalId? participantPrincipalId, OpenConnect.Abstractions.AgentId? participantAgentId, long afterSequence, int limit, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Messaging.MessageRecord!>!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.UpdateConversationAsync(OpenConnect.Abstractions.Messaging.ConversationRecord! conversation, long expectedMembershipVersion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.ConversationRecord!>
+OpenConnect.Persistence.EFCore.Messaging.EfMessagingConversationStore<TContext>.UpsertReceiptAsync(OpenConnect.Abstractions.Messaging.MessageReceiptRecord! receipt, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Abstractions.Messaging.MessageReceiptRecord!>
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.AttachmentId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.AttachmentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.EncryptedDigestSha256.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.EncryptedDigestSha256.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.EncryptedSizeBytes.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.EncryptedSizeBytes.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ExpiresAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.MessagingAttachmentEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ObjectKey.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ObjectKey.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ObjectVersion.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.ObjectVersion.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.State.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.State.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingAttachmentEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AcceptedDeviceId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AcceptedDeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AcceptedPrincipalId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AcceptedPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AdmissionTokenHash.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AdmissionTokenHash.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AllowedHumanRecipientsJson.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.AllowedHumanRecipientsJson.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerAgentId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerAgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerKind.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerKind.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerPrincipalId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CallerPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.EndReason.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.EndReason.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.EndedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.EndedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ExpiresAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.ExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.MediaSecurityMode.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.MediaSecurityMode.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.MessagingCallEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.State.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.State.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.Version.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.Version.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.VoiceSessionId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingCallEntity.VoiceSessionId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.AgentId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.AgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ContinuationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ContinuationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ExecutionIdempotencyKey.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.ExecutionIdempotencyKey.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.LeaseFence.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.LeaseFence.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.LeaseOwner.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.LeaseOwner.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.MessagingContinuationEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.RecipientPrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.RecipientPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.SessionId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.SessionId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.Status.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.Status.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TaskId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TaskId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TriggeringEventId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingContinuationEntity.TriggeringEventId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.CryptoEpoch.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.CryptoEpoch.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.MembershipVersion.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.MembershipVersion.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.MessagingConversationEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.NextSequence.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.NextSequence.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.Participants.get -> System.Collections.Generic.ICollection<OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity!>!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.Participants.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.SecurityProfile.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.SecurityProfile.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.State.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.State.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.DeviceId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.DeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.DisplayName.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.DisplayName.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.KeyFingerprint.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.KeyFingerprint.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.LastSeenAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.LastSeenAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.MessagingDeviceEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.Platform.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.Platform.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.PrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.PrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.PublicKeyBase64.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.PublicKeyBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.RevokedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.RevokedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.Status.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.Status.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingDeviceEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ApprovedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ApprovedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ChallengeNonceBase64.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ChallengeNonceBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDeviceId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDeviceName.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDeviceName.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDevicePublicKeyBase64.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedDevicePublicKeyBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedPlatform.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ClaimedPlatform.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ConsumedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ConsumedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.EnrollmentId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.EnrollmentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ExpiresAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.ExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.InitiatingPrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.InitiatingPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Issuer.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Issuer.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.MessagingEnrollmentEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.State.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.State.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Subject.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Subject.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.TokenHashSha256.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.TokenHashSha256.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.VerificationCode.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.VerificationCode.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Version.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingEnrollmentEntity.Version.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.AgentId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.AgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.Attempt.get -> int
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.Attempt.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.CausalEventId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.CausalEventId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.CompletedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.CompletedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.DueAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.DueAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.FollowUpId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.FollowUpId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.IdempotencyKey.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.IdempotencyKey.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LastDispatchedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LastDispatchedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseExpiresAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseFence.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseFence.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseOwner.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.LeaseOwner.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.MaxAttempts.get -> int
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.MaxAttempts.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.MessagingFollowUpEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.QuietHoursEndUtc.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.QuietHoursEndUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.QuietHoursStartUtc.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.QuietHoursStartUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.RecipientPrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.RecipientPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.State.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.State.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TaskId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TaskId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TimeZoneId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingFollowUpEntity.TimeZoneId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.Consumed.get -> bool
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.Consumed.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ConsumedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ConsumedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.DeviceId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.DeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ExpiresAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.ExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.KeyPackageId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.KeyPackageId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.MessagingKeyPackageEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.OwnerAgentId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.OwnerAgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.OwnerPrincipalId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.OwnerPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.Protocol.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.Protocol.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.PublicPackageBase64.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.PublicPackageBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingKeyPackageEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.AssociatedDataBase64.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.AssociatedDataBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.AuthTagBase64.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.AuthTagBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CiphertextBase64.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CiphertextBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ClientOperationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ClientOperationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CorrelationId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CorrelationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CreatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CreatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CryptoEpoch.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.CryptoEpoch.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.MessageId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.MessageId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.MessagingMessageEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.NonceBase64.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.NonceBase64.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.PayloadDigestSha256.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.PayloadDigestSha256.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Protocol.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Protocol.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderAgentId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderAgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderDeviceId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderDeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKey.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKey.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKeyId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKeyId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKind.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderKind.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderPrincipalId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.SenderPrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Sequence.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.Sequence.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingModelBuilderExtensions
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.AgentId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.AgentId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Conversation.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingConversationEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Conversation.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Id.get -> System.Guid
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Id.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.JoinVersion.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.JoinVersion.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.JoinedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.JoinedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Kind.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Kind.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.LeaveVersion.get -> long?
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.LeaveVersion.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.MessagingParticipantEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ParticipantKey.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.ParticipantKey.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.PrincipalId.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.PrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Role.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Role.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Status.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.Status.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingParticipantEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ConsentGranted.get -> bool
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ConsentGranted.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.DeviceId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.DeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.MessagingPushRegistrationEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.PrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.PrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ProtectedTokenHandle.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.ProtectedTokenHandle.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.Provider.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.Provider.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.RegistrationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.RegistrationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.Status.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.Status.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.UpdatedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingPushRegistrationEntity.UpdatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ConversationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ConversationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.DeliveredAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.DeliveredAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.DeviceId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.DeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.FailureReason.get -> string?
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.FailureReason.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Kind.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Kind.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Message.get -> OpenConnect.Persistence.EFCore.Messaging.MessagingMessageEntity!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Message.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.MessageId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.MessageId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.MessagingReceiptEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.PrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.PrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Rank.get -> int
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Rank.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ReadAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.ReadAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.RecordedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.RecordedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Sequence.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.Sequence.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingReceiptEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.ApplicationId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.ApplicationId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Audience.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Audience.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.DeviceId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.DeviceId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.ExpiresAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.ExpiresAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.FamilyId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.FamilyId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.GrantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.GrantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.IssuedAtUtc.get -> System.DateTime
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.IssuedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Issuer.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Issuer.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.MessagingRefreshGrantEntity() -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.PrincipalId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.PrincipalId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.RevokedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.RevokedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.RotatedAtUtc.get -> System.DateTime?
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.RotatedAtUtc.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Status.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Status.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Subject.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Subject.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.TenantId.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.TenantId.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.TokenHashSha256.get -> string!
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.TokenHashSha256.set -> void
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Version.get -> long
+OpenConnect.Persistence.EFCore.Messaging.MessagingRefreshGrantEntity.Version.set -> void
+OpenConnect.Persistence.EFCore.Messaging.OpenConnectMessagingPersistenceExtensions
 OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider
 OpenConnect.Persistence.EFCore.Model.IOpenConnectModelOptionsProvider.ModelOptions.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions
@@ -193,6 +788,24 @@ OpenConnect.Persistence.EFCore.Stores.EfSessionUuidMappingStore<TContext>.TryAdd
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.EfSessionUuidResolver(TContext! context) -> void
 OpenConnect.Persistence.EFCore.Stores.EfSessionUuidResolver<TContext>.ResolveAsync(System.Guid publicId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.SessionId?>!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.Allowed = "allowed" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.MissingOperationContext = "missing_operation_context" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.OperationNotRegistered = "operation_not_registered" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.PrincipalMismatch = "principal_mismatch" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.TenantMismatch = "tenant_mismatch" -> string!
+const OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingReasonCodes.WriteNotAllowed = "write_not_allowed" -> string!
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.Equals(object? obj) -> bool
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.GetHashCode() -> int
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.ToString() -> string!
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.Equals(object? obj) -> bool
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.GetHashCode() -> int
+override OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.ToString() -> string!
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.NonQueryExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.NonQueryExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ReaderExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ReaderExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader!>>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ScalarExecuting(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!> result) -> Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!>
+override OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor.ScalarExecutingAsync(System.Data.Common.DbCommand! command, Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData! eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!> result, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<object!>>
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Equals(object? obj) -> bool
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.ToString() -> string!
@@ -215,6 +828,15 @@ override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.Equals(o
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.GetHashCode() -> int
 override OpenConnect.Persistence.EFCore.Stores.EfOperationalReceiptView.ToString() -> string!
 static OpenConnect.Persistence.EFCore.DependencyInjection.OpenConnectEfServiceCollectionExtensions.AddOpenConnectEntityFramework<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.Persistence.EFCore.Configuration.OpenConnectEfOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.operator !=(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence.operator ==(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingEvidence? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.operator !=(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext.operator ==(OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? left, OpenConnect.Persistence.EFCore.Fencing.DatabaseFencingOperationContext? right) -> bool
+static OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink.Instance.get -> OpenConnect.Persistence.EFCore.Fencing.NullDatabaseFencingEvidenceSink!
+static OpenConnect.Persistence.EFCore.Fencing.OpenConnectDatabaseFencingExtensions.UseOpenConnectDatabaseFencing(this Microsoft.EntityFrameworkCore.DbContextOptionsBuilder! optionsBuilder, OpenConnect.Persistence.EFCore.Fencing.OpenConnectFencedDbCommandInterceptor! interceptor) -> Microsoft.EntityFrameworkCore.DbContextOptionsBuilder!
+static OpenConnect.Persistence.EFCore.Messaging.MessagingModelBuilderExtensions.ApplyOpenConnectMessagingModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
+static OpenConnect.Persistence.EFCore.Messaging.OpenConnectMessagingPersistenceExtensions.AddOpenConnectMessagingPersistence(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
+static OpenConnect.Persistence.EFCore.Messaging.OpenConnectMessagingPersistenceExtensions.AddOpenConnectMessagingPersistence<TContext>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelBuilderExtensions.ApplyOpenConnectModel(this Microsoft.EntityFrameworkCore.ModelBuilder! modelBuilder, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? options = null) -> Microsoft.EntityFrameworkCore.ModelBuilder!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.Default.get -> OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions!
 static OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions.operator !=(OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? left, OpenConnect.Persistence.EFCore.Model.OpenConnectModelOptions? right) -> bool

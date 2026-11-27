@@ -19,6 +19,7 @@ test('gateway access and management-shaped requests never enter capability admis
         ['GET', '/', 200],
         ['GET', '/health/live', 200],
         ['GET', '/health/ready', 200],
+        ['GET', '/cloud/v1/health/ready', 200],
         ['GET', '/cloud/api/v1/tenants', 400],
         ['POST', '/cloud/api/v1/tenants', 400],
     ]) {

@@ -154,3 +154,52 @@ If evidence cannot be acknowledged, the recording
 firewall blocks the associated operation. Evidence contains action and category
 counts, not document text or detected values. The configured detectors do not
 guarantee detection of every sensitive value.
+
+## P0 End-to-End Acceptance Testing (IMessaging, Operational Agents & Android Emulator)
+
+In `SameHostGateway` Development mode (or when `OpenConnect__Messaging__Enabled=true`), the Blazor Todo sample activates:
+
+- **Two-Tenant Development Directory**: `tenant-acme` (`emp-a`, `emp-b`, `sup-a`) and `tenant-globex` (`emp-g1`, `sup-g1`), switchable from the development header persona chip (`POST /__diagnostics/acceptance/persona/{key}`).
+- **Operational Agents & Durable Deadline Monitoring**: `task-monitoring-agent`, `task-followup-agent`, and `task-supervisor-agent` exposed dynamically via `/openconnect/v1/agents/discover`, backed by authorized Todo tools and SQLite-persisted follow-ups.
+- **Linked Devices & Encrypted Messaging**: Available in `MiniComposer Settings -> Linked Devices -> Link OpenConnect Mobile` and `MiniComposer Settings -> Messaging` (plus the header shortcuts).
+- **Developer Acceptance Diagnostics Console (`/diagnostics`)**: Development-only live view of worker readiness, active WebSocket connections, operational tasks and audit trails, durable follow-ups, linked mobile devices with revocation controls, messaging receipts, push attempts, and sanitized security evidence.
+
+> **Honest Cryptographic Disclosure**: Messages use authenticated `ECDH P-256 + HKDF-SHA256 + AES-256-GCM` envelopes through the `IMessagingCryptoProvider` MLS extension seam (`RequireEncryption=true`, `AllowUnencryptedFallback=false`). Full RFC 9420 MLS wire interoperability is **not** yet claimed.
+
+### Reproducible Local Launch (Desktop + Android Emulator)
+
+1. Start the Blazor Todo sample in `SameHostGateway` Development mode listening on port `5000`:
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT="Development"
+$env:OpenConnect__Gateway__Mode="SameHostGateway"
+$env:OpenConnect__Gateway__SameHostBaseUrl="http://127.0.0.1:5000"
+$env:TODO_INTERNAL_TOKEN="dev-todo-internal-token-32-bytes-minimum"
+$env:TODO_INTERNAL_TENANT="01ARZ3NDEKTSV4RRFFQ69G5FAV"
+dotnet run --project samples/Blazor/OpenConnect.Samples.Blazor.csproj --urls http://0.0.0.0:5000
+```
+
+2. (Optional) Connect the private Python `workers/imessaging` worker by setting:
+
+| Setting | Purpose |
+| --- | --- |
+| `OpenConnect__Messaging__Enabled` | Enables IMessaging, Device Enrollment, and Agent Discovery (auto-enabled in Development `SameHostGateway`). |
+| `OpenConnect__Messaging__Worker__Endpoint` | Private loopback or internal HTTP/HTTPS URL for `workers/imessaging`. |
+| `OpenConnect__Messaging__Worker__BearerToken` | Shared bearer token matching `workers/imessaging`. |
+| `OpenConnect__Messaging__Worker__SigningKey` | Shared HMAC signing key (>= 32 bytes) for worker command authentication. |
+
+If the worker is unconfigured, unreachable, or has outage injection enabled from `/diagnostics`, the sample reports honest `not_configured`, `unreachable`, or `degraded_outage_injected` status without fabricating readiness.
+
+3. Forward the host port to an Android Emulator (or use Android's host alias `http://10.0.2.2:5000`):
+
+```powershell
+adb reverse tcp:5000 tcp:5000
+```
+
+4. Pair OpenConnect Mobile:
+   - Open `http://127.0.0.1:5000` in desktop browser and select **Alex Rivera (Acme Employee A)** in the development persona switcher.
+   - Open **Ellai MiniComposer -> Settings -> Linked Devices -> Link OpenConnect Mobile**.
+   - Scan or paste the single-use QR enrollment JSON payload in the Android client, verify the short confirmation code matches, and click **Approve device** on desktop.
+   - Open `/diagnostics`, click **Create Urgent Expiring Task (Employee A)**, then click **Run Deadline Sweep Now** to trigger an encrypted `AgentE2EE` deadline alert and durable follow-up.
+   - Test **Revoke** on the enrolled device from either Linked Devices or `/diagnostics` and verify active WebSockets close and subsequent mobile requests are rejected immediately.
+

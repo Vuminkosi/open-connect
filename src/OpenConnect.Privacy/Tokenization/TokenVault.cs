@@ -73,6 +73,19 @@ public sealed class TokenVault : ITokenVault, IDisposable
         finally { CryptographicOperations.ZeroMemory(plaintext); CryptographicOperations.ZeroMemory(associatedData); }
     }
 
+    /// <summary>Returns whether the token belongs to a secret/credential entity type within the supplied scope.</summary>
+    public bool IsSecretToken(string token, PrivacyScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+        if (!_entries.TryGetValue(token, out var entry) || entry.ExpiresAt <= _timeProvider.GetUtcNow())
+            return false;
+        if (entry.Scope != scope)
+            return false;
+        return Worker.TextOverlapResolver.IsSecretCategory(entry.EntityType);
+    }
+
     /// <summary>Clears the in-memory encryption key.</summary>
     public void Dispose() => CryptographicOperations.ZeroMemory(_key);
 }

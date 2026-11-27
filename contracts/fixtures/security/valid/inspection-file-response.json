@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "openconnect.security-inspection.v1",
+  "requestId": "4d3e7c22-1d65-4f4c-8f42-b1df3f25bc10",
+  "modality": "file",
+  "status": "completed",
+  "detectors": [
+    {
+      "id": "malware",
+      "version": "clamav-1.0",
+      "status": "completed",
+      "reasonCode": null
+    }
+  ],
+  "findings": [
+    {
+      "kind": "malware",
+      "detectorId": "malware",
+      "outcome": "detected",
+      "reasonCode": "malware_detected",
+      "signatureVersion": null
+    }
+  ],
+  "offsetUnit": null,
+  "contentSha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+  "contentType": "text/plain",
+  "imageMetadata": null,
+  "durationMs": 12
+}

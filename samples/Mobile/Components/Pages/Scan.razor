@@ -1,0 +1,104 @@
+@page "/scan"
+@inject IMobileQrScannerService QrScanner
+@inject IOpenConnectMessagingClient MessagingClient
+@inject NavigationManager Navigation
+
+<section aria-label="Scan desktop pairing QR code" style="max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+    <h1 style="margin: 0; font-size: 1.375rem; font-weight: 600;">Pair with desktop</h1>
+    <p style="margin: 0; font-size: 0.875rem; color: var(--oc-mobile-muted);">
+        Scan the QR code from desktop MiniComposer Settings → Linked devices, or paste the QR enrollment JSON payload below for validation.
+    </p>
+
+    <div style="display: flex; gap: 8px;">
+        <MudButton Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Outlined.CameraAlt"
+                   Style="min-height: 44px;"
+                   OnClick="RequestCameraAsync">
+            Check camera permission
+        </MudButton>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_cameraStatus))
+    {
+        <p role="status" style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">@_cameraStatus</p>
+    }
+
+    <MudTextField T="string"
+                  @bind-Value="_rawQrPayload"
+                  Label="QR enrollment payload (JSON)"
+                  Lines="5"
+                  Variant="Variant.Outlined" />
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               Style="min-height: 44px;"
+               Disabled="@(_isValidating || string.IsNullOrWhiteSpace(_rawQrPayload))"
+               OnClick="ValidateAndDiscoverAsync">
+        Validate destination
+    </MudButton>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div role="alert" style="padding: 12px 16px; border: 1px solid #dc2626; border-radius: 8px; color: #dc2626; font-size: 0.875rem;">
+            @_errorMessage
+        </div>
+    }
+
+    @if (_validatedPayload is not null)
+    {
+        <div role="region" aria-label="Verified pairing destination" style="padding: 16px; border: 1px solid var(--oc-mobile-border); border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+            <strong>Verified HTTPS destination</strong>
+            <div style="font-size: 0.8125rem;">Gateway: <code>@_validatedPayload.BaseGatewayUrl</code></div>
+            <div style="font-size: 0.8125rem;">Application: <code>@_validatedPayload.ApplicationId</code></div>
+            <div style="font-size: 0.8125rem;">Expires: @_validatedPayload.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss") UTC</div>
+            @if (_compatibility is not null)
+            {
+                <div style="font-size: 0.8125rem;">
+                    Authenticated company metadata: <strong>@_compatibility.CompanyDisplayName</strong> (@_compatibility.ApplicationDisplayName)
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private string _rawQrPayload = string.Empty;
+    private string? _cameraStatus;
+    private string? _errorMessage;
+    private bool _isValidating;
+    private DeviceEnrollmentQrPayload? _validatedPayload;
+    private MessagingCompatibilityInfo? _compatibility;
+
+    private async Task RequestCameraAsync()
+    {
+        var granted = await QrScanner.EnsureCameraPermissionAsync();
+        _cameraStatus = granted
+            ? "Camera permission granted. Point camera at desktop QR code or paste payload below."
+            : "Camera permission denied. Grant camera access in system settings or paste payload below.";
+    }
+
+    private async Task ValidateAndDiscoverAsync()
+    {
+        _errorMessage = null;
+        _validatedPayload = null;
+        _compatibility = null;
+        _isValidating = true;
+        try
+        {
+            _validatedPayload = QrScanner.ValidateScannedPayload(_rawQrPayload);
+            _compatibility = await MessagingClient.GetCompatibilityAsync(new Uri(_validatedPayload.BaseGatewayUrl));
+        }
+        catch (MessagingDomainException ex)
+        {
+            _errorMessage = $"{ex.ErrorCode}: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Unable to reach gateway: {ex.Message}";
+        }
+        finally
+        {
+            _isValidating = false;
+        }
+    }
+}

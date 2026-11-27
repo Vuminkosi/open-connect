@@ -47,6 +47,10 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private ElementReference _handleRef;
     private DotNetObjectReference<MiniComposer>? _dotNetRef;
     private bool _voiceActive;
+    private bool _duplexVoiceActive;
+    private bool _duplexMuted;
+    private string? _duplexStatus;
+    private string? _duplexError;
     private Task? _sessionCreationTask;
     private bool _sessionCreationFailed;
     private int _inputRenderKey;
@@ -78,7 +82,87 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     /// <summary>Whether the host is checking voice input availability.</summary>
     [Parameter] public bool VoiceInputChecking { get; set; }
 
+    /// <summary>
+    /// Opt-in continuous full-duplex Live Voice (<c>openconnect.voice.v2</c>) mode.
+    /// Defaults to <see langword="false"/> so existing v1 push-to-talk behavior is unchanged.
+    /// </summary>
+    [Parameter] public bool EnableContinuousVoice { get; set; }
+
+    /// <summary>Opt-in Linked Devices entry point inside Composer Settings for desktop QR pairing.</summary>
+    [Parameter] public bool EnableLinkedDevices { get; set; }
+
+    /// <summary>Opt-in IMessaging inbox entry point inside Composer Settings.</summary>
+    [Parameter] public bool EnableMessaging { get; set; }
+
+    /// <summary>Invoked when the user opens Linked Devices from Composer Settings.</summary>
+    [Parameter] public EventCallback OnOpenLinkedDevices { get; set; }
+
+    /// <summary>Invoked when the user opens IMessaging from Composer Settings.</summary>
+    [Parameter] public EventCallback OnOpenMessaging { get; set; }
+
+    [CascadingParameter(Name = "MessagingProvider")] private Messaging.MessagingProvider? MessagingProvider { get; set; }
+
+    private bool _showBuiltInLinkedDevices;
+    private bool _showBuiltInMessaging;
+
+    private int MessagingUnreadCount => MessagingProvider?.TotalUnreadCount ?? 0;
+
+    private async Task OpenLinkedDevicesAsync()
+    {
+        if (_settingsMenu is not null)
+        {
+            await _settingsMenu.CloseMenuAsync();
+        }
+
+        if (OnOpenLinkedDevices.HasDelegate)
+        {
+            await OnOpenLinkedDevices.InvokeAsync();
+        }
+        else
+        {
+            _showBuiltInMessaging = false;
+            _showBuiltInLinkedDevices = !_showBuiltInLinkedDevices;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenMessagingAsync()
+    {
+        if (_settingsMenu is not null)
+        {
+            await _settingsMenu.CloseMenuAsync();
+        }
+
+        if (OnOpenMessaging.HasDelegate)
+        {
+            await OnOpenMessaging.InvokeAsync();
+        }
+        else
+        {
+            _showBuiltInLinkedDevices = false;
+            _showBuiltInMessaging = !_showBuiltInMessaging;
+            StateHasChanged();
+        }
+    }
+
+    private void CloseBuiltInMessagingPanels()
+    {
+        _showBuiltInLinkedDevices = false;
+        _showBuiltInMessaging = false;
+    }
+
     private bool VoiceInputBlocked => VoiceInputChecking || VoiceInputAvailable == false;
+
+    private string? ContinuousVoiceStatusLabel => (_duplexStatus ?? Session?.ContinuousVoiceStatus) switch
+    {
+        "listening" => "Listening",
+        "thinking" => "Thinking",
+        "speaking" => "Speaking",
+        "muted" => "Muted",
+        "awaiting_confirmation" => "Awaiting confirmation",
+        "unavailable" => "Unavailable",
+        _ => VoiceInputAvailable == false ? "Unavailable" : null
+    };
 
     [Inject] private IOpenConnectClient Client { get; set; } = default!;
 
@@ -169,19 +253,97 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private string? LivePartialTranscript => Session?.LivePartialTranscript;
 
-    private string MotionClass => StatusText == "Thinking…" ? "oc-status__motion--thinking" :
+    private CancellationTokenSource? _planningAckCts;
+    private int _planningAckStage;
+
+    private string MotionClass => IsLoading ? "oc-status__motion--thinking" :
         StatusText?.Contains("connect", StringComparison.OrdinalIgnoreCase) == true ? "oc-status__motion--connecting" :
         "oc-status__motion--pulse";
 
-    private string StatusText => Session switch
+    private string StatusText
     {
-        null => "Not connected",
-        { Connection: ComposerConnectionState.Streaming } => "Replying…",
-        { Connection: ComposerConnectionState.Connecting } => "Connecting…",
-        { Connection: ComposerConnectionState.Reconnecting } => "Reconnecting…",
-        { Connection: ComposerConnectionState.Error } => "Connection issue",
-        _ => Session.SessionId is null ? "No session" : "Ready",
-    };
+        get
+        {
+            if (Session is null)
+                return "Not connected";
+            if (Session.PendingClientInteraction is { } interaction)
+            {
+                return interaction.Operation switch
+                {
+                    "get_context" or "inspect" => "Inspecting the current page and available controls…",
+                    "navigate" => "Opening the target page for you…",
+                    "highlight" => "Highlighting the relevant section on screen…",
+                    "clear_highlight" => "Clearing page highlights…",
+                    "click" or "set_value" or "select" or "select_tab" or "open" or "close" => "Running the requested page action…",
+                    _ => "Coordinating live page actions…"
+                };
+            }
+            if (_duplexVoiceActive && string.Equals(_duplexStatus, "thinking", StringComparison.Ordinal))
+                return "Thinking…";
+            if (Session.Connection == ComposerConnectionState.Streaming || _sending)
+            {
+                if (!string.IsNullOrWhiteSpace(Session.StreamingText))
+                    return "Replying…";
+                return _planningAckStage switch
+                {
+                    0 => "Thinking…",
+                    1 => "Still working — checking the page structure and relevant sections…",
+                    2 => "Still planning — verifying details and preparing your guided walkthrough…",
+                    _ => "Almost ready — finishing up the walkthrough and highlights…"
+                };
+            }
+            return Session.Connection switch
+            {
+                ComposerConnectionState.Connecting => "Connecting…",
+                ComposerConnectionState.Reconnecting => "Reconnecting…",
+                ComposerConnectionState.Error => "Connection issue",
+                _ => Session.SessionId is null ? "No session" : "Ready",
+            };
+        }
+    }
+
+    private void SyncPlanningAckTimer()
+    {
+        var waitingForPlan = !_disposed && Session is not null &&
+            (Session.Connection == ComposerConnectionState.Streaming || _sending) &&
+            string.IsNullOrWhiteSpace(Session.StreamingText);
+        if (!waitingForPlan)
+        {
+            if (_planningAckCts is not null)
+            {
+                try
+                { _planningAckCts.Cancel(); }
+                catch (ObjectDisposedException) { }
+                _planningAckCts.Dispose();
+                _planningAckCts = null;
+            }
+            _planningAckStage = 0;
+            return;
+        }
+        if (_planningAckCts is not null)
+            return;
+        var cts = new CancellationTokenSource();
+        _planningAckCts = cts;
+        _planningAckStage = 0;
+        _ = RunPlanningAckLoopAsync(cts);
+    }
+
+    private async Task RunPlanningAckLoopAsync(CancellationTokenSource cts)
+    {
+        try
+        {
+            while (!cts.IsCancellationRequested && _planningAckStage < 3)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(3500), cts.Token).ConfigureAwait(false);
+                if (cts.IsCancellationRequested || _disposed)
+                    break;
+                _planningAckStage++;
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
 
     private string CloseLabel => CloseBehavior switch
     {
@@ -276,8 +438,24 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private static string StripMarkdown(string value)
     {
-        var html = Markdown.ToHtml(value, SpeechMarkdownPipeline);
-        var text = Regex.Replace(html, @"<!--.*?-->|<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        var withoutFencedCode = Regex.Replace(
+            value,
+            @"```[a-zA-Z0-9_+#.-]*\s*[\s\S]*?```",
+            " See the highlighted code sample. ",
+            RegexOptions.CultureInvariant);
+
+        if (withoutFencedCode.Contains("```", StringComparison.Ordinal))
+        {
+            var openFence = withoutFencedCode.IndexOf("```", StringComparison.Ordinal);
+            withoutFencedCode = withoutFencedCode[..openFence] + " See the highlighted code sample. ";
+        }
+
+        var html = Markdown.ToHtml(withoutFencedCode, SpeechMarkdownPipeline);
+        var withoutPre = Regex.Replace(html, @"<pre\b[^>]*>[\s\S]*?</pre>", " See the highlighted code sample. ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        var text = Regex.Replace(withoutPre, @"<!--.*?-->|<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
         return Regex.Replace(WebUtility.HtmlDecode(text), @"\s+", " ", RegexOptions.CultureInvariant).Trim();
     }
 
@@ -302,7 +480,23 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!VoiceInputBlocked || !_micOn)
+        if (!VoiceInputBlocked)
+            return;
+
+        if (_duplexVoiceActive)
+        {
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = "unavailable";
+            _micOn = false;
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false); }
+            catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
+            Session.FailContinuousVoiceSession("Live voice is unavailable. Text input remains available.");
+            return;
+        }
+
+        if (!_micOn)
             return;
         _micOn = false;
         if (_voiceActive)
@@ -334,10 +528,11 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
                 : Session.Messages.LastOrDefault(message => message.Role == "assistant")?.Text ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(response))
                 _speechDisplayText = response;
-            if (_speechOn)
+            if (_speechOn && !_duplexVoiceActive)
                 QueueSpeechSegments(response, Session.Connection != ComposerConnectionState.Streaming);
             TryNotifySpeechResponseCompleted(response);
         }
+        SyncPlanningAckTimer();
 
         _ = InvokeAsync(StateHasChanged);
     }
@@ -376,10 +571,19 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     private static bool IsInsideMarkdownSpan(string text, int position)
     {
         var inCode = false;
+        var inFencedCode = false;
         var inStrong = false;
 
         for (var i = 0; i < position; i++)
         {
+            if (i + 2 < text.Length && text[i] == '`' && text[i + 1] == '`' && text[i + 2] == '`')
+            {
+                inFencedCode = !inFencedCode;
+                i += 2;
+                continue;
+            }
+            if (inFencedCode)
+                continue;
             if (text[i] == '`')
             {
                 inCode = !inCode;
@@ -396,7 +600,7 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             }
         }
 
-        return inCode || inStrong;
+        return inFencedCode || inCode || inStrong;
     }
 
     private async Task DrainSpeechQueueAsync()
@@ -722,6 +926,94 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return SendAsync();
     }
 
+    private IReadOnlyList<string> EffectiveSuggestions
+    {
+        get
+        {
+            if (Suggestions is { Count: > 0 })
+                return Suggestions;
+            var latestAssistant = Session?.Messages.LastOrDefault(m => m.Role == "assistant")?.Text;
+            return ExtractNextStepSuggestions(latestAssistant);
+        }
+    }
+
+    internal static IReadOnlyList<string> ExtractNextStepSuggestions(string? assistantText)
+    {
+        if (string.IsNullOrWhiteSpace(assistantText))
+            return [];
+        var trimmed = assistantText.Trim();
+        var results = new List<string>(4);
+
+        // 1. Check for a trailing numbered list after a follow-up question (e.g. "Want me to:\n1. ...\n2. ...")
+        var lines = trimmed.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var questionIndex = -1;
+        for (var i = lines.Length - 1; i >= Math.Max(0, lines.Length - 8); i--)
+        {
+            var l = lines[i].Trim();
+            if (l.EndsWith(':') && (l.Contains("want me to", StringComparison.OrdinalIgnoreCase) ||
+                l.Contains("would you like", StringComparison.OrdinalIgnoreCase) ||
+                l.Contains("next", StringComparison.OrdinalIgnoreCase)))
+            {
+                questionIndex = i;
+                break;
+            }
+        }
+        if (questionIndex >= 0)
+        {
+            for (var i = questionIndex + 1; i < lines.Length && results.Count < 4; i++)
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(lines[i].Trim(), @"^(?:\d+[.)]|[-*])\s+(.+)$");
+                if (!m.Success)
+                    continue;
+                var candidate = CleanChipText(m.Groups[1].Value);
+                if (candidate.Length is >= 3 and <= 80 && !results.Contains(candidate, StringComparer.OrdinalIgnoreCase))
+                    results.Add(candidate);
+            }
+            if (results.Count >= 2)
+                return results;
+            results.Clear();
+        }
+
+        // 2. Check the final paragraph/sentence for "Want me to <verb> A [next], or B?"
+        var lastParagraph = lines.LastOrDefault(l => !string.IsNullOrWhiteSpace(l))?.Trim() ?? string.Empty;
+        var offerMatch = System.Text.RegularExpressions.Regex.Match(
+            lastParagraph,
+            @"(?i)(?:want me to|would you like(?: me)? to|should (?:i|we)|ready to)\s+(open|show|walk(?: you)? through|explore|jump to|cover|set up|configure|try)\s+(.+?)\?\s*$");
+        if (offerMatch.Success)
+        {
+            var verb = char.ToUpperInvariant(offerMatch.Groups[1].Value[0]) + offerMatch.Groups[1].Value[1..].ToLowerInvariant();
+            if (verb.StartsWith("Walk", StringComparison.OrdinalIgnoreCase))
+                verb = "Walk through";
+            var rawChoices = offerMatch.Groups[2].Value;
+            var parts = System.Text.RegularExpressions.Regex.Split(rawChoices, @"(?i)(?:,\s*or\s+|\s+next,\s*or\s+|\s+or\s+|,\s+)");
+            foreach (var part in parts)
+            {
+                var cleaned = CleanChipText(part);
+                cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?i)\s+(?:next|first)$", "").Trim();
+                if (cleaned.Length is < 2 or > 65)
+                    continue;
+                var label = cleaned.StartsWith(verb, StringComparison.OrdinalIgnoreCase) ? cleaned : $"{verb} {cleaned}";
+                if (label.Length <= 80 && !results.Contains(label, StringComparer.OrdinalIgnoreCase))
+                    results.Add(label);
+                if (results.Count >= 4)
+                    break;
+            }
+            if (results.Count >= 2)
+                return results;
+        }
+
+        return [];
+    }
+
+    private static string CleanChipText(string value)
+    {
+        var cleaned = value.Replace("**", "", StringComparison.Ordinal)
+            .Replace("`", "", StringComparison.Ordinal)
+            .Trim();
+        cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
+        return cleaned.TrimEnd('?', '.', ',', ';');
+    }
+
     private Task HandleInput(ChangeEventArgs args)
     {
         _ = args;
@@ -968,14 +1260,220 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         return InvokeAsync(StateHasChanged);
     }
 
-    private async Task ToggleVoiceAsync()
+    [JSInvokable]
+    public Task OnDuplexVoiceStateChanged(string status, long speechEpoch, string? detail = null)
+    {
+        if (_disposed || string.IsNullOrWhiteSpace(status))
+            return Task.CompletedTask;
+
+        var normalized = status.Trim().ToLowerInvariant();
+        if (string.Equals(_duplexStatus, normalized, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(detail))
+            return Task.CompletedTask;
+
+        _duplexStatus = normalized;
+        _duplexMuted = string.Equals(normalized, "muted", StringComparison.Ordinal);
+        _duplexError = null;
+        Session?.UpdateContinuousVoiceStatus(normalized, speechEpoch);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnDuplexVoiceFinal(string text, long speechEpoch)
+    {
+        if (_disposed || Session is null)
+            return;
+
+        if (!Session.CommitContinuousVoiceTranscript(text, speechEpoch))
+            return;
+
+        _duplexStatus = "thinking";
+        _draft = string.Empty;
+        _inputRenderKey++;
+        await AutosizeAsync().ConfigureAwait(false);
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    [JSInvokable]
+    public Task OnDuplexVoiceError(string message)
+    {
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = "unavailable";
+        _micOn = false;
+        _duplexError = string.IsNullOrWhiteSpace(message)
+            ? "Live voice is unavailable. Text input remains available."
+            : message;
+        Session?.FailContinuousVoiceSession(_duplexError);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task OnDuplexVoiceStopped()
+    {
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = null;
+        _micOn = false;
+        Session?.StopContinuousVoiceSession();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleContinuousVoiceAsync()
     {
         if (VoiceInputBlocked)
             return;
-        if (!_micOn)
+
+        if (_duplexVoiceActive)
         {
-            Session.MarkError("Microphone is turned off. Turn it on before starting voice input.");
+            await StopContinuousVoiceAsync().ConfigureAwait(false);
             return;
+        }
+
+        _duplexError = null;
+        if (string.IsNullOrWhiteSpace(Session.SessionId))
+        {
+            try
+            {
+                var created = await Client.CreateSessionAsync().ConfigureAwait(false);
+                Session.AttachSession(created.Id.Value.ToString());
+            }
+            catch (Exception ex)
+            {
+                _duplexStatus = "unavailable";
+                _duplexError = FriendlyError(ex);
+                Session.FailContinuousVoiceSession(_duplexError);
+                await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+                return;
+            }
+        }
+
+        var epoch = Session.StartContinuousVoiceSession(permissionGranted: true);
+        if (Session.MicrophoneState == ComposerMicrophoneState.Failed)
+            return;
+
+        try
+        {
+            if (Client is IRealtimeOpenConnectClient)
+                await WaitForConnectionAsync(Session, Session.SessionId!, CancellationToken.None).ConfigureAwait(false);
+
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            var ticket = VoiceConnectionTicket?.Invoke(Session.SessionId!);
+            await JS.InvokeVoidAsync(
+                "ocComposerVoice.startDuplex",
+                _dotNetRef,
+                Session.SessionId,
+                epoch,
+                VoiceEndpoint,
+                ticket,
+                Session.ConnectionId).ConfigureAwait(false);
+
+            if (VoiceInputBlocked)
+            {
+                await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false);
+                return;
+            }
+
+            _duplexVoiceActive = true;
+            _duplexMuted = false;
+            _duplexStatus = "listening";
+            _micOn = true;
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException or TimeoutException)
+        {
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = "unavailable";
+            _micOn = false;
+            _duplexError = DescribeVoiceFailure(ex);
+            Session.FailContinuousVoiceSession(_duplexError);
+            await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ToggleContinuousMuteAsync()
+    {
+        if (!_duplexVoiceActive)
+            return;
+
+        var nextMuted = !_duplexMuted;
+        _duplexMuted = nextMuted;
+        _duplexStatus = nextMuted ? "muted" : "listening";
+        Session?.UpdateContinuousVoiceStatus(_duplexStatus, Session.SpeechEpoch);
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.setMuted", nextMuted).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private async Task InterruptContinuousPlaybackAsync()
+    {
+        if (!_duplexVoiceActive)
+            return;
+
+        _duplexStatus = _duplexMuted ? "muted" : "listening";
+        Session?.TriggerBargeIn();
+        Session?.UpdateContinuousVoiceStatus(_duplexStatus, Session.SpeechEpoch);
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.interruptPlayback", "manual_interrupt").ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private async Task StopContinuousVoiceAsync()
+    {
+        if (!_duplexVoiceActive && Session?.IsContinuousVoiceActive != true)
+            return;
+
+        _duplexVoiceActive = false;
+        _duplexMuted = false;
+        _duplexStatus = null;
+        _micOn = false;
+        try
+        {
+            await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "user_stopped").ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { }
+        Session?.StopContinuousVoiceSession();
+        await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+    }
+
+    private static string DescribeVoiceFailure(Exception ex)
+    {
+        var message = ex.Message ?? string.Empty;
+        if (message.Contains("NotAllowedError", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("PermissionDenied", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("permission denied", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Microphone permission was denied. Text input remains available.";
+        }
+
+        if (message.Contains("NotFoundError", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("DevicesNotFound", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No microphone was found on this device. Text input remains available.";
+        }
+
+        return "Live voice is unavailable. Text input remains available.";
+    }
+
+    private async Task ToggleVoiceAsync()
+    {
+        if (EnableContinuousVoice)
+        {
+            await ToggleContinuousVoiceAsync().ConfigureAwait(false);
+            return;
+        }
+
+        if (VoiceInputBlocked)
+            return;
+        if (!_voiceActive && !_micOn)
+        {
+            _micOn = true;
         }
 
         if (_voiceActive)
@@ -1241,11 +1739,33 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             _sendCts?.Cancel();
             _speechCts?.Cancel();
+            _planningAckCts?.Cancel();
         }
         catch (ObjectDisposedException) { }
 
         _sendCts?.Dispose();
         _speechCts?.Dispose();
+        _planningAckCts?.Dispose();
+
+        if (_duplexVoiceActive || _voiceActive)
+        {
+            var wasDuplex = _duplexVoiceActive;
+            _duplexVoiceActive = false;
+            _duplexMuted = false;
+            _duplexStatus = null;
+            _voiceActive = false;
+            _micOn = false;
+            try
+            {
+                if (wasDuplex)
+                    await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "disposed").ConfigureAwait(false);
+                else
+                    await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JSException or JSDisconnectedException) { }
+            Session?.DisposeVoiceState();
+        }
+
         await DetachJsAsync(dragOnly: false).ConfigureAwait(false);
         _dotNetRef?.Dispose();
         GC.SuppressFinalize(this);

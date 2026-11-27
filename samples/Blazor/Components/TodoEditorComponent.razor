@@ -1,11 +1,13 @@
 @using OpenConnect.Samples.Blazor.Models
 @inject ITodoStore Store
+@inject IServiceProvider Services
+@inject IHostEnvironment HostEnvironment
 @inject ISnackbar Snackbar
 
 <MudPaper Elevation="0" Class="oc-surface-card pa-5 mb-6" data-oc-target="todo-editor">
     <div class="d-flex align-center mb-4">
         <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="mr-2">
-            <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" />
+            <MudIcon Icon="@Icons.Material.Filled.Add" Size="Size.Small" aria-hidden="true" />
         </MudAvatar>
         <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Create New Task</MudText>
     </div>
@@ -68,14 +70,38 @@
                        Disabled="@_creating"
                        FullWidth="true"
                        Size="Size.Medium"
-                       Class="rounded-lg py-2">
+                       Class="rounded-lg py-2 oc-touch-target">
                 Add Task
             </MudButton>
         </MudItem>
 
-        <MudItem xs="12">
-            <label>Due date (optional) <input type="date" @bind="_dueDate" /></label>
+        <MudItem xs="12" sm="6" md="4">
+            <label for="oc-editor-due-date" class="d-block mb-1" style="font-size: 0.75rem; color: var(--mud-palette-text-secondary);">Due date (optional)</label>
+            <input id="oc-editor-due-date" class="oc-native-input w-100" type="date" @bind="_dueDate" />
         </MudItem>
+
+        @if (HostEnvironment.IsDevelopment())
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <label for="oc-editor-assignee" class="d-block mb-1" style="font-size: 0.75rem; color: var(--mud-palette-text-secondary);">Assignee (optional)</label>
+                <select id="oc-editor-assignee" class="oc-native-select w-100" @bind="_assigneeKey">
+                    <option value="">Unassigned (local workspace)</option>
+                    @foreach (var person in AvailableAssignees)
+                    {
+                        <option value="@person.Key">@person.DisplayName</option>
+                    }
+                </select>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <label for="oc-editor-escalation" class="d-block mb-1" style="font-size: 0.75rem; color: var(--mud-palette-text-secondary);">Escalation policy (optional)</label>
+                <input id="oc-editor-escalation"
+                       class="oc-native-input w-100"
+                       maxlength="120"
+                       placeholder="e.g., escalate:supervisor:15m"
+                       @bind="_escalationPolicy" />
+            </MudItem>
+        }
 
         <MudItem xs="12">
             <MudTextField @bind-Value="_description"
@@ -97,6 +123,19 @@
     private string? _description;
     private TodoPriority _priority = TodoPriority.Medium;
     private DateTime? _dueDate;
+    private string _assigneeKey = string.Empty;
+    private string? _escalationPolicy;
+
+    private IEnumerable<SeedPrincipal> AvailableAssignees
+    {
+        get
+        {
+            var persona = Services.GetService<TodoDevelopmentPersonaState>()?.Current;
+            return persona is null
+                ? TodoDirectorySeed.Principals
+                : TodoDirectorySeed.Principals.Where(p => p.TenantId == persona.TenantId);
+        }
+    }
 
     private async Task CreateTaskAsync()
     {
@@ -111,11 +150,31 @@
         try
         {
             var dueDateUtc = _dueDate is null ? (DateTime?)null : DateTime.SpecifyKind(_dueDate.Value.Date, DateTimeKind.Local).ToUniversalTime();
-            await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority, dueDateUtc);
+            var selectedAssignee = TodoDirectorySeed.FindByKey(_assigneeKey);
+            if (selectedAssignee is not null && Services.GetService<SqliteTodoStore>() is { } sqliteStore)
+            {
+                var persona = Services.GetService<TodoDevelopmentPersonaState>()?.Current;
+                await sqliteStore.AddOperationalTaskAsync(
+                    selectedAssignee.TenantId,
+                    _title.Trim(),
+                    _description?.Trim(),
+                    _priority,
+                    dueDateUtc,
+                    selectedAssignee.PrincipalId,
+                    string.IsNullOrWhiteSpace(_escalationPolicy) ? null : _escalationPolicy.Trim(),
+                    persona?.Key ?? "desktop-user");
+            }
+            else
+            {
+                await Store.AddAsync(_title.Trim(), _description?.Trim(), _priority, dueDateUtc);
+            }
+
             _title = string.Empty;
             _description = null;
             _priority = TodoPriority.Medium;
             _dueDate = null;
+            _assigneeKey = string.Empty;
+            _escalationPolicy = null;
 
             Snackbar.Add("Task created successfully", Severity.Success);
             if (OnTaskCreated.HasDelegate)

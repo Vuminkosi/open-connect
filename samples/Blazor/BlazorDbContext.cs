@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using OpenConnect.Persistence.EFCore.Messaging;
 using OpenConnect.Persistence.EFCore.Model;
+using OpenConnect.Samples.Blazor.Models;
 using OpenConnect.Samples.Shared;
 
 namespace OpenConnect.Samples.Blazor;
@@ -29,7 +31,9 @@ public sealed class BlazorDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.ApplyOpenConnectModel(new OpenConnectModelOptions { UseSqlitePrefix = true });
+        var mappingOptions = new OpenConnectModelOptions { UseSqlitePrefix = true };
+        modelBuilder.ApplyOpenConnectModel(mappingOptions);
+        modelBuilder.ApplyOpenConnectMessagingModel(mappingOptions);
         modelBuilder.Entity<PersistedTodoScope>(entity =>
         {
             entity.ToTable("todo_scopes");
@@ -43,6 +47,13 @@ public sealed class BlazorDbContext : DbContext
             entity.Property(item => item.Scope).HasMaxLength(64);
             entity.Property(item => item.Title).HasMaxLength(200).IsRequired();
             entity.Property(item => item.Revision).HasDefaultValue(0L);
+            entity.Property(item => item.TenantId).HasMaxLength(64).IsRequired(false);
+            entity.Property(item => item.AssignedPrincipalId).HasMaxLength(64).IsRequired(false);
+            entity.Property(item => item.Status).HasDefaultValue(TodoStatus.Open);
+            entity.Property(item => item.EscalationPolicy).HasMaxLength(128).IsRequired(false);
+            entity.Property(item => item.CommentsJson).IsRequired(false);
+            entity.Property(item => item.ApprovalsJson).IsRequired(false);
+            entity.Property(item => item.AuditHistoryJson).IsRequired(false);
             entity.HasOne(item => item.ScopeRecord).WithMany(scope => scope.Items)
                 .HasForeignKey(item => item.Scope).OnDelete(DeleteBehavior.Cascade);
         });

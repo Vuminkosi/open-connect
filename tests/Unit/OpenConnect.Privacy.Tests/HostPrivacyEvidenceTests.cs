@@ -776,4 +776,75 @@ public sealed class HostPrivacyEvidenceTests
         Assert.Throws<ArgumentException>(() => HostPrivacyEvidence.Create(Guid.NewGuid(), context, decision));
         Assert.Throws<ArgumentException>(() => HostPrivacyEvidence.Create(Guid.Empty, context, decision with { DetectedEntities = [] }));
     }
+
+    [Fact]
+    public void Integrity_digest_is_deterministic_and_sensitive_to_metadata_tampering()
+    {
+        var context = new EgressContext(new(Ulid.NewUlid()), new(Ulid.NewUlid()), new(Ulid.NewUlid()), EgressDestination.Output);
+        var eventId = Guid.NewGuid();
+        var occurredAt = new DateTimeOffset(2026, 11, 22, 12, 30, 0, TimeSpan.FromHours(2));
+        var decision = new EgressDecision(false, null, [new(0, 5, "EMAIL")], SecurityPolicyAction.Block, "literal_sensitive_value_detected");
+
+        var first = HostPrivacyEvidence.Create(eventId, context, decision,
+            traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+            requestId: "req-12345",
+            occurredAt: occurredAt,
+            policyId: "org/strict-local",
+            policyRevision: "rev-42");
+        var second = HostPrivacyEvidence.Create(eventId, context, decision,
+            traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+            requestId: "req-12345",
+            occurredAt: occurredAt.ToUniversalTime(),
+            policyId: "org/strict-local",
+            policyRevision: "rev-42");
+
+        Assert.Equal("application-host", first.EnforcementAuthority);
+        Assert.Equal(64, first.IntegrityDigest.Length);
+        Assert.All(first.IntegrityDigest, ch => Assert.True(ch is (>= '0' and <= '9') or (>= 'a' and <= 'f')));
+        Assert.Equal(first.IntegrityDigest, second.IntegrityDigest);
+        Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", first.TraceId);
+        Assert.Equal("req-12345", first.RequestId);
+        Assert.Equal(occurredAt.ToUniversalTime(), first.OccurredAt);
+        Assert.Equal("org/strict-local", first.PolicyId);
+        Assert.Equal("rev-42", first.PolicyRevision);
+
+        var differentTrace = HostPrivacyEvidence.Create(eventId, context, decision,
+            traceId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            requestId: "req-12345",
+            occurredAt: occurredAt,
+            policyId: "org/strict-local",
+            policyRevision: "rev-42");
+        var differentPolicy = HostPrivacyEvidence.Create(eventId, context, decision,
+            traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+            requestId: "req-12345",
+            occurredAt: occurredAt,
+            policyId: "org/strict-local",
+            policyRevision: "rev-43");
+        var differentDecision = HostPrivacyEvidence.Create(eventId, context,
+            new EgressDecision(true, "sanitized", [new(0, 5, "EMAIL")], SecurityPolicyAction.Mask, "ok"),
+            traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+            requestId: "req-12345",
+            occurredAt: occurredAt,
+            policyId: "org/strict-local",
+            policyRevision: "rev-42");
+
+        Assert.NotEqual(first.IntegrityDigest, differentTrace.IntegrityDigest);
+        Assert.NotEqual(first.IntegrityDigest, differentPolicy.IntegrityDigest);
+        Assert.NotEqual(first.IntegrityDigest, differentDecision.IntegrityDigest);
+    }
+
+    [Theory]
+    [InlineData("trace with spaces", null, null, null)]
+    [InlineData("alice@example.com", null, null, null)]
+    [InlineData(null, "req with spaces", null, null)]
+    [InlineData(null, null, "policy with spaces", null)]
+    [InlineData(null, null, null, "rev with spaces")]
+    [InlineData("", null, null, null)]
+    public void Additive_metadata_rejects_unsafe_or_empty_identifiers(string? traceId, string? requestId, string? policyId, string? policyRevision)
+    {
+        var context = new EgressContext(new(Ulid.NewUlid()), new(Ulid.NewUlid()), new(Ulid.NewUlid()), EgressDestination.Output);
+        var decision = new EgressDecision(true, "safe", [], SecurityPolicyAction.Allow, "ok");
+        Assert.Throws<ArgumentException>(() => HostPrivacyEvidence.Create(
+            Guid.NewGuid(), context, decision, traceId, requestId, null, policyId, policyRevision));
+    }
 }

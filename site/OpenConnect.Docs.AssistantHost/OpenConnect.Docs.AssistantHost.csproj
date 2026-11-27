@@ -11,4 +11,7 @@
     <ProjectReference Include="../../src/OpenConnect.LiveUI.Hosting/OpenConnect.LiveUI.Hosting.csproj" />
     <ProjectReference Include="../../src/OpenConnect.LiveUI.Inference/OpenConnect.LiveUI.Inference.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="../OpenConnect.Docs/Content/**/*.md" Link="Content/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

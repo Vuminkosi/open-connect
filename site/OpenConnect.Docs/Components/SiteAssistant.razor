@@ -1,10 +1,12 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using MudBlazor
 @using OpenConnect.Components.Blazor
+@using OpenConnect.Components.Blazor.Voice
 @using OpenConnect.Components.Contracts
 @using OpenConnect.LiveUI.Blazor
 @using OpenConnect.LiveUI
 @using OpenConnect.Docs.Services.Voice
+@using Microsoft.Extensions.Configuration
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject DocumentationAssistantAvailability Availability
@@ -30,6 +32,7 @@
                       VoiceConnectionTicket="IssueVoiceTicket"
                       VoiceInputAvailable="_voiceInputAvailable"
                       VoiceInputChecking="_voiceInputChecking"
+                      EnableContinuousVoice="_enableContinuousVoice"
                       CloseBehavior="ComposerCloseBehavior.MinimizeOnly" />
         <OpenConnectNavigatorProvider />
     </OpenConnectLiveUIProvider>
@@ -38,7 +41,7 @@
 @code {
     private string? IssueVoiceTicket(string sessionId)
     {
-        var tickets = Services.GetService<DocumentationVoiceTickets>();
+        var tickets = Services.GetService<OpenConnectVoiceTicketStore>();
         var visitor = Services.GetService<DocumentationGatewayVisitorIdentity>();
         return tickets is not null && visitor is not null ? tickets.Issue(sessionId, visitor.Token) : null;
     }
@@ -46,6 +49,7 @@
     private bool _dark;
     private bool? _voiceInputAvailable;
     private bool _voiceInputChecking;
+    private bool _enableContinuousVoice;
     private readonly CancellationTokenSource _lifetime = new();
     private long _subscription;
     private DotNetObjectReference<SiteAssistant>? _reference;
@@ -58,6 +62,8 @@
 
     protected override void OnInitialized()
     {
+        _enableContinuousVoice = Services.GetService<IConfiguration>()
+            ?.GetValue<bool>("OpenConnect:Assistant:EnableContinuousVoice") ?? false;
         if (Services.GetService<DocumentationVoiceAvailability>() is not null)
         {
             _voiceInputAvailable = false;

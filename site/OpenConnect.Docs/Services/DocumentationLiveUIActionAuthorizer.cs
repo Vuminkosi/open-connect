@@ -2,7 +2,7 @@ using OpenConnect.LiveUI;
 
 namespace OpenConnect.Docs.Services;
 
-// Public documentation guidance only; Cloud administration remains user-operated.
+// Public documentation and read-only Cloud overview guidance; Cloud administration remains strictly user-operated.
 public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStore? content = null) : ILiveUIActionAuthorizer
 {
     public ValueTask<LiveUIAuthorizationDecision> AuthorizeAsync(LiveUIExecutionContext context, CancellationToken cancellationToken = default)
@@ -11,17 +11,26 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
         bool PublicRoute(string? path) => path is "/" or "/docs" or "/api" ||
             (path is not null && content?.Documents.Any(document =>
                 string.Equals(path, $"/docs/{document.Version}/{document.Slug}", StringComparison.Ordinal)) == true);
-        if (!PublicRoute(context.Route.Path))
+        static bool CloudGuidanceRoute(string? path) => string.Equals(path, "/cloud", StringComparison.Ordinal);
+        bool GuidanceRoute(string? path) => PublicRoute(path) || CloudGuidanceRoute(path);
+        if (!GuidanceRoute(context.Route.Path))
             return Deny();
         if (context.Action.Type == LiveUIActionType.Navigate)
         {
             var destination = context.Manifest.Routes.SingleOrDefault(route => route.Id == context.Action.Parameters.DestinationRouteId);
-            return PublicRoute(destination?.Path) ? Allow() : Deny();
+            return GuidanceRoute(destination?.Path) ? Allow() : Deny();
         }
         if (context.Action.Type == LiveUIActionType.ClearHighlight)
             return Allow();
         if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null)
             return Allow();
+        if (CloudGuidanceRoute(context.Route.Path))
+        {
+            return context.Target is { Kind: LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.Link } &&
+                context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Highlight or LiveUIActionType.Scroll
+                ? Allow()
+                : Deny();
+        }
         if (context.Route.Path == "/docs" && context.Target is { Id: "documentation-show-guides", Kind: LiveUITargetKind.Button })
             return context.Action.Type is LiveUIActionType.Inspect or LiveUIActionType.Click ? Allow() : Deny();
         if (context.Route.Path == "/docs/v1/privacy" && context.Target is { Id: "documentation-privacy-demo-run", Kind: LiveUITargetKind.Button })

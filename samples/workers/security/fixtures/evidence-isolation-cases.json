@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "openconnect.security-evidence-fixtures.v1",
+  "fixtureId": "fw-100-evidence-isolation",
+  "validEvent": {
+    "schemaVersion": "openconnect.security-evidence.v1",
+    "eventId": "11111111-2222-4333-8444-555555555555",
+    "requestId": "66666666-7777-4888-8999-aaaaaaaaaaaa",
+    "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "occurredAt": "2026-11-25T10:00:00Z",
+    "capability": "malware",
+    "boundary": "upload-release",
+    "detectorId": "clamav",
+    "detectorVersion": "1.4.2",
+    "policyRevision": "demo-1",
+    "inspectionStatus": "completed",
+    "decision": "block",
+    "enforcementOutcome": "prevented",
+    "reasonCode": "malware_detected",
+    "categoryCounts": {
+      "MALWARE": 1
+    },
+    "durationMs": 17
+  },
+  "rejectedPayloads": [
+    {
+      "id": "forged-payload-tenant-id",
+      "extraField": "tenantId",
+      "extraValue": "00000000-0000-0000-0000-000000000001",
+      "reason": "Tenant identity must come strictly from authenticated credentials, never payload."
+    },
+    {
+      "id": "raw-pii-text-rejected",
+      "extraField": "rawText",
+      "extraValue": "Contact synthetic@example.com",
+      "reason": "Evidence schema forbids raw text or PII fields."
+    },
+    {
+      "id": "raw-secret-rejected",
+      "extraField": "secret",
+      "extraValue": "sk_live_synthetic_canary",
+      "reason": "Evidence schema forbids secret fields."
+    },
+    {
+      "id": "blocked-cannot-claim-executed",
+      "overrideField": "enforcementOutcome",
+      "overrideValue": "executed",
+      "reason": "A blocked decision cannot claim an executed enforcement outcome."
+    }
+  ]
+}

@@ -36,8 +36,27 @@ public sealed class MafHostTaskExecutor : IHostTaskExecutor
             ValidateScope(task, execution);
             using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, execution.Context.CancellationToken);
-            var response = await execution.Runner.TurnDurableAsync(task.Message, execution.Context,
-                execution.IsExecutionRevoked, execution.PersistenceContext, linkedCancellation.Token).ConfigureAwait(false);
+            var streamVoiceDeltas = _sessions is not null
+                && task.IdempotencyKey.StartsWith("voice:", StringComparison.Ordinal);
+            var response = streamVoiceDeltas
+                ? await execution.Runner.TurnDurableStreamingAsync(
+                    task.Message,
+                    execution.Context,
+                    execution.IsExecutionRevoked,
+                    execution.PersistenceContext,
+                    onTextDelta: async (delta, ct) =>
+                    {
+                        if (string.IsNullOrEmpty(delta))
+                            return;
+                        ct.ThrowIfCancellationRequested();
+                        if (await execution.IsExecutionRevoked(execution.Context, ct).ConfigureAwait(false))
+                            throw new UnauthorizedAccessException("The task execution was revoked before response delta publication.");
+                        await _sessions!.AppendTaskEventAsync(task.SessionId.Value, task.TaskId, "message.delta", delta, ct)
+                            .ConfigureAwait(false);
+                    },
+                    cancellationToken: linkedCancellation.Token).ConfigureAwait(false)
+                : await execution.Runner.TurnDurableAsync(task.Message, execution.Context,
+                    execution.IsExecutionRevoked, execution.PersistenceContext, linkedCancellation.Token).ConfigureAwait(false);
             if (_sessions is not null && !string.IsNullOrWhiteSpace(response.Text))
             {
                 linkedCancellation.Token.ThrowIfCancellationRequested();

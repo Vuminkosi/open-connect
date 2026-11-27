@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @layout Layout.CloudLayout
 @rendermode InteractiveServer
+@implements IDisposable
 @using System.ComponentModel.DataAnnotations
 @using OpenConnect.Docs.Cloud
 @inject IServiceProvider Services
@@ -75,9 +76,18 @@ else
     private bool _canAdminister;
     private string? _role;
     private string? _status;
+    private int _generation;
 
     protected override async Task OnParametersSetAsync()
     {
+        _generation++;
+        _applications = [];
+        _role = null;
+        _canAdminister = false;
+        _status = null;
+        _saving = false;
+        _newApplication.Name = string.Empty;
+        _newApplication.Environment = "Development";
         _controlPlane = Services.GetService(typeof(CloudControlPlaneService)) as CloudControlPlaneService;
         if (_controlPlane is null)
         {
@@ -96,11 +106,16 @@ else
             return;
         }
 
+        var generation = _generation;
+        var tenantId = TenantId;
+        var name = _newApplication.Name!;
+        var environment = _newApplication.Environment;
         _saving = true;
         _status = null;
         try
         {
             var subject = await GetSubjectAsync();
+            if (generation != _generation) return;
             if (subject is null)
             {
                 _status = "The authenticated identity is missing a subject.";
@@ -108,10 +123,13 @@ else
             }
 
             var created = await _controlPlane.CreateApplicationAsync(
-                subject, TenantId, _newApplication.Name!, _newApplication.Environment, CancellationToken.None);
+                subject, tenantId, name, environment, CancellationToken.None);
+            if (generation != _generation) return;
             if (created.Application is null)
             {
-                _status = "The organization could not be found or your role does not allow application administration.";
+                _status = created.Forbidden
+                    ? "Your role does not allow application administration."
+                    : "The organization could not be found or you do not have access.";
                 return;
             }
 
@@ -121,21 +139,33 @@ else
         catch (Exception)
         {
             Logger.LogWarning("Cloud application creation failed; no database details were returned to the browser.");
-            _status = "The Cloud control plane is temporarily unavailable. The application was not confirmed as registered.";
+            if (generation == _generation)
+            {
+                _status = "The Cloud control plane is temporarily unavailable. The application was not confirmed as registered.";
+            }
         }
         finally
         {
-            _saving = false;
+            if (generation == _generation)
+            {
+                _saving = false;
+            }
         }
     }
 
     private async Task ReloadAsync()
     {
+        var generation = _generation;
+        var tenantId = TenantId;
         _loading = true;
         _status = null;
+        _applications = [];
+        _role = null;
+        _canAdminister = false;
         try
         {
             var subject = await GetSubjectAsync();
+            if (generation != _generation) return;
             if (subject is null)
             {
                 _status = "The authenticated identity is missing a subject.";
@@ -143,8 +173,17 @@ else
             }
 
             var tenants = await _controlPlane!.GetTenantsAsync(subject, CancellationToken.None);
-            var tenant = tenants.SingleOrDefault(item => item.Id == TenantId);
+            if (generation != _generation) return;
+            var tenant = tenants.SingleOrDefault(item => item.Id == tenantId);
             if (tenant is null)
+            {
+                _status = "The organization was not found or you do not have access.";
+                return;
+            }
+
+            var applications = await _controlPlane.GetApplicationsAsync(subject, tenantId, CancellationToken.None);
+            if (generation != _generation) return;
+            if (applications is null)
             {
                 _status = "The organization was not found or you do not have access.";
                 return;
@@ -152,24 +191,26 @@ else
 
             _role = tenant.Role;
             _canAdminister = tenant.Role is "Owner" or "Administrator";
-            var applications = await _controlPlane.GetApplicationsAsync(subject, TenantId, CancellationToken.None);
-            if (applications is null)
-            {
-                _status = "The organization was not found or you do not have access.";
-                return;
-            }
             _applications = applications;
         }
         catch (Exception)
         {
             Logger.LogWarning("Cloud application lookup is unavailable; no database details were returned to the browser.");
-            _status = "The Cloud control plane is temporarily unavailable. Application membership could not be verified.";
+            if (generation == _generation)
+            {
+                _status = "The Cloud control plane is temporarily unavailable. Application membership could not be verified.";
+            }
         }
         finally
         {
-            _loading = false;
+            if (generation == _generation)
+            {
+                _loading = false;
+            }
         }
     }
+
+    public void Dispose() => _generation++;
 
     private async Task<CloudSubject?> GetSubjectAsync()
     {

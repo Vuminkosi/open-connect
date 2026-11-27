@@ -75,6 +75,18 @@ public sealed class LiveUIBrowserRuntime(
         }
     }
 
+    internal async ValueTask SetSpotlightCaptionAsync(string? title, string? body, CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            return;
+        try
+        {
+            _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken, ModulePath).ConfigureAwait(false);
+            await _module.InvokeVoidAsync("setSpotlightCaption", cancellationToken, title ?? string.Empty, body ?? string.Empty).ConfigureAwait(false);
+        }
+        catch (Exception) when (!_disposed) { }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)

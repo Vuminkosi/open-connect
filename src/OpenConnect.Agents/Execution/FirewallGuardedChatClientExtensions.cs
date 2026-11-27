@@ -31,10 +31,28 @@ public static class FirewallGuardedChatClientExtensions
             var inner = ResolveInner(provider, original);
             if (inner is FirewallGuardedChatClient)
                 return inner;
-            return new FirewallGuardedChatClient(inner, gate, contextProvider);
+            var securityWorker = provider.GetService<ISecurityWorkerClient>();
+            var promptOptions = provider.GetService<PromptInjectionGuardOptions>();
+            var evidenceSink = provider.GetService<ISecurityEvidenceSink>();
+            var timeProvider = provider.GetService<TimeProvider>();
+            return new FirewallGuardedChatClient(inner, gate, contextProvider, securityWorker, promptOptions, evidenceSink, timeProvider);
         }, original.Lifetime));
 
         return services;
+    }
+
+    /// <summary>Adds a fixed egress context and prompt-injection guard options, and decorates the registered <see cref="IChatClient"/>.</summary>
+    public static IServiceCollection AddFirewallGuardedChatClient(
+        this IServiceCollection services,
+        EgressContext context,
+        PromptInjectionGuardOptions promptInjectionOptions)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(promptInjectionOptions);
+
+        services.Replace(ServiceDescriptor.Singleton(promptInjectionOptions));
+        return services.AddFirewallGuardedChatClient(context);
     }
 
     private static IChatClient ResolveInner(IServiceProvider provider, ServiceDescriptor original)

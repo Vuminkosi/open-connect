@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace OpenConnect.Docs.Cloud;
 
@@ -33,5 +34,53 @@ public static class CloudHostPrivacyObservationEndpoints
             var result = await reader.GetAsync(subject, tenantId, caseId, cancellationToken);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
+        group.MapGet("/tenants/{tenantId:guid}/security/coverage", (
+            Guid tenantId, ClaimsPrincipal principal, HttpContext context,
+            IDbContextFactory<CloudControlPlaneDbContext> factory, TimeProvider clock, CancellationToken cancellationToken) =>
+            HandleCoverageAsync(
+                tenantId,
+                principal,
+                identityIssuer,
+                context,
+                (subject, id, ct) => CloudSecurityCoverageReader.GetTenantAsync(factory, clock, subject, id, ct),
+                cancellationToken));
     }
+
+    internal static async Task<IResult> HandleCoverageAsync(
+        Guid tenantId,
+        ClaimsPrincipal principal,
+        string? identityIssuer,
+        HttpContext context,
+        Func<CloudSubject, Guid, CancellationToken, Task<CloudSecurityCoverageLookupResult>> readCoverage,
+        CancellationToken cancellationToken)
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
+        if (subject is null)
+        {
+            return Problem(context, StatusCodes.Status401Unauthorized, "Authentication is required.", "unauthorized");
+        }
+        if (tenantId == Guid.Empty)
+        {
+            return Problem(context, StatusCodes.Status400BadRequest, "A valid tenant identifier is required.", "invalid_request");
+        }
+
+        var result = await readCoverage(subject, tenantId, cancellationToken);
+        return result.Status switch
+        {
+            "succeeded" when result.Coverage is not null => Results.Ok(result.Coverage),
+            "forbidden" => Problem(context, StatusCodes.Status403Forbidden, "Security coverage access requires Owner, Administrator, or SecurityAnalyst role.", "forbidden"),
+            _ => Problem(context, StatusCodes.Status404NotFound, "Organization was not found.", "not_found"),
+        };
+    }
+
+    private static IResult Problem(HttpContext context, int statusCode, string title, string code) =>
+        Results.Problem(
+            statusCode: statusCode,
+            title: title,
+            extensions: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["code"] = code,
+                ["traceId"] = context.TraceIdentifier,
+            });
 }

@@ -27,6 +27,7 @@
     <Project Path="src/OpenConnect.Core/OpenConnect.Core.csproj" />
     <Project Path="src/OpenConnect.Documents/OpenConnect.Documents.csproj" />
     <Project Path="src/OpenConnect.Hosting.AspNetCore/OpenConnect.Hosting.AspNetCore.csproj" />
+    <Project Path="src/OpenConnect.IMessaging/OpenConnect.IMessaging.csproj" />
     <Project Path="src/OpenConnect.Knowledge/OpenConnect.Knowledge.csproj" />
     <Project Path="src/OpenConnect.Metering/OpenConnect.Metering.csproj" />
     <Project Path="src/OpenConnect.Navigator/OpenConnect.Navigator.csproj" />

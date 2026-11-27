@@ -1,0 +1,140 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+
+<section class="oc-msg-agents" aria-label="Authorized operational agents">
+    <header class="oc-msg-agents__header">
+        <h2 class="oc-msg-agents__title">Operational agents</h2>
+        <span class="oc-msg-agents__count">@(Agents?.Count ?? 0) authorized</span>
+    </header>
+
+    @if (IsLoading)
+    {
+        <div role="status" aria-label="Loading authorized agents">
+            <MudSkeleton Height="68px" Class="mb-2" />
+            <MudSkeleton Height="68px" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="oc-msg-agents__error" role="alert">@ErrorMessage</div>
+    }
+    else if (Agents is null || Agents.Count == 0)
+    {
+        <div class="oc-msg-agents__empty" role="status">
+            <p class="oc-msg-agents__empty-title">No operational agents available</p>
+            <p class="oc-msg-agents__empty-body">Your company administrator has not authorized any operational agents for your account.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="oc-msg-agents__list">
+            @foreach (var agent in Agents)
+            {
+                var canCall = agent.IsReady && agent.AllowedCapabilities.Any(c =>
+                    string.Equals(c, MessagingCapabilityIds.InAppCall, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(c, "call", StringComparison.OrdinalIgnoreCase));
+                <li @key="agent.AgentId" class="oc-msg-agent-card">
+                    <div class="oc-msg-agent-card__body">
+                        <div class="oc-msg-agent-card__title-row">
+                            <span class="oc-msg-agent-card__name">@agent.DisplayName</span>
+                            <span class="oc-msg-agent-card__status @(agent.IsReady ? "oc-msg-agent-card__status--ready" : "oc-msg-agent-card__status--unavailable")">
+                                @(agent.IsReady ? "Ready" : "Unavailable")
+                            </span>
+                        </div>
+                        <p class="oc-msg-agent-card__desc">@agent.Description</p>
+                        @if (agent.AllowedCapabilities.Count > 0)
+                        {
+                            <div class="oc-msg-agent-card__caps">
+                                @foreach (var cap in agent.AllowedCapabilities)
+                                {
+                                    <span class="oc-msg-agent-card__cap">@cap</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                    <div class="oc-msg-agent-card__actions">
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Class="oc-msg-touch-target"
+                                   Disabled="@(!agent.IsReady)"
+                                   OnClick="@(() => OnStartConversation.InvokeAsync(agent))">
+                            Message
+                        </MudButton>
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   Class="oc-msg-touch-target"
+                                   Disabled="@(!canCall)"
+                                   title="@(canCall ? "Start voice call" : "Voice calls are not enabled for this agent")"
+                                   OnClick="@(() => OnStartCall.InvokeAsync(agent))">
+                            Call
+                        </MudButton>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<style>
+    .oc-msg-agents { display: flex; flex-direction: column; gap: 12px; }
+    .oc-msg-agents__header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .oc-msg-agents__title { margin: 0; font-size: 1.0625rem; font-weight: 600; }
+    .oc-msg-agents__count { font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-agents__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .oc-msg-agent-card {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 8px;
+        background-color: var(--mud-palette-surface, #ffffff);
+    }
+    .oc-msg-agent-card__body { flex: 1; min-width: 0; }
+    .oc-msg-agent-card__title-row { display: flex; align-items: center; gap: 8px; }
+    .oc-msg-agent-card__name { font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-agent-card__status { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+    .oc-msg-agent-card__status--ready { color: var(--mud-palette-success, #16a34a); }
+    .oc-msg-agent-card__status--unavailable { color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-agent-card__desc { margin: 4px 0 0 0; font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #475569); }
+    .oc-msg-agent-card__caps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .oc-msg-agent-card__cap {
+        font-size: 0.6875rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: var(--mud-palette-background-gray, #f1f5f9);
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-agent-card__actions { display: flex; gap: 8px; }
+    .oc-msg-agents__empty {
+        padding: 24px 16px;
+        border: 1px dashed var(--mud-palette-lines-default, #cbd5e1);
+        border-radius: 8px;
+        text-align: center;
+    }
+    .oc-msg-agents__empty-title { margin: 0 0 4px 0; font-weight: 600; }
+    .oc-msg-agents__empty-body { margin: 0; font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-agents__error {
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-error, #dc2626);
+        border-radius: 8px;
+        color: var(--mud-palette-error, #dc2626);
+        font-size: 0.875rem;
+    }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public IReadOnlyList<OperationalAgentDiscoveryItem>? Agents { get; set; }
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    [Parameter] public EventCallback<OperationalAgentDiscoveryItem> OnStartConversation { get; set; }
+
+    [Parameter] public EventCallback<OperationalAgentDiscoveryItem> OnStartCall { get; set; }
+}

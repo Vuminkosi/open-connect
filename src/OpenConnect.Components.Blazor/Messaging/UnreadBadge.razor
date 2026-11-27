@@ -1,0 +1,36 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+
+@if (Count > 0)
+{
+    var display = Count > MaxDisplayCount ? $"{MaxDisplayCount}+" : Count.ToString();
+    <span class="oc-msg-unread-badge"
+          role="status"
+          aria-live="polite"
+          aria-label="@($"{Count} unread {(Count == 1 ? "message" : "messages")}")">
+        @display
+    </span>
+}
+
+<style>
+    .oc-msg-unread-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        background-color: var(--mud-palette-primary, #5e6ad2);
+        color: var(--mud-palette-primary-text, #ffffff);
+    }
+</style>
+
+@code {
+    [Parameter] public int Count { get; set; }
+
+    [Parameter] public int MaxDisplayCount { get; set; } = 99;
+}

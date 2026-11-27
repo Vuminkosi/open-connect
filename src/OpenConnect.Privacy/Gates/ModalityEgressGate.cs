@@ -65,4 +65,15 @@ public sealed class ModalityEgressGate(IPrivacyFirewall firewall)
 
         return new EgressDecision(true, null, Array.Empty<EntitySpan>(), SecurityPolicyAction.Allow, "modality_egress_allowed");
     }
+
+    /// <summary>Evaluates image egress using a verified host-owned <see cref="Image.ImageRedactionResult"/>.</summary>
+    public EgressDecision EvaluateRedactedImage(Image.ImageRedactionResult redactionResult, EgressContext context, FirewallMode mode)
+    {
+        ArgumentNullException.ThrowIfNull(redactionResult);
+        ArgumentNullException.ThrowIfNull(context);
+        var verified = redactionResult.Succeeded &&
+                       redactionResult.MetadataStripped &&
+                       redactionResult.RedactedPngBytes is { Length: > 0 };
+        return EvaluateModality(new ModalityEgressRequest(ContentModality.Image, context, HasVerifiedLocalRedaction: verified), mode);
+    }
 }

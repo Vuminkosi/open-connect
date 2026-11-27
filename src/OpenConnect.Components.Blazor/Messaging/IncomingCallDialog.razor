@@ -1,0 +1,102 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+@if (Invitation is not null)
+{
+    var isExpired = Invitation.ExpiresAtUtc <= UtcNow;
+    <section class="oc-msg-incoming-call"
+             role="alertdialog"
+             aria-modal="true"
+             aria-labelledby="oc-incoming-call-title"
+             aria-describedby="oc-incoming-call-desc">
+        <header class="oc-msg-incoming-call__header">
+            <MudIcon Icon="@Icons.Material.Filled.RingVolume" Color="Color.Primary" aria-hidden="true" />
+            <div>
+                <h3 id="oc-incoming-call-title" class="oc-msg-incoming-call__title">
+                    Incoming call from @Invitation.CallerDisplayName
+                </h3>
+                <p id="oc-incoming-call-desc" class="oc-msg-incoming-call__subtitle">
+                    @Invitation.ConversationTitle · @(Invitation.IsAgentCaller ? "Operational agent" : "Team member")
+                </p>
+            </div>
+        </header>
+
+        <div class="oc-msg-incoming-call__security" role="note">
+            <MudIcon Icon="@(Invitation.MediaSecurityMode == MessagingCallSecurityKind.EndpointE2EE ? Icons.Material.Outlined.Lock : Icons.Material.Outlined.Shield)"
+                     Size="Size.Small"
+                     aria-hidden="true" />
+            <span>
+                @(Invitation.MediaSecurityMode == MessagingCallSecurityKind.EndpointE2EE
+                    ? "Endpoint E2EE voice session. Microphone will only activate after you accept."
+                    : "Transport-encrypted audio (TLS/WSS, not E2EE). Microphone will only activate after you accept.")
+            </span>
+        </div>
+
+        <div class="oc-msg-incoming-call__actions">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Call"
+                       Disabled="@(isExpired || IsResponding)"
+                       Class="oc-msg-touch-target"
+                       OnClick="@(() => OnAccept.InvokeAsync(Invitation.CallId))">
+                Accept call
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.CallEnd"
+                       Disabled="@IsResponding"
+                       Class="oc-msg-touch-target"
+                       OnClick="@(() => OnDecline.InvokeAsync(Invitation.CallId))">
+                Decline
+            </MudButton>
+        </div>
+    </section>
+}
+
+<style>
+    .oc-msg-incoming-call {
+        border: 1px solid var(--mud-palette-primary, #5e6ad2);
+        border-radius: 10px;
+        padding: 16px;
+        background-color: var(--mud-palette-surface, #ffffff);
+        color: var(--mud-palette-text-primary, #0f172a);
+    }
+    .oc-msg-incoming-call__header {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+    .oc-msg-incoming-call__title { margin: 0; font-size: 1rem; font-weight: 600; }
+    .oc-msg-incoming-call__subtitle {
+        margin: 2px 0 0 0;
+        font-size: 0.8125rem;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-incoming-call__security {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        margin-bottom: 12px;
+        border-radius: 6px;
+        font-size: 0.8125rem;
+        background-color: var(--mud-palette-background-gray, #f8fafc);
+        color: var(--mud-palette-text-secondary, #475569);
+    }
+    .oc-msg-incoming-call__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public MessagingCallInvitation? Invitation { get; set; }
+
+    [Parameter] public bool IsResponding { get; set; }
+
+    [Parameter] public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+
+    [Parameter] public EventCallback<string> OnAccept { get; set; }
+
+    [Parameter] public EventCallback<string> OnDecline { get; set; }
+}

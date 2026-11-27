@@ -131,6 +131,19 @@
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
+      "openconnect.imessaging": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
       "openconnect.tools": {
         "type": "Project",
         "dependencies": {
@@ -268,6 +281,19 @@
           "OpenConnect.Abstractions": "[1.0.0, )"
         }
       },
+      "openconnect.imessaging": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.privacy": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
       "openconnect.tools": {
         "type": "Project",
         "dependencies": {
@@ -400,6 +426,19 @@
         "type": "Project"
       },
       "openconnect.core": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Abstractions": "[1.0.0, )"
+        }
+      },
+      "openconnect.imessaging": {
+        "type": "Project",
+        "dependencies": {
+          "OpenConnect.Core": "[1.0.0, )",
+          "OpenConnect.Privacy": "[1.0.0, )"
+        }
+      },
+      "openconnect.privacy": {
         "type": "Project",
         "dependencies": {
           "OpenConnect.Abstractions": "[1.0.0, )"

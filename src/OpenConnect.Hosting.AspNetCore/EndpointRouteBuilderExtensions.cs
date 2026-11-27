@@ -90,6 +90,7 @@ public static class EndpointRouteBuilderExtensions
         endpoints.MapOpenConnectVoice();
         endpoints.MapOpenConnectNavigator();
         endpoints.MapOpenConnectMcp();
+        endpoints.MapOpenConnectMessaging();
 
         return endpoints;
     }
@@ -105,7 +106,8 @@ public static class EndpointRouteBuilderExtensions
         group.MapGet("/status", (IServiceProvider services) =>
         {
             var vad = services.GetService<ServerSileroVadEngine>();
-            return Results.Ok(new { vadConfigured = vad is not null });
+            var onnxVad = services.GetService<OpenConnect.Abstractions.Speech.IVoiceActivityDetector>();
+            return Results.Ok(new { vadConfigured = vad is not null || onnxVad is not null });
         }).RequireAuthorization();
 
         group.MapPost("/audio", (HttpContext context) =>
@@ -161,6 +163,17 @@ public static class EndpointRouteBuilderExtensions
             return Results.Ok(catalog is not null ? catalog.GetForAgent(new AgentId("default")) : Array.Empty<ToolDescriptor>());
         }).RequireAuthorization();
 
+        return endpoints;
+    }
+
+    /// <summary>Maps OpenConnect IMessaging, agent discovery, and device enrollment endpoints idempotently under <c>/openconnect/v1</c>.</summary>
+    public static IEndpointRouteBuilder MapOpenConnectMessaging(this IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+        if (!TryMarkMapped(endpoints, "messaging"))
+            return endpoints;
+
+        Messaging.MessagingEndpoints.MapRoutes(endpoints);
         return endpoints;
     }
 

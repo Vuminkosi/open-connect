@@ -13,7 +13,11 @@
 <PageTitle>Security observations | OpenConnect Cloud</PageTitle>
 <h1>Security observations</h1>
 <VoicePrivacyObservations TenantId="@TenantId" />
-<p><a href="@($"/cloud/tenants/{TenantId}/security/host-reports")">View host privacy reports</a></p>
+<p>
+    <a href="@($"/cloud/tenants/{TenantId}/security/host-reports")">View host privacy reports</a>
+    ·
+    <a href="@($"/cloud/tenants/{TenantId}/security/playground")">Open Security Playground</a>
+</p>
 <p>Cloud classification checks and host privacy reports are shown separately. Analytics privacy cases are also shown separately. A passed check does not prove complete detection or worker execution. Repeated requests can create multiple observations.</p>
 <div class="security-filter">
     <label for="security-from">From date (UTC)</label><input id="security-from" type="date" value="@_fromDate" @onchange="e => _fromDate = e.Value?.ToString()" disabled="@(!_interactive || _loading)" />
@@ -188,6 +192,39 @@ else if (_page is not null)
             </nav>
         </section>
     }
+    @if (_evidencePage is not null)
+    {
+        <section aria-label="Structured security evidence events">
+            <h2>Security evidence (openconnect.security-evidence.v1)</h2>
+            <p>Content-free enforcement receipts recorded across PII, image privacy, malware, AI firewall, WAF, service fencing, and agent tools. No raw payloads or secrets are stored.</p>
+            @if (_evidencePage.Events.Count == 0)
+            {
+                <p>No structured security evidence events have been recorded for this organization yet. Use the <a href="@($"/cloud/tenants/{TenantId}/security/playground")">Security Playground</a> or configure a connected host to record real enforcement events.</p>
+            }
+            else
+            {
+                @foreach (var ev in _evidencePage.Events)
+                {
+                    <article class="security-observation">
+                        <h3>@ev.Capability — @ev.Decision (@ev.EnforcementOutcome)</h3>
+                        <dl>
+                            <dt>Event ID</dt><dd><code>@ev.EventId</code></dd>
+                            <dt>Occurred at (UTC)</dt><dd>@ev.OccurredAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+                            <dt>Boundary</dt><dd>@ev.Boundary</dd>
+                            <dt>Detector</dt><dd>@ev.DetectorId (<code>@ev.DetectorVersion</code>)</dd>
+                            <dt>Inspection status</dt><dd>@ev.InspectionStatus</dd>
+                            <dt>Reason</dt><dd><code>@ev.ReasonCode</code></dd>
+                            <dt>Duration</dt><dd>@ev.DurationMs ms</dd>
+                            @if (!string.IsNullOrEmpty(ev.TraceId))
+                            {
+                                <dt>Trace ID</dt><dd><code>@ev.TraceId</code></dd>
+                            }
+                        </dl>
+                    </article>
+                }
+            }
+        </section>
+    }
 }
 <p><a href="/cloud">Back to organizations</a></p>
 
@@ -199,6 +236,7 @@ else if (_page is not null)
     private CloudHostPrivacyObservationPage? _hostPage;
     private CloudAnalyticsPrivacyDashboard? _analytics;
     private CloudKnowledgeEmbeddingPrivacyDashboard? _embedding;
+    private CloudSecurityEvidencePage? _evidencePage;
     private readonly List<CloudPrivacyObservationCursor?> _hostHistory = [null];
     private int _hostPageIndex;
     private readonly List<CloudPrivacyObservationCursor?> _history = [null];
@@ -217,7 +255,7 @@ else if (_page is not null)
         {
             if (_disposed) return;
             ++_generation;
-            _page = null; _statistics = null; _hostPage = null; _analytics = null; _embedding = null; _loading = false;
+            _page = null; _statistics = null; _hostPage = null; _analytics = null; _embedding = null; _evidencePage = null; _loading = false;
             _status = "Your identity changed. Reopen security observations to check access.";
             StateHasChanged();
         });
@@ -284,7 +322,7 @@ else if (_page is not null)
     private async Task LoadAsync(CloudPrivacyObservationCursor? cursor, int pageIndex)
     {
         var generation = ++_generation; var tenantId = TenantId;
-        _loading = true; _status = null; _page = null; _statistics = null; _hostPage = null; _analytics = null; _embedding = null;
+        _loading = true; _status = null; _page = null; _statistics = null; _hostPage = null; _analytics = null; _embedding = null; _evidencePage = null;
         try
         {
             var service = Services.GetService(typeof(CloudPrivacyObservationService)) as CloudPrivacyObservationService;
@@ -292,6 +330,7 @@ else if (_page is not null)
             var hostReader = Services.GetService(typeof(ICloudHostPrivacyObservationReader)) as ICloudHostPrivacyObservationReader;
             var analyticsReader = Services.GetService(typeof(ICloudAnalyticsPrivacyReader)) as ICloudAnalyticsPrivacyReader;
             var embeddingReader = Services.GetService(typeof(ICloudKnowledgeEmbeddingPrivacyReader)) as ICloudKnowledgeEmbeddingPrivacyReader;
+            var evidenceReader = Services.GetService(typeof(CloudSecurityEvidenceQueryService)) as CloudSecurityEvidenceQueryService;
             var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             var identity = Configuration.GetSection("OpenConnect:Cloud:Identity");
             var subject = CloudIdentity.IsEnabled(authentication.User, identity)
@@ -301,6 +340,7 @@ else if (_page is not null)
             CloudHostPrivacyObservationPage? hostPage = null;
             CloudAnalyticsPrivacyDashboard? analytics = null;
             CloudKnowledgeEmbeddingPrivacyDashboard? embedding = null;
+            CloudSecurityEvidencePage? evidencePage = null;
             string? status = null;
             if (service is null) status = "The Cloud control plane is not configured.";
             else if (subject is null) status = "The authenticated identity is missing a subject.";
@@ -316,18 +356,20 @@ else if (_page is not null)
                     analytics = await analyticsReader.GetTenantAsync(subject, tenantId, CancellationToken.None);
                 if (page is not null && embeddingReader is not null)
                     embedding = await embeddingReader.GetTenantAsync(subject, tenantId, CancellationToken.None);
+                if (page is not null && evidenceReader is not null)
+                    evidencePage = await evidenceReader.QueryTenantAsync(subject, tenantId, new CloudSecurityEvidenceFilter(FromUtc: _from, ToUtc: _to, Take: 25), CancellationToken.None);
             }
             if (generation != _generation) return;
             var currentAuthentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             if (generation != _generation) return;
             var currentSubject = CloudIdentity.IsEnabled(currentAuthentication.User, identity)
                 ? CloudSubjectResolver.FromPrincipal(currentAuthentication.User, identity["Authority"]) : null;
-            if (subject is null || currentSubject != subject) { page = null; statistics = null; hostPage = null; analytics = null; embedding = null; status = "The authenticated identity is no longer available."; }
+            if (subject is null || currentSubject != subject) { page = null; statistics = null; hostPage = null; analytics = null; embedding = null; evidencePage = null; status = "The authenticated identity is no longer available."; }
             if (statisticsReader is not null && statistics is null && page is not null) { page = null; status = "The organization was not found or your role does not allow security access."; }
             if (hostReader is not null && hostPage is null && page is not null) { page = null; status = "The organization was not found or your role does not allow security access."; }
             if (analyticsReader is not null && analytics is null && page is not null) { page = null; status = "The organization was not found or your role does not allow security access."; }
             if (embeddingReader is not null && embedding is null && page is not null) { page = null; status = "The organization was not found or your role does not allow security access."; }
-            _page = page; _statistics = statistics; _hostPage = page is null ? null : hostPage; _analytics = page is null ? null : analytics; _embedding = page is null ? null : embedding; _pageIndex = pageIndex; _status = status;
+            _page = page; _statistics = statistics; _hostPage = page is null ? null : hostPage; _analytics = page is null ? null : analytics; _embedding = page is null ? null : embedding; _evidencePage = page is null ? null : evidencePage; _pageIndex = pageIndex; _status = status;
         }
         catch (Exception)
         {

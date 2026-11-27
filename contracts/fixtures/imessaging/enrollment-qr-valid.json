@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "type": "openconnect.device.enrollment",
+  "baseGatewayUrl": "https://gateway.company.example/",
+  "tenantId": "tenant-acme-01",
+  "applicationId": "insurance-crm",
+  "pairingId": "pair-0001",
+  "enrollmentToken": "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-AbCdE",
+  "expiresAt": "2026-11-25T12:02:00Z"
+}

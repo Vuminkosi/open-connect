@@ -38,8 +38,11 @@ import re
 import shutil
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -111,6 +114,157 @@ class CacheProvisionResult:
 
 
 AssetFetcher = Callable[[RuntimeModelAsset, Path], None]
+
+DEFAULT_ALLOWED_MODEL_HOSTS: frozenset[str] = frozenset(
+    {
+        "huggingface.co",
+        "cdn-lfs.huggingface.co",
+        "cdn-lfs-us-1.huggingface.co",
+        "cdn-lfs-eu-1.huggingface.co",
+        "github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+    }
+)
+FORBIDDEN_FLOATING_REVISIONS: frozenset[str] = frozenset(
+    {"main", "master", "latest", "head", "trunk", "dev", "nightly"}
+)
+DEFAULT_MAX_ASSET_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB hard ceiling
+
+
+class FetchPolicyError(ValueError):
+    """Raised when an asset download violates host, scheme, revision, or size policy."""
+
+
+def validate_pinned_revision(revision: str) -> str:
+    """Reject floating branch/tag names; require a pinned immutable revision."""
+    cleaned = revision.strip()
+    if not cleaned or cleaned.lower() in FORBIDDEN_FLOATING_REVISIONS:
+        raise FetchPolicyError(f"floating revision not allowed: {revision!r}")
+    if any(ch in cleaned for ch in ("/", "\\", "..", "\r", "\n", " ")):
+        raise FetchPolicyError(f"invalid revision format: {revision!r}")
+    return cleaned
+
+
+def validate_allowlisted_https_url(
+    url: str,
+    *,
+    allowed_hosts: Iterable[str] = DEFAULT_ALLOWED_MODEL_HOSTS,
+) -> urllib.parse.SplitResult:
+    """Validate that ``url`` is HTTPS, has no userinfo, and targets an allowlisted host."""
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme.lower() != "https":
+        raise FetchPolicyError(f"non-https scheme rejected: {parsed.scheme!r}")
+    if parsed.username is not None or parsed.password is not None:
+        raise FetchPolicyError("url userinfo is not allowed")
+    host = (parsed.hostname or "").strip().lower()
+    normalized_allowed = {h.strip().lower() for h in allowed_hosts}
+    if not host or host not in normalized_allowed:
+        raise FetchPolicyError(f"host not in allowlist: {host!r}")
+    return parsed
+
+
+class _AllowlistedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Re-validate every redirect hop against the HTTPS host allowlist."""
+
+    def __init__(self, allowed_hosts: frozenset[str], max_redirects: int = 5) -> None:
+        super().__init__()
+        self._allowed_hosts = allowed_hosts
+        self._max_redirects = max_redirects
+        self._count = 0
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        self._count += 1
+        if self._count > self._max_redirects:
+            raise FetchPolicyError("too_many_redirects")
+        resolved = urllib.parse.urljoin(req.full_url, newurl)
+        validate_allowlisted_https_url(resolved, allowed_hosts=self._allowed_hosts)
+        return super().redirect_request(req, fp, code, msg, headers, resolved)
+
+
+class AllowlistedHttpsAssetFetcher:
+    """Bounded, allowlisted HTTPS fetcher with streaming SHA-256 and size verification."""
+
+    def __init__(
+        self,
+        manifest: RuntimeModelManifest,
+        *,
+        allowed_hosts: Iterable[str] = DEFAULT_ALLOWED_MODEL_HOSTS,
+        base_url: str = "https://huggingface.co",
+        url_builder: Callable[[RuntimeModelManifest, RuntimeModelAsset], str] | None = None,
+        timeout_seconds: float = 60.0,
+        max_asset_bytes: int = DEFAULT_MAX_ASSET_BYTES,
+        chunk_size: int = 256 * 1024,
+        opener_factory: Callable[[urllib.request.BaseHandler], urllib.request.OpenerDirector]
+        | None = None,
+    ) -> None:
+        validate_pinned_revision(manifest.immutableRevision)
+        self._manifest = manifest
+        self._allowed_hosts = frozenset(h.strip().lower() for h in allowed_hosts)
+        self._base_url = base_url.rstrip("/")
+        validate_allowlisted_https_url(self._base_url, allowed_hosts=self._allowed_hosts)
+        self._url_builder = url_builder
+        self._timeout = timeout_seconds
+        self._max_asset_bytes = max_asset_bytes
+        self._chunk_size = chunk_size
+        self._opener_factory = opener_factory
+
+    def build_url(self, asset: RuntimeModelAsset) -> str:
+        if self._url_builder is not None:
+            url = self._url_builder(self._manifest, asset)
+        else:
+            rel = asset.relativePath.lstrip("/").replace("\\", "/")
+            encoded_model = urllib.parse.quote(self._manifest.modelId.strip("/"), safe="/._-")
+            encoded_rev = urllib.parse.quote(self._manifest.immutableRevision.strip(), safe="._-")
+            encoded_rel = urllib.parse.quote(rel, safe="/._-")
+            url = f"{self._base_url}/{encoded_model}/resolve/{encoded_rev}/{encoded_rel}"
+        validate_allowlisted_https_url(url, allowed_hosts=self._allowed_hosts)
+        return url
+
+    def __call__(self, asset: RuntimeModelAsset, target_path: Path) -> None:
+        if asset.sizeBytes > self._max_asset_bytes:
+            raise FetchPolicyError("asset_exceeds_max_size")
+        if target_path.is_symlink():
+            raise FetchPolicyError("symlink_target_rejected")
+        url = self.build_url(asset)
+        redirect_handler = _AllowlistedRedirectHandler(self._allowed_hosts)
+        opener = (
+            self._opener_factory(redirect_handler)
+            if self._opener_factory is not None
+            else urllib.request.build_opener(redirect_handler)
+        )
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "openconnect-security-worker/1.0"},
+            method="GET",
+        )
+        hasher = hashlib.sha256()
+        written = 0
+        tmp_path = target_path.parent / f".{target_path.name}.{uuid.uuid4().hex}.part"
+        try:
+            with opener.open(request, timeout=self._timeout) as response:
+                final_url = response.geturl()
+                if final_url:
+                    validate_allowlisted_https_url(final_url, allowed_hosts=self._allowed_hosts)
+                with tmp_path.open("wb") as handle:
+                    while True:
+                        chunk = response.read(self._chunk_size)
+                        if not chunk:
+                            break
+                        written += len(chunk)
+                        if written > asset.sizeBytes or written > self._max_asset_bytes:
+                            raise FetchPolicyError("download_size_exceeded")
+                        hasher.update(chunk)
+                        handle.write(chunk)
+            if written != asset.sizeBytes:
+                raise FetchPolicyError("download_size_mismatch")
+            if hasher.hexdigest() != asset.sha256.lower():
+                raise FetchPolicyError("download_hash_mismatch")
+            os.replace(tmp_path, target_path)
+        finally:
+            with contextlib.suppress(OSError):
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
 
 def sanitize_model_id(model_id: str) -> str:

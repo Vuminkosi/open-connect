@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "openconnect.security-fencing-fixtures.v1",
+  "fixtureId": "fw-070-service-fencing-cases",
+  "approvedService": {
+    "serviceId": "approved-demo-service",
+    "scheme": "http",
+    "host": "waf-backend",
+    "port": 8081,
+    "path": "/api/waf-demo/health"
+  },
+  "cases": [
+    {
+      "id": "approved-internal-service",
+      "url": "http://waf-backend:8081/api/waf-demo/health",
+      "tenantId": "tenant-a",
+      "expectedAllowed": true,
+      "expectedDownstreamHitDelta": 1,
+      "expectedReasonCode": "fenced_service_allowed"
+    },
+    {
+      "id": "denied-cloud-metadata-ssrf",
+      "url": "http://169.254.169.254/latest/meta-data/",
+      "tenantId": "tenant-a",
+      "expectedAllowed": false,
+      "expectedDownstreamHitDelta": 0,
+      "expectedReasonCode": "ssrf_metadata_or_loopback_denied"
+    },
+    {
+      "id": "denied-userinfo-in-url",
+      "url": "http://user:pass@waf-backend:8081/api/waf-demo/health",
+      "tenantId": "tenant-a",
+      "expectedAllowed": false,
+      "expectedDownstreamHitDelta": 0,
+      "expectedReasonCode": "userinfo_forbidden"
+    },
+    {
+      "id": "denied-unregistered-host",
+      "url": "https://unapproved.example.invalid/exfiltrate",
+      "tenantId": "tenant-a",
+      "expectedAllowed": false,
+      "expectedDownstreamHitDelta": 0,
+      "expectedReasonCode": "destination_not_allowlisted"
+    },
+    {
+      "id": "denied-cross-tenant-binding",
+      "url": "http://waf-backend:8081/api/waf-demo/health",
+      "tenantId": "tenant-b",
+      "allowedTenantId": "tenant-a",
+      "expectedAllowed": false,
+      "expectedDownstreamHitDelta": 0,
+      "expectedReasonCode": "tenant_mismatch"
+    }
+  ]
+}

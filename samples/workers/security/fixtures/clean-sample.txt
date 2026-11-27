@@ -1,0 +1,2 @@
+OpenConnect synthetic clean document fixture for FW-020 / AT-07 malware release verification.
+Contains no personal data, no secrets, and no executable content.

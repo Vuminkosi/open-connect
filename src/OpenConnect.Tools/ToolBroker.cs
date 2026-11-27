@@ -38,6 +38,13 @@ public sealed class ToolBroker(ToolCatalog catalog, ToolAuthorizationService aut
         if (tryReserveToolCall is not null && !tryReserveToolCall())
             throw new ToolAuthorizationException(ErrorCodes.ToolNotAllowed);
 
+        using var contextScope = Security.SecurityToolExecutionContextScope.Push(
+            new Security.SecurityToolExecutionContext(
+                request.TenantId,
+                request.PrincipalId,
+                request.AgentId,
+                request.TaskId));
+
         var result = await registration.InvokeAsync(arguments, cancellationToken).ConfigureAwait(false);
         ValidateOutput(result);
         return result;

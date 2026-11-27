@@ -18,6 +18,8 @@ from openconnect_transcription import cloud as cloud_module
 from openconnect_transcription import engine_mode
 from openconnect_transcription import realtime
 from openconnect_transcription import realtime_local
+from openconnect_transcription import realtime_v2
+from openconnect_transcription import streaming_local
 from openconnect_transcription.engine import (
     FakeTranscriptionEngine,
     TranscriptResult,
@@ -31,6 +33,8 @@ from openconnect_transcription.schemas import (
     CapabilityResponse,
     ExecuteRequest,
     ExecuteResponse,
+    StreamingLocalCapability,
+    StreamingRealtimeCapability,
     TaskClaimRequest,
     TaskClaimResponse,
     TaskCompleteRequest,
@@ -132,6 +136,30 @@ async def local_realtime_transcription(websocket: WebSocket) -> None:
         await websocket.close(code=1008, reason="unauthorized")
         return
     await realtime_local.transcribe(websocket, _settings())
+
+
+@app.websocket("/internal/v2/realtime")
+async def realtime_v2_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    authorization = websocket.headers.get("authorization") or ""
+    if token is None or not authorization.startswith("Bearer ") or not hmac.compare_digest(
+        authorization[7:], token
+    ):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await realtime_v2.transcribe_v2(websocket, _settings())
+
+
+@app.websocket("/internal/v2/realtime/local")
+async def local_streaming_transcription(websocket: WebSocket) -> None:
+    token = _settings().worker_token
+    authorization = websocket.headers.get("authorization") or ""
+    if token is None or not authorization.startswith("Bearer ") or not hmac.compare_digest(
+        authorization[7:], token
+    ):
+        await websocket.close(code=1008, reason="unauthorized")
+        return
+    await streaming_local.transcribe_stream(websocket, _settings())
 
 
 @app.get("/internal/v1/realtime/local/model-ready", dependencies=[Depends(authenticate)])
@@ -331,6 +359,13 @@ def ready() -> dict[str, object]:
 )
 def capabilities() -> CapabilityResponse:
     cfg = _settings()
+    cloud_streaming = realtime_v2.cloud_streaming_available(cfg)
+    streaming_ready = realtime_v2.local_streaming_available(cfg)
+    primary_provider = (
+        "cloud-muse"
+        if cloud_streaming
+        else ("local-whisper" if streaming_ready else "none")
+    )
     return CapabilityResponse(
         worker="transcription",
         version=WORKER_VERSION,
@@ -339,13 +374,30 @@ def capabilities() -> CapabilityResponse:
         modelId=cfg.model_id,
         modelRevision=cfg.model_revision,
         modelLoaded=_model_loaded(cfg),
-        capabilities=advertised_capabilities(backend=cfg.backend)
-        if cfg.fake_engine or _cloud_leg_available(cfg) or _local_leg_available(cfg) else [],
+        capabilities=advertised_capabilities(
+            backend=cfg.backend, streaming_local=streaming_ready
+        )
+        if cfg.fake_engine or _cloud_leg_available(cfg) or _local_leg_available(cfg)
+        else [],
         privacyMode=cfg.privacy_mode,
         remoteBlocked=cfg.remote_blocked,
         supportsPartials=engine.supports_partials,
         sampleRatesHz=supported_sample_rates(),
         maxDurationMs=cfg.max_duration_ms,
+        streamingLocal=StreamingLocalCapability(
+            enabled=streaming_ready,
+            supportsPartials=streaming_ready,
+            modelReady=streaming_ready,
+            cadenceMs=cfg.streaming_partial_cadence_ms,
+            defaultLocale=cfg.default_locale,
+        ),
+        streamingRealtime=StreamingRealtimeCapability(
+            enabled=cloud_streaming or streaming_ready,
+            primaryProvider=primary_provider,
+            fallbackAvailable=cloud_streaming and streaming_ready,
+            transcriptionMode=cfg.transcription_mode,
+            supportsPartials=cloud_streaming or streaming_ready,
+        ),
     )
 
 

@@ -1,0 +1,106 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IMessagingProfileManager ProfileManager
+@inject NavigationManager Navigation
+
+<div class="oc-mobile-shell">
+    <header class="oc-mobile-header">
+        <div>
+            <strong style="font-size: 0.9375rem;">
+                @(ProfileManager.ActiveProfile?.CompanyDisplayName ?? "OpenConnect Mobile")
+            </strong>
+            <div style="font-size: 0.75rem; color: var(--oc-mobile-muted);">
+                @(ProfileManager.ActiveProfile is not null
+                    ? $"{ProfileManager.ActiveProfile.ApplicationDisplayName} · Epoch {ProfileManager.CurrentEpoch}"
+                    : "No active company profile")
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Style="min-height: 44px;"
+                       OnClick="@(() => Navigation.NavigateTo("/profiles"))">
+                Switch company
+            </MudButton>
+        </div>
+    </header>
+
+    @if (MessagingProvider?.ConnectionState is MessagingConnectionState.Offline or MessagingConnectionState.Reconnecting or MessagingConnectionState.Revoked)
+    {
+        <div role="alert"
+             style="padding: 8px 16px; border-bottom: 1px solid var(--oc-mobile-border); font-size: 0.8125rem;">
+            @(MessagingProvider.ConnectionStatusMessage ?? $"Connection state: {MessagingProvider.ConnectionState}")
+        </div>
+    }
+
+    <div class="oc-mobile-body">
+        <nav class="oc-mobile-rail" aria-label="Primary navigation">
+            <NavLink class="oc-mobile-nav-link" href="/inbox">
+                <MudIcon Icon="@Icons.Material.Outlined.Forum" Size="Size.Small" aria-hidden="true" />
+                <span>Inbox</span>
+                <UnreadBadge Count="@(MessagingProvider?.TotalUnreadCount ?? 0)" />
+            </NavLink>
+            <NavLink class="oc-mobile-nav-link" href="/agents">
+                <MudIcon Icon="@Icons.Material.Outlined.SmartToy" Size="Size.Small" aria-hidden="true" />
+                <span>Agents</span>
+            </NavLink>
+            <NavLink class="oc-mobile-nav-link" href="/calls">
+                <MudIcon Icon="@Icons.Material.Outlined.Call" Size="Size.Small" aria-hidden="true" />
+                <span>Calls</span>
+            </NavLink>
+            <NavLink class="oc-mobile-nav-link" href="/profiles">
+                <MudIcon Icon="@Icons.Material.Outlined.Business" Size="Size.Small" aria-hidden="true" />
+                <span>Profiles</span>
+            </NavLink>
+            <NavLink class="oc-mobile-nav-link" href="/settings">
+                <MudIcon Icon="@Icons.Material.Outlined.Settings" Size="Size.Small" aria-hidden="true" />
+                <span>Settings</span>
+            </NavLink>
+        </nav>
+
+        <main class="oc-mobile-main">
+            @Body
+        </main>
+    </div>
+
+    <nav class="oc-mobile-bottom-nav" aria-label="Mobile navigation">
+        <NavLink class="oc-mobile-nav-link" href="/inbox">
+            <MudIcon Icon="@Icons.Material.Outlined.Forum" Size="Size.Small" aria-hidden="true" />
+            <span>Inbox</span>
+        </NavLink>
+        <NavLink class="oc-mobile-nav-link" href="/agents">
+            <MudIcon Icon="@Icons.Material.Outlined.SmartToy" Size="Size.Small" aria-hidden="true" />
+            <span>Agents</span>
+        </NavLink>
+        <NavLink class="oc-mobile-nav-link" href="/calls">
+            <MudIcon Icon="@Icons.Material.Outlined.Call" Size="Size.Small" aria-hidden="true" />
+            <span>Calls</span>
+        </NavLink>
+        <NavLink class="oc-mobile-nav-link" href="/profiles">
+            <MudIcon Icon="@Icons.Material.Outlined.Business" Size="Size.Small" aria-hidden="true" />
+            <span>Profiles</span>
+        </NavLink>
+        <NavLink class="oc-mobile-nav-link" href="/settings">
+            <MudIcon Icon="@Icons.Material.Outlined.Settings" Size="Size.Small" aria-hidden="true" />
+            <span>Settings</span>
+        </NavLink>
+    </nav>
+</div>
+
+@code {
+    [CascadingParameter(Name = "MessagingProvider")] private MessagingProvider? MessagingProvider { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ProfileManager.ActiveProfileChanged += OnProfileChanged;
+        await ProfileManager.InitializeAsync();
+    }
+
+    private void OnProfileChanged(MessagingProfileRecord? profile, long epoch) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        ProfileManager.ActiveProfileChanged -= OnProfileChanged;
+    }
+}

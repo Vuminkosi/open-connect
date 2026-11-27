@@ -26,6 +26,11 @@ OpenConnect.Transport.Nats.IJetStreamPublisher.PublishAsync(string! subject, Sys
 OpenConnect.Transport.Nats.IOutboxRelaySource
 OpenConnect.Transport.Nats.IOutboxRelaySource.GetPendingAsync(int limit, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.OutboxEntry!>!>!
 OpenConnect.Transport.Nats.IOutboxRelaySource.MarkDeliveredAsync(System.Guid entryId, System.Guid leaseId, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
+OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects
+OpenConnect.Transport.Nats.Messaging.NatsMessagingEventPublisher
+OpenConnect.Transport.Nats.Messaging.NatsMessagingEventPublisher.DispatchAsync(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+OpenConnect.Transport.Nats.Messaging.NatsMessagingEventPublisher.NatsMessagingEventPublisher(OpenConnect.Transport.Nats.IJetStreamPublisher! publisher, int maxEventBytes = 65536, int dedupCapacity = 4096, string? liveGatewayId = null) -> void
+OpenConnect.Transport.Nats.Messaging.NatsMessagingEventPublisher.PublishLiveAsync(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, string! gatewayId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Transport.Nats.NatsPublisher
 OpenConnect.Transport.Nats.NatsPublisher.NatsPublisher(OpenConnect.Transport.Nats.IJetStreamPublisher! broker, int maxMessageBytes = 65536) -> void
 OpenConnect.Transport.Nats.NatsPublisher.PublishAsync(string! subject, System.ReadOnlyMemory<byte> envelopeJson, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -69,12 +74,23 @@ OpenConnect.Transport.Nats.WorkerLease.LeaseId.get -> System.Guid
 OpenConnect.Transport.Nats.WorkerLease.LeaseId.init -> void
 OpenConnect.Transport.Nats.WorkerLease.WorkerLease(System.Guid LeaseId, long FencingToken) -> void
 const OpenConnect.Transport.Nats.AgentEvents.OutboxEventPublisher.Subject = "oc.v1.execution.event" -> string!
+const OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.DurableSubjectPrefix = "oc.v1.messaging.durable" -> string!
+const OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.DurableWildcardFilter = "oc.v1.messaging.durable.>" -> string!
+const OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.LiveSubjectPrefix = "oc.v1.messaging.live" -> string!
+const OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.MaxTokenLength = 128 -> int
+const OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.StreamName = "OC_MESSAGING" -> string!
 override OpenConnect.Transport.Nats.WorkerEnvelope.Equals(object? obj) -> bool
 override OpenConnect.Transport.Nats.WorkerEnvelope.GetHashCode() -> int
 override OpenConnect.Transport.Nats.WorkerEnvelope.ToString() -> string!
 override OpenConnect.Transport.Nats.WorkerLease.Equals(object? obj) -> bool
 override OpenConnect.Transport.Nats.WorkerLease.GetHashCode() -> int
 override OpenConnect.Transport.Nats.WorkerLease.ToString() -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.DurableConversation(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.Messaging.ConversationId conversationId) -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.DurableConversation(string! tenantToken, string! conversationToken) -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.LiveGateway(OpenConnect.Abstractions.TenantId tenantId, string! gatewayId) -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.LiveGateway(string! tenantToken, string! gatewayToken) -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.ValidateOpaqueToken(string! token, string! paramName) -> string!
+static OpenConnect.Transport.Nats.Messaging.MessagingNatsSubjects.ValidateSubject(string! subject) -> string!
 static OpenConnect.Transport.Nats.WorkerEnvelope.Parse(System.ReadOnlySpan<byte> json) -> OpenConnect.Transport.Nats.WorkerEnvelope!
 static OpenConnect.Transport.Nats.WorkerEnvelope.operator !=(OpenConnect.Transport.Nats.WorkerEnvelope? left, OpenConnect.Transport.Nats.WorkerEnvelope? right) -> bool
 static OpenConnect.Transport.Nats.WorkerEnvelope.operator ==(OpenConnect.Transport.Nats.WorkerEnvelope? left, OpenConnect.Transport.Nats.WorkerEnvelope? right) -> bool

@@ -1,24 +1,34 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MudBlazor.Services;
+using OpenConnect.Abstractions.Messaging;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
 using OpenConnect.Hosting.AspNetCore.Execution;
+using OpenConnect.Hosting.AspNetCore.Messaging;
+using OpenConnect.IMessaging;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using OpenConnect.Persistence.EFCore.Configuration;
 using OpenConnect.Persistence.EFCore.DependencyInjection;
+using OpenConnect.Persistence.EFCore.Messaging;
 using OpenConnect.Privacy;
 using OpenConnect.Samples.Blazor;
+using OpenConnect.Samples.Blazor.Agents;
 using OpenConnect.Samples.Blazor.Components;
+using OpenConnect.Samples.Blazor.Diagnostics;
+using OpenConnect.Samples.Blazor.Messaging;
 using OpenConnect.Samples.Blazor.Models;
 using OpenConnect.Samples.Shared;
 using OpenConnect.Samples.Workers.Host;
@@ -100,6 +110,7 @@ if (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway)
     });
     builder.Services.AddOpenConnectTaskExecution();
     builder.Services.AddOpenConnectAgent("worker-sample-direct");
+    builder.Services.AddTodoOperationalAgents();
     builder.Services.AddMetaTodoIntegration(builder.Configuration);
     RegisterSameHostLiveUIWorker(builder.Services, builder.Configuration);
     builder.Services.AddOpenConnectClient(options =>
@@ -225,6 +236,8 @@ builder.Services.AddOpenConnect(options =>
     options.Privacy.Enabled = true;
     options.Agents.RegisterLeadAgent = true;
 });
+builder.Services.Configure<OpenConnect.Core.Configuration.OpenConnectVoiceOptions>(
+    builder.Configuration.GetSection("OpenConnect:Voice"));
 TodoCloudPrivacyConfiguration.Configure(builder.Services, builder.Configuration);
 if (builder.Configuration.GetValue<bool>("OpenConnect:CapabilityMonitor:Enabled"))
 {
@@ -242,6 +255,82 @@ builder.Services.AddOpenConnectEntityFramework<BlazorDbContext>(options =>
     options.ValidateSchema = OpenConnectSchemaValidationMode.ValidateModel;
     options.OutboxClaimStrategy = OpenConnectOutboxClaimStrategy.Auto;
 });
+
+// OpenConnect IMessaging, Device Enrollment, Agent Discovery, Operational Tools & Acceptance Diagnostics
+var messagingEnabled = builder.Configuration.GetValue<bool>("OpenConnect:Messaging:Enabled")
+    || (gatewayOptions.Mode == TodoGatewayMode.SameHostGateway && builder.Environment.IsDevelopment());
+var messagingWorkerEndpoint = builder.Configuration["OpenConnect:Messaging:Worker:Endpoint"];
+var messagingWorkerSocket = builder.Configuration["OpenConnect:Messaging:Worker:UnixSocketPath"];
+var messagingWorkerToken = builder.Configuration["OpenConnect:Messaging:Worker:BearerToken"];
+var messagingWorkerSigningKeyRaw = builder.Configuration["OpenConnect:Messaging:Worker:SigningKey"];
+var messagingWorkerConfigured = messagingEnabled
+    && (!string.IsNullOrWhiteSpace(messagingWorkerEndpoint) || !string.IsNullOrWhiteSpace(messagingWorkerSocket))
+    && !string.IsNullOrWhiteSpace(messagingWorkerToken)
+    && !string.IsNullOrWhiteSpace(messagingWorkerSigningKeyRaw);
+
+builder.Services.AddOpenConnectMessaging(options =>
+{
+    options.Enabled = messagingWorkerConfigured;
+    options.InAppEnabled = messagingEnabled;
+    options.RequireEncryption = true;
+    options.AllowUnencryptedFallback = false;
+    if (messagingWorkerConfigured)
+    {
+        options.WorkerEndpoint = messagingWorkerEndpoint;
+        options.UnixSocketPath = messagingWorkerSocket;
+        options.BearerToken = messagingWorkerToken;
+        var rawKey = messagingWorkerSigningKeyRaw!.Trim();
+        byte[] keyBytes;
+        if (rawKey.Length >= 64 && rawKey.Length % 2 == 0 && rawKey.All(Uri.IsHexDigit))
+            keyBytes = Convert.FromHexString(rawKey);
+        else
+            keyBytes = Encoding.UTF8.GetBytes(rawKey);
+        options.SigningKey = keyBytes.Length >= MessagingWorkerOptions.MinSigningKeyBytes ? keyBytes : SHA256.HashData(keyBytes);
+        options.AllowInsecureLoopbackHttpInDevelopment = builder.Environment.IsDevelopment();
+    }
+});
+builder.Services.AddOpenConnectMessagingPersistence<BlazorDbContext>();
+builder.Services.AddOpenConnectMessagingHosting(options =>
+{
+    options.Enabled = messagingEnabled;
+    options.ApplicationId = TodoDirectorySeed.ApplicationId;
+    options.CompanyDisplayName = builder.Configuration["OpenConnect:Messaging:CompanyDisplayName"] ?? "Acme Corp (OpenConnect Todo)";
+    options.Issuer = builder.Configuration["OpenConnect:Messaging:Issuer"] ?? "https://openconnect.local";
+    options.Audience = builder.Configuration["OpenConnect:Messaging:Audience"] ?? "openconnect-messaging";
+    options.RequireEncryption = true;
+    options.AllowUnencryptedFallback = false;
+});
+if (gatewayOptions.Mode != TodoGatewayMode.SameHostGateway)
+{
+    // Only the same-host gateway owns a local voice session store and maps call admission.
+    builder.Services.RemoveAll<IMessagingVoiceAdmissionBroker>();
+}
+builder.Services.AddOpenConnectDeviceEnrollment(options =>
+{
+    options.Enabled = messagingEnabled;
+    options.RequireRecentAuthentication = false;
+});
+builder.Services.AddOpenConnectAgentDiscovery(options =>
+{
+    options.Enabled = messagingEnabled;
+});
+
+builder.Services.AddSingleton<TodoMobileTokenIssuer>();
+builder.Services.AddSingleton<IMobileTokenIssuer>(sp => sp.GetRequiredService<TodoMobileTokenIssuer>());
+builder.Services.AddSingleton<IMessagingRecipientResolver, TodoMessagingRecipientResolver>();
+builder.Services.AddScoped<IMessagingAuthorizer, TodoMessagingAuthorizer>();
+builder.Services.AddScoped<IAgentDiscoveryAuthorizer, TodoAgentDiscoveryAuthorizer>();
+builder.Services.AddSingleton<IDeviceEnrollmentAuthorizer, TodoDeviceEnrollmentAuthorizer>();
+builder.Services.AddScoped<IMessagingEventReplayStore, TodoMessagingEventReplayStore>();
+builder.Services.AddScoped<IMessagingKeyPackageStore, TodoMessagingKeyPackageStore>();
+builder.Services.AddScoped<IMessagingPushRegistrationStore, TodoMessagingPushRegistrationStore>();
+builder.Services.AddScoped<IMessagingAttachmentStore, TodoMessagingAttachmentStore>();
+builder.Services.AddScoped<IMessagingFollowUpDispatcher, TodoMessagingFollowUpDispatcher>();
+builder.Services.AddScoped<TodoDevelopmentPersonaState>();
+builder.Services.AddSingleton<TodoAgentBusinessTools>();
+builder.Services.AddSingleton<TodoAcceptanceDiagnosticsService>();
+if (messagingEnabled)
+    builder.Services.AddHostedService<TodoDeadlineMonitorService>();
 
 var app = builder.Build();
 
@@ -273,6 +362,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapTodoInternalApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapTodoAcceptanceDiagnostics();
+}
 if (exposeLiveUIMetricsForAcceptance)
 {
     app.MapGet("/__acceptance/liveui-metrics", (LiveUIMetricsAcceptanceRecorder recorder) => Results.Ok(new

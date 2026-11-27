@@ -46,3 +46,13 @@ export type {
   SubmitKey,
   TaskPhase,
 } from "./state.js";
+export {
+  composerMessagingReducer,
+  initialComposerMessagingState,
+} from "./messaging/index.js";
+export type {
+  ComposerMessagingAction,
+  ComposerMessagingConnectionState,
+  ComposerMessagingOptions,
+  ComposerMessagingState,
+} from "./messaging/index.js";

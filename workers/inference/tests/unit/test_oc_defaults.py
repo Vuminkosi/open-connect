@@ -181,7 +181,7 @@ def test_oc_defaults_documented(monkeypatch) -> None:
     monkeypatch.setenv("OC_CONTRIBUTOR_DATA_USE_APPROVED", "1")
     settings = Settings.from_environment()
     assert settings.inference_provider == "meta-model-api"
-    assert settings.model_id == "muse-spark-1.3-contributor"
+    assert settings.model_id == "muse-spark-1.3"
     assert settings.cloud_url == "https://api.meta.ai/v1"
     assert settings.route_order == "cloud-first"
     assert settings.provisioning == "first-start-if-missing"
@@ -234,11 +234,19 @@ def test_contributor_gate_exact_approval() -> None:
     assert contributor_gate_blocks(None, {}) is False
 
 
-def test_contributor_gate_blocks_startup_without_approval(monkeypatch) -> None:
+def test_default_model_starts_without_contributor_approval(monkeypatch) -> None:
     _hermetic(monkeypatch)
     monkeypatch.setenv("INFERENCE_CLOUD_API_KEY", "k")
     monkeypatch.setenv("OC_INFERENCE_API_BASE_URL", "")
-    # Default model is contributor-tier; no approval => fail closed.
+    assert Settings.from_environment().model_id == "muse-spark-1.3"
+
+
+def test_explicit_contributor_model_fails_startup_without_exact_approval(monkeypatch) -> None:
+    _hermetic(monkeypatch)
+    monkeypatch.setenv("INFERENCE_CLOUD_API_KEY", "k")
+    monkeypatch.setenv("OC_INFERENCE_API_BASE_URL", "")
+    monkeypatch.setenv("OC_INFERENCE_MODEL", "muse-spark-1.3-contributor")
+    monkeypatch.delenv("OC_CONTRIBUTOR_DATA_USE_APPROVED", raising=False)
     with pytest.raises(ContributorApprovalError):
         Settings.from_environment()
 
@@ -247,6 +255,7 @@ def test_contributor_gate_passes_with_approval(monkeypatch) -> None:
     _hermetic(monkeypatch)
     monkeypatch.setenv("INFERENCE_CLOUD_API_KEY", "k")
     monkeypatch.setenv("OC_INFERENCE_API_BASE_URL", "")
+    monkeypatch.setenv("OC_INFERENCE_MODEL", "muse-spark-1.3-contributor")
     monkeypatch.setenv("OC_CONTRIBUTOR_DATA_USE_APPROVED", "1")
     assert Settings.from_environment().model_id == "muse-spark-1.3-contributor"
 

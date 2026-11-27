@@ -1,0 +1,132 @@
+@page "/profiles"
+@inject IMessagingProfileManager ProfileManager
+@inject IEncryptedProfileCache EncryptedCache
+@inject NavigationManager Navigation
+
+<section aria-label="Company profiles" style="max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1 style="margin: 0; font-size: 1.375rem; font-weight: 600;">Company profiles</h1>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.QrCodeScanner"
+                   Style="min-height: 44px;"
+                   OnClick="@(() => Navigation.NavigateTo("/scan"))">
+            Add company
+        </MudButton>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_switchWarning))
+    {
+        <div role="alert" style="padding: 12px 16px; border: 1px solid #d97706; border-radius: 8px; display: flex; flex-direction: column; gap: 8px;">
+            <span>@_switchWarning</span>
+            @if (!string.IsNullOrWhiteSpace(_pendingCallSwitchTargetId))
+            {
+                <div style="display: flex; gap: 8px;">
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" Style="min-height: 44px;" OnClick="ConfirmEndCallAndSwitchAsync">
+                        End call and switch
+                    </MudButton>
+                    <MudButton Variant="Variant.Text" Style="min-height: 44px;" OnClick="CancelPendingSwitch">
+                        Stay on current call
+                    </MudButton>
+                </div>
+            }
+        </div>
+    }
+
+    @if (_profiles.Count == 0)
+    {
+        <div role="status" style="padding: 24px 16px; border: 1px dashed var(--oc-mobile-border); border-radius: 8px; text-align: center;">
+            <p style="margin: 0 0 4px 0; font-weight: 600;">No enrolled company profiles</p>
+            <p style="margin: 0; font-size: 0.8125rem; color: var(--oc-mobile-muted);">Scan a QR code from desktop Linked Devices to enroll your first company.</p>
+        </div>
+    }
+    else
+    {
+        <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+            @foreach (var profile in _profiles)
+            {
+                var isActive = ProfileManager.ActiveProfile?.Identity.ProfileId == profile.Identity.ProfileId;
+                <li @key="profile.Identity.ProfileId"
+                    style="padding: 12px 16px; border: 1px solid var(--oc-mobile-border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div>
+                        <div style="font-weight: 600;">@profile.CompanyDisplayName</div>
+                        <div style="font-size: 0.75rem; color: var(--oc-mobile-muted);">
+                            @profile.ApplicationDisplayName · @profile.Identity.CanonicalOrigin · @profile.State
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        @if (profile.State == MessagingProfileState.Revoked)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Style="min-height: 44px;" OnClick="@(() => Navigation.NavigateTo("/scan"))">
+                                Re-pair
+                            </MudButton>
+                        }
+                        else if (!isActive)
+                        {
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Style="min-height: 44px;" OnClick="@(() => SwitchToAsync(profile.Identity.ProfileId))">
+                                Activate
+                            </MudButton>
+                        }
+                        <MudButton Variant="Variant.Text" Color="Color.Error" Style="min-height: 44px;" OnClick="@(() => RemoveProfileAsync(profile.Identity.ProfileId))">
+                            Remove
+                        </MudButton>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<MessagingProfileRecord> _profiles = Array.Empty<MessagingProfileRecord>();
+    private string? _switchWarning;
+    private string? _pendingCallSwitchTargetId;
+
+    protected override async Task OnInitializedAsync() => await LoadProfilesAsync();
+
+    private async Task LoadProfilesAsync() => _profiles = await ProfileManager.ListProfilesAsync();
+
+    private async Task SwitchToAsync(string profileId)
+    {
+        _switchWarning = null;
+        _pendingCallSwitchTargetId = null;
+        var result = await ProfileManager.SwitchProfileAsync(profileId, confirmEndActiveCall: false);
+        if (result.ActiveCallConfirmationRequired)
+        {
+            _pendingCallSwitchTargetId = profileId;
+            _switchWarning = result.ErrorMessage ?? "An active call is in progress. End it before switching profiles?";
+        }
+        else if (!result.Succeeded)
+        {
+            _switchWarning = result.ErrorMessage ?? "Unable to switch profile.";
+        }
+
+        await LoadProfilesAsync();
+    }
+
+    private async Task ConfirmEndCallAndSwitchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingCallSwitchTargetId))
+        {
+            return;
+        }
+
+        await ProfileManager.SwitchProfileAsync(_pendingCallSwitchTargetId, confirmEndActiveCall: true);
+        _pendingCallSwitchTargetId = null;
+        _switchWarning = null;
+        await LoadProfilesAsync();
+    }
+
+    private void CancelPendingSwitch()
+    {
+        _pendingCallSwitchTargetId = null;
+        _switchWarning = null;
+    }
+
+    private async Task RemoveProfileAsync(string profileId)
+    {
+        await EncryptedCache.WipeProfileCacheAsync(profileId);
+        await ProfileManager.RemoveProfileAsync(profileId);
+        await LoadProfilesAsync();
+    }
+}

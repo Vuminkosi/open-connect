@@ -11,6 +11,37 @@ public enum TodoPriority
     Urgent = 3
 }
 
+public enum TodoStatus
+{
+    Open = 0,
+    InProgress = 1,
+    Blocked = 2,
+    AwaitingApproval = 3,
+    Completed = 4,
+    Cancelled = 5
+}
+
+public sealed record TodoCommentEntry(
+    string AuthorId,
+    string AuthorDisplayName,
+    string Body,
+    DateTimeOffset CreatedAtUtc);
+
+public sealed record TodoApprovalEntry(
+    string ApprovalId,
+    string RequestedById,
+    string ApproverPrincipalId,
+    string Status,
+    string? Reason,
+    DateTimeOffset RequestedAtUtc,
+    DateTimeOffset? DecidedAtUtc = null);
+
+public sealed record TodoAuditEntry(
+    string Action,
+    string ActorId,
+    string Summary,
+    DateTimeOffset TimestampUtc);
+
 public sealed class TodoItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -31,6 +62,15 @@ public sealed class TodoItem
     public DateTime? CompletedAtUtc { get; set; }
 
     public long Revision { get; set; }
+
+    // Additive operational task metadata (preserves all existing defaults)
+    public string? TenantId { get; set; }
+    public string? AssignedPrincipalId { get; set; }
+    public TodoStatus Status { get; set; } = TodoStatus.Open;
+    public string? EscalationPolicy { get; set; }
+    public string? CommentsJson { get; set; }
+    public string? ApprovalsJson { get; set; }
+    public string? AuditHistoryJson { get; set; }
 }
 
 public sealed record TodoEdit(string Title, string? Description, TodoPriority Priority, DateTime? DueDateUtc);
@@ -287,7 +327,25 @@ public sealed class InMemoryTodoStore : ITodoStore, ITenantTodoStore
             return Task.FromResult(ForTenant(tenantId).RemoveAll(i => i.Id == id) > 0);
     }
 
-    private static TodoItem Clone(TodoItem item) => new() { Id = item.Id, Title = item.Title, Description = item.Description, IsCompleted = item.IsCompleted, Priority = item.Priority, CreatedAtUtc = item.CreatedAtUtc, DueDateUtc = item.DueDateUtc, CompletedAtUtc = item.CompletedAtUtc, Revision = item.Revision };
+    private static TodoItem Clone(TodoItem item) => new()
+    {
+        Id = item.Id,
+        Title = item.Title,
+        Description = item.Description,
+        IsCompleted = item.IsCompleted,
+        Priority = item.Priority,
+        CreatedAtUtc = item.CreatedAtUtc,
+        DueDateUtc = item.DueDateUtc,
+        CompletedAtUtc = item.CompletedAtUtc,
+        Revision = item.Revision,
+        TenantId = item.TenantId,
+        AssignedPrincipalId = item.AssignedPrincipalId,
+        Status = item.Status,
+        EscalationPolicy = item.EscalationPolicy,
+        CommentsJson = item.CommentsJson,
+        ApprovalsJson = item.ApprovalsJson,
+        AuditHistoryJson = item.AuditHistoryJson
+    };
 }
 
 public interface ITenantTodoStore

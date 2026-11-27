@@ -135,6 +135,7 @@ public static class ServiceCollectionExtensions
             .Configure(options => configure?.Invoke(options))
             .ValidateOnStart();
         services.TryAddSingleton<VoiceTurnCoordinator>();
+        services.TryAddSingleton<DuplexVoiceSessionCoordinator>();
         return services;
     }
 
@@ -180,6 +181,25 @@ public static class ServiceCollectionExtensions
             core.Privacy.Qwen3Guard.Enabled = options.Qwen3Guard.Enabled;
             core.Privacy.PaddleOcr.Enabled = options.PaddleOcr.Enabled;
             core.Privacy.YuNet.Enabled = options.YuNet.Enabled;
+            core.Privacy.Malware.Enabled = options.Malware.Enabled;
+            core.Privacy.AgentTools.Enabled = options.AgentTools.Enabled;
+            core.Privacy.PromptInjection.Enabled = options.PromptInjection.Enabled;
+            core.Privacy.PromptInjection.Threshold = options.PromptInjection.Threshold;
+            core.Privacy.PromptInjection.Action = options.PromptInjection.Action;
+            core.Privacy.PromptInjection.MarkUntrustedContent = options.PromptInjection.MarkUntrustedContent;
+            core.Privacy.ImageRedaction.Enabled = options.ImageRedaction.Enabled;
+            core.Privacy.ImageRedaction.RegionPaddingPixels = options.ImageRedaction.RegionPaddingPixels;
+            core.Privacy.ImageRedaction.StripMetadata = options.ImageRedaction.StripMetadata;
+            core.Privacy.ImageRedaction.RecheckRedactedOutput = options.ImageRedaction.RecheckRedactedOutput;
+            core.Privacy.ImageRedaction.MaxImageBytes = options.ImageRedaction.MaxImageBytes;
+            core.Privacy.ImageRedaction.MaxImageMegapixels = options.ImageRedaction.MaxImageMegapixels;
+            core.Privacy.Limits.MaxTextBytes = options.Limits.MaxTextBytes;
+            core.Privacy.Limits.MaxImageBytes = options.Limits.MaxImageBytes;
+            core.Privacy.Limits.MaxImageMegapixels = options.Limits.MaxImageMegapixels;
+            core.Privacy.Limits.MaxFileBytes = options.Limits.MaxFileBytes;
+            core.Privacy.Limits.MaxResponseBytes = options.Limits.MaxResponseBytes;
+            core.Privacy.Limits.MaxConcurrentRequests = options.Limits.MaxConcurrentRequests;
+            core.Privacy.Limits.RequestTimeout = options.Limits.RequestTimeout;
         });
 
         var capabilities = new HashSet<string>(StringComparer.Ordinal);
@@ -196,10 +216,13 @@ public static class ServiceCollectionExtensions
         { capabilities.Add("security.paddle-ocr"); modalities.Add("image"); }
         if (options.YuNet.Enabled)
         { capabilities.Add("security.yunet"); modalities.Add("image"); }
+        if (options.Malware.Enabled)
+        { capabilities.Add("security.malware"); modalities.Add("file"); }
 
+        // Endpoint configuration alone is NEVER treated as Ready; require verified runtime capability state.
         var readiness = capabilities.Count == 0
             ? WorkerReadiness.Disabled
-            : options.Endpoint is not null ? WorkerReadiness.Ready : WorkerReadiness.Unavailable;
+            : options.Endpoint is not null ? WorkerReadiness.Configured : WorkerReadiness.Unavailable;
 
         return RegisterWorkerCapability(
             services,

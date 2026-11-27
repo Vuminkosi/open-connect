@@ -29,4 +29,27 @@ public static class ErrorCodes
     public const string WorkerUnavailable = "worker_unavailable";
     public const string WorkerHostingConflict = "worker_hosting_conflict";
     public const string VoiceEgressDenied = "voice_egress_denied";
+    public const string MalwareDetected = "malware_detected";
+    public const string PromptInjectionDetected = "prompt_injection_detected";
+    public const string ServiceFencingDenied = "service_fencing_denied";
+    public const string DatabaseFencingDenied = "database_fencing_denied";
+    public const string MessagingDisabled = "messaging_disabled";
+    public const string ConversationNotFound = "conversation_not_found";
+    public const string ConversationClosed = "conversation_closed";
+    public const string HumanParticipantRequired = "human_participant_required";
+    public const string SecurityProfileImmutable = "security_profile_immutable";
+    public const string PrivateE2EEAgentForbidden = "private_e2ee_agent_forbidden";
+    public const string CryptoEpochMismatch = "crypto_epoch_mismatch";
+    public const string CryptoVerificationFailed = "crypto_verification_failed";
+    public const string MediaEncryptionRequired = "media_encryption_required";
+    public const string EnrollmentNotFound = "enrollment_not_found";
+    public const string EnrollmentExpired = "enrollment_expired";
+    public const string EnrollmentInvalidState = "enrollment_invalid_state";
+    public const string TokenReuseDetected = "token_reuse_detected";
+    public const string DeviceRevoked = "device_revoked";
+    public const string CallNotFound = "call_not_found";
+    public const string CallInvalidState = "call_invalid_state";
+    public const string FollowUpNotFound = "followup_not_found";
+    public const string FollowUpMaxAttemptsReached = "followup_max_attempts_reached";
+    public const string FollowUpQuietHours = "followup_quiet_hours";
 }

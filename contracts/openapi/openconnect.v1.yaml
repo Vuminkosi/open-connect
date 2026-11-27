@@ -135,6 +135,313 @@ paths:
                 items: { $ref: '../jsonschema/event.json' }
         '401': { description: Authentication required }
         '404': { description: Session not found }
+  /messaging/compatibility:
+    get:
+      operationId: getMessagingCompatibility
+      summary: Return verified company metadata, supported crypto profiles, and ready messaging capabilities
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Messaging compatibility metadata }
+        '401': { description: Authentication required }
+        '403': { description: Access denied }
+        '503': { description: Messaging disabled }
+  /agents/discover:
+    get:
+      operationId: discoverOperationalAgents
+      summary: Paginated list of operational agents authorized for the authenticated human principal
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        - { in: query, name: offset, schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        '200': { description: Authorized operational agents }
+        '401': { description: Authentication required }
+        '503': { description: Messaging or discovery disabled }
+  /messaging/conversations:
+    post:
+      operationId: createMessagingConversation
+      summary: Create a human-inclusive conversation with immutable security profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Conversation created }
+        '400': { description: Invalid request }
+        '403': { description: Policy or human-inclusive invariant denied }
+        '503': { description: Messaging disabled }
+    get:
+      operationId: listMessagingConversations
+      summary: List conversations for the authenticated principal
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Conversation list }
+        '401': { description: Authentication required }
+        '503': { description: Messaging disabled }
+  /messaging/conversations/{id}:
+    get:
+      operationId: getMessagingConversation
+      summary: Get conversation membership and security profile metadata
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Conversation metadata }
+        '404': { description: Conversation not found }
+  /messaging/conversations/{id}/participants:
+    post:
+      operationId: addMessagingParticipant
+      summary: Add an authorized participant to a conversation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Updated conversation }
+        '403': { description: Forbidden }
+        '409': { description: Membership version conflict }
+  /messaging/conversations/{id}/participants/{participantId}:
+    delete:
+      operationId: removeMessagingParticipant
+      summary: Remove a participant and close conversation/calls if last human leaves
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+        - { in: path, name: participantId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Participant removal result }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+  /messaging/conversations/{id}/messages:
+    post:
+      operationId: commitMessagingMessage
+      summary: Commit an encrypted message envelope with idempotency
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '201': { description: Message committed }
+        '200': { description: Deduplicated message returned }
+        '409': { description: Crypto epoch mismatch or idempotency conflict }
+        '413': { description: Payload too large }
+    get:
+      operationId: listMessagingMessages
+      summary: Cursor-paginated encrypted message history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+        - { in: query, name: cursor, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Message page }
+        '400': { description: Invalid or out-of-scope cursor }
+        '404': { description: Conversation not found }
+  /messaging/messages/{id}/receipts:
+    post:
+      operationId: recordMessagingReceipt
+      summary: Record an authenticated monotonic message receipt
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Receipt recorded }
+        '400': { description: Invalid receipt request }
+  /messaging/keys/packages:
+    post:
+      operationId: publishDeviceKeyPackage
+      summary: Publish a single-use public device key package
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Key package published }
+    get:
+      operationId: consumeDeviceKeyPackage
+      summary: Fetch and consume a single-use public device key package
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Key package consumed }
+        '404': { description: No key package available }
+  /messaging/attachments/init:
+    post:
+      operationId: initEncryptedAttachment
+      summary: Reserve an encrypted attachment upload within conversation scope
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Attachment upload reserved }
+        '413': { description: Attachment exceeds maximum size }
+  /messaging/attachments/complete:
+    post:
+      operationId: completeEncryptedAttachment
+      summary: Commit encrypted attachment bytes verifying digest and bounds
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Attachment committed }
+        '413': { description: Attachment exceeds maximum size }
+  /messaging/attachments/{id}:
+    get:
+      operationId: downloadEncryptedAttachment
+      summary: Authorized download of an encrypted attachment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Encrypted attachment bytes }
+        '403': { description: Access denied }
+        '404': { description: Attachment not found }
+  /messaging/calls:
+    post:
+      operationId: createMessagingCall
+      summary: Create an authorized call invitation enforcing E2EE media gate
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Call invitation created }
+        '403': { description: Media encryption required or unauthorized }
+  /messaging/calls/{id}/accept:
+    post:
+      operationId: acceptMessagingCall
+      summary: Accept a ringing call via CAS and issue scoped voice admission
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Call accepted with voice admission }
+        '409': { description: Call already accepted or invalid state }
+  /messaging/calls/{id}/decline:
+    post:
+      operationId: declineMessagingCall
+      summary: Decline a call invitation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Call declined }
+  /messaging/calls/{id}/end:
+    post:
+      operationId: endMessagingCall
+      summary: End an active call
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Call ended }
+  /messaging/followups:
+    post:
+      operationId: scheduleMessagingFollowUp
+      summary: Schedule a durable due-time operational follow-up
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Follow-up scheduled }
+    get:
+      operationId: listMessagingFollowUps
+      summary: List active follow-ups for a conversation
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Active follow-ups }
+  /messaging/followups/{id}:
+    delete:
+      operationId: cancelMessagingFollowUp
+      summary: Cancel a scheduled follow-up
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Follow-up cancelled }
+        '404': { description: Follow-up not found }
+  /messaging/events:
+    get:
+      operationId: replayMessagingEvents
+      summary: Bounded opaque scope-bound cursor replay for user/device events
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: cursor, schema: { type: string } }
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Replayed event page }
+        '400': { description: Invalid or out-of-scope cursor }
+  /messaging/realtime/ticket:
+    post:
+      operationId: issueMessagingRealtimeTicket
+      summary: Issue a short-lived single-use WebSocket ticket (never pass access tokens in query strings)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Single-use WebSocket ticket issued }
+  /messaging/realtime:
+    get:
+      operationId: connectMessagingRealtime
+      summary: User/device-scoped multiplexed WebSocket event stream
+      responses:
+        '101': { description: Switching Protocols }
+        '400': { description: Invalid WebSocket upgrade or forbidden token query parameter }
+        '401': { description: Unauthorized or revoked device }
+        '403': { description: Disallowed origin }
+  /devices/enrollment:
+    post:
+      operationId: initiateDeviceEnrollment
+      summary: Initiate desktop QR device pairing (returns one-time token and QR payload)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Enrollment initiated }
+  /devices/enrollment/redeem:
+    post:
+      operationId: redeemDeviceEnrollment
+      summary: Claim an enrollment with single-use token and device key proof
+      responses:
+        '200': { description: Enrollment claimed awaiting desktop confirmation }
+        '409': { description: Invalid enrollment state }
+        '410': { description: Enrollment expired }
+  /devices/enrollment/{id}/confirm:
+    post:
+      operationId: confirmDeviceEnrollment
+      summary: Explicit desktop principal approval or denial of a claimed device
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Enrollment confirmed or denied }
+  /devices/enrollment/{id}/complete:
+    post:
+      operationId: completeDeviceEnrollment
+      summary: Complete approved enrollment with device proof to receive scoped mobile credentials
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Mobile token bundle issued }
+        '409': { description: Enrollment not approved or already consumed }
+  /devices/token/refresh:
+    post:
+      operationId: rotateDeviceRefreshToken
+      summary: Rotate device-scoped refresh credential with reuse detection
+      responses:
+        '200': { description: Rotated mobile token bundle }
+        '401': { description: Invalid, revoked, or reused refresh token }
+  /devices:
+    get:
+      operationId: listEnrolledDevices
+      summary: List enrolled devices for the authenticated principal
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Enrolled device list }
+  /devices/{id}:
+    delete:
+      operationId: revokeEnrolledDevice
+      summary: Atomically revoke a device, its refresh family, push registrations, and active sockets
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '200': { description: Device revoked }
+  /devices/{id}/push:
+    post:
+      operationId: registerDevicePush
+      summary: Register a protected push notification token handle with explicit consent
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '201': { description: Push registration stored }
+    delete:
+      operationId: revokeDevicePush
+      summary: Revoke push notification registrations for a device
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { $ref: '#/components/schemas/Ulid' } }
+      responses:
+        '204': { description: Push registration revoked }
 components:
   schemas:
     Problem:

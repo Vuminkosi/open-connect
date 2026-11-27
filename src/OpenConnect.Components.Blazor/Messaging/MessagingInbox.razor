@@ -1,0 +1,262 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+<section class="oc-msg-inbox" aria-label="Messaging inbox">
+    @if (ConnectionState is MessagingConnectionState.Offline or MessagingConnectionState.Reconnecting or MessagingConnectionState.Revoked or MessagingConnectionState.Error)
+    {
+        <div class="oc-msg-inbox__banner @(ConnectionState == MessagingConnectionState.Revoked || ConnectionState == MessagingConnectionState.Error ? "oc-msg-inbox__banner--error" : "")"
+             role="alert">
+            <span>@GetConnectionBannerText()</span>
+        </div>
+    }
+
+    <div class="oc-msg-inbox__toolbar">
+        <MudTextField T="string"
+                      Value="@_search"
+                      ValueChanged="v => _search = v ?? string.Empty"
+                      Placeholder="Filter conversations"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      aria-label="Filter conversations" />
+    </div>
+
+    @if (IsLoading)
+    {
+        <div role="status" aria-label="Loading conversations">
+            <MudSkeleton Height="64px" Class="mb-2" />
+            <MudSkeleton Height="64px" Class="mb-2" />
+            <MudSkeleton Height="64px" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="oc-msg-inbox__banner oc-msg-inbox__banner--error" role="alert">
+            <span>@ErrorMessage</span>
+            @if (OnRetry.HasDelegate)
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="OnRetry">Retry</MudButton>
+            }
+        </div>
+    }
+    else
+    {
+        var filtered = FilteredConversations;
+        if (filtered.Count == 0)
+        {
+            <div class="oc-msg-inbox__empty" role="status">
+                @if (string.IsNullOrWhiteSpace(_search))
+                {
+                    <p class="oc-msg-inbox__empty-title">No conversations yet</p>
+                    <p class="oc-msg-inbox__empty-body">Start a conversation with a colleague or an authorized operational agent.</p>
+                }
+                else
+                {
+                    <p class="oc-msg-inbox__empty-title">No matching conversations</p>
+                    <p class="oc-msg-inbox__empty-body">Try clearing your search filter.</p>
+                }
+            </div>
+        }
+        else
+        {
+            <MudPaper Elevation="0" Outlined="true" Class="oc-msg-inbox__surface">
+                <MudList T="string" Dense="false" Class="pa-1">
+                    @foreach (var item in filtered)
+                    {
+                        var selected = SelectedConversationId == item.ConversationId;
+                        <MudListItem @key="item.ConversationId"
+                                     Value="@item.ConversationId"
+                                     Class="@($"oc-msg-inbox__item {(selected ? "oc-msg-inbox__item--selected" : "")}")"
+                                     OnClick="@(() => OnSelectConversation.InvokeAsync(item.ConversationId))">
+                            <div class="d-flex align-start gap-3 w-100">
+                                <MudAvatar Size="Size.Medium"
+                                           Color="@(item.SecurityProfile == MessagingSecurityProfileKind.AgentE2EE ? Color.Secondary : Color.Primary)"
+                                           Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                           aria-hidden="true">
+                                    @GetInitials(item.Title)
+                                </MudAvatar>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <div class="oc-msg-inbox__item-top">
+                                        <MudText Typo="Typo.subtitle2" Class="font-weight-semibold text-truncate">@item.Title</MudText>
+                                        <span class="oc-msg-inbox__item-time">
+                                            @(item.LastMessageAtUtc?.ToString("HH:mm") ?? string.Empty)
+                                        </span>
+                                    </div>
+                                    <div class="oc-msg-inbox__item-mid mt-1">
+                                        <span class="oc-msg-inbox__preview">
+                                            @(!string.IsNullOrWhiteSpace(item.ActiveTypingLabel)
+                                                ? item.ActiveTypingLabel
+                                                : (item.LastMessagePreview ?? "No messages yet"))
+                                        </span>
+                                        <UnreadBadge Count="item.UnreadCount" />
+                                    </div>
+                                    <div class="oc-msg-inbox__item-meta mt-1">
+                                        <MudChip T="string"
+                                                 Size="Size.Small"
+                                                 Variant="Variant.Outlined"
+                                                 Color="@(item.SecurityProfile == MessagingSecurityProfileKind.Governed ? Color.Warning : Color.Success)"
+                                                 Icon="@GetSecurityIcon(item.SecurityProfile)"
+                                                 Class="ma-0 oc-msg-security-chip"
+                                                 title="@GetSecurityDescription(item.SecurityProfile)">
+                                            @GetSecurityLabel(item.SecurityProfile)
+                                        </MudChip>
+                                        @if (item.State == MessagingConversationLifecycleState.Closed)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default" Class="ma-0">Closed</MudChip>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        }
+    }
+</section>
+
+<style>
+    .oc-msg-inbox { display: flex; flex-direction: column; gap: 12px; }
+    .oc-msg-inbox__banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 0.8125rem;
+        border: 1px solid var(--mud-palette-warning, #d97706);
+        color: var(--mud-palette-warning, #b45309);
+    }
+    .oc-msg-inbox__banner--error {
+        border-color: var(--mud-palette-error, #dc2626);
+        color: var(--mud-palette-error, #dc2626);
+    }
+    .oc-msg-inbox__surface {
+        border-radius: 10px;
+        background-color: var(--mud-palette-surface);
+        border-color: var(--mud-palette-lines-default);
+    }
+    .oc-msg-inbox__item {
+        border-radius: 8px;
+        min-height: 56px;
+        transition: background-color 120ms ease;
+    }
+    .oc-msg-inbox__item--selected {
+        background-color: var(--mud-palette-action-default-hover);
+        box-shadow: inset 3px 0 0 var(--mud-palette-primary);
+    }
+    .oc-msg-security-chip { height: 22px; font-size: 0.7rem; }
+    .oc-msg-inbox__item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .oc-msg-inbox__item-title { font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-inbox__item-time { font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-inbox__item-mid { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .oc-msg-inbox__preview {
+        font-size: 0.8125rem;
+        color: var(--mud-palette-text-secondary, #475569);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+    .oc-msg-inbox__item-meta { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }
+    .oc-msg-security-tag { display: inline-flex; align-items: center; gap: 4px; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-closed-tag {
+        padding: 1px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-inbox__empty {
+        padding: 24px 16px;
+        border: 1px dashed var(--mud-palette-lines-default, #cbd5e1);
+        border-radius: 8px;
+        text-align: center;
+    }
+    .oc-msg-inbox__empty-title { margin: 0 0 4px 0; font-weight: 600; }
+    .oc-msg-inbox__empty-body { margin: 0; font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #64748b); }
+</style>
+
+@code {
+    private string _search = string.Empty;
+
+    [Parameter] public IReadOnlyList<MessagingConversationSummary>? Conversations { get; set; }
+
+    [Parameter] public string? SelectedConversationId { get; set; }
+
+    [Parameter] public MessagingConnectionState ConnectionState { get; set; } = MessagingConnectionState.Connected;
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    [Parameter] public EventCallback<string> OnSelectConversation { get; set; }
+
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    private IReadOnlyList<MessagingConversationSummary> FilteredConversations
+    {
+        get
+        {
+            if (Conversations is null || Conversations.Count == 0)
+            {
+                return Array.Empty<MessagingConversationSummary>();
+            }
+
+            if (string.IsNullOrWhiteSpace(_search))
+            {
+                return Conversations;
+            }
+
+            var term = _search.Trim();
+            return Conversations
+                .Where(c => c.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || (c.LastMessagePreview?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false))
+                .ToArray();
+        }
+    }
+
+    private string GetConnectionBannerText() => ConnectionState switch
+    {
+        MessagingConnectionState.Offline => "Offline — queued messages will sync when connectivity returns.",
+        MessagingConnectionState.Reconnecting => "Reconnecting to company gateway and catching up missed events…",
+        MessagingConnectionState.Revoked => "Device revoked — re-pair from desktop settings to continue.",
+        MessagingConnectionState.Error => "Realtime stream unavailable — showing last synced state.",
+        _ => string.Empty
+    };
+
+    private static string GetInitials(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            return "?";
+        var parts = title.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[^1][0])}"
+            : title[..Math.Min(2, title.Length)].ToUpperInvariant();
+    }
+
+    private static string GetSecurityLabel(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => "PrivateE2EE",
+        MessagingSecurityProfileKind.AgentE2EE => "AgentE2EE",
+        MessagingSecurityProfileKind.Governed => "Governed (not E2EE)",
+        _ => "Unknown"
+    };
+
+    private static string GetSecurityDescription(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => "Verified human devices only; no server or agent plaintext.",
+        MessagingSecurityProfileKind.AgentE2EE => "End-to-end encrypted between human devices and the authorized agent crypto endpoint.",
+        MessagingSecurityProfileKind.Governed => "Organizationally managed encryption with permitted retention/inspection. Not E2EE.",
+        _ => string.Empty
+    };
+
+    private static string GetSecurityIcon(MessagingSecurityProfileKind profile) => profile switch
+    {
+        MessagingSecurityProfileKind.PrivateE2EE => Icons.Material.Outlined.Lock,
+        MessagingSecurityProfileKind.AgentE2EE => Icons.Material.Outlined.EnhancedEncryption,
+        MessagingSecurityProfileKind.Governed => Icons.Material.Outlined.Policy,
+        _ => Icons.Material.Outlined.HelpOutline
+    };
+}

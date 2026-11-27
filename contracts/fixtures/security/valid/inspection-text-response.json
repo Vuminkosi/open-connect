@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "openconnect.security-inspection.v1",
+  "requestId": "e2c42bdb-5e3d-4f0d-b4d5-860a482df3e1",
+  "modality": "text",
+  "status": "completed",
+  "detectors": [
+    {
+      "id": "rules",
+      "version": "1.1.0",
+      "status": "completed",
+      "reasonCode": null
+    }
+  ],
+  "findings": [
+    {
+      "kind": "text_span",
+      "detectorId": "rules",
+      "category": "EMAIL",
+      "start": 8,
+      "end": 24,
+      "confidence": 0.99,
+      "recommendedAction": "mask"
+    }
+  ],
+  "offsetUnit": "unicode-scalar",
+  "contentSha256": null,
+  "contentType": null,
+  "imageMetadata": null,
+  "durationMs": 4
+}

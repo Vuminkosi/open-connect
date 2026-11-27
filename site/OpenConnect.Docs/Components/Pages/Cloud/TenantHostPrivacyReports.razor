@@ -12,7 +12,7 @@
 <PageTitle>Host privacy reports | OpenConnect Cloud</PageTitle>
 <h1>Host privacy reports</h1>
 <p>These reports describe host firewall decisions. Additional checks may apply, and category counts may be incomplete. Cloud classification date filters do not apply.</p>
-@if (_loading) { <p role="status">Loading host reports?</p> }
+@if (_loading) { <p role="status">Loading host reports…</p> }
 else if (_status is not null) { <p role="status">@_status</p> }
 else if (_page is not null)
 {

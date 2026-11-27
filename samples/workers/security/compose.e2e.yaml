@@ -1,16 +1,20 @@
-# E2E sample for the Security worker (T0-T5).
+# E2E sample for the Security worker (T0-T5, FW-010..FW-110).
 # Canonical production image source:
 #   workers/security/Dockerfile & workers/security/compose.yaml
 # Image repository: vuminkosimatibe/openconnect-worker-security (local e2e tag only in PR/CI)
 # Model cache volume: oc_security_models
+# Optional third-party infrastructure profiles:
+#   --profile malware : private ClamAV daemon (clamav/clamav-debian:1.4, GPL-2.0)
+#   --profile waf     : OWASP CRS reverse proxy (owasp/modsecurity-crs:4.11-nginx-alpine, Apache-2.0)
+#                       protecting waf-backend on private network oc-test-private (no direct bypass)
 services:
   security:
     build:
-      context: ../../../workers/security
-      dockerfile: Dockerfile
+      context: ../../..
+      dockerfile: workers/security/Dockerfile
     image: vuminkosimatibe/openconnect-worker-security:${OC_E2E_TAG:-e2e-local}
     ports:
-      - "${PORT_SECURITY:-8080}:8080"
+      - "127.0.0.1:${PORT_SECURITY:-8080}:8080"
     environment:
       OPENCONNECT_SCAN_TOKEN: ${OPENCONNECT_SCAN_TOKEN:-e2e-test-token-do-not-use-in-prod}
       OC_WORKER_ENGINE: ${OC_WORKER_ENGINE:-real}
@@ -25,17 +29,88 @@ services:
       OC_SECURITY_QWEN3GUARD_ENABLED: ${OC_SECURITY_QWEN3GUARD_ENABLED:-false}
       OC_SECURITY_PADDLEOCR_ENABLED: ${OC_SECURITY_PADDLEOCR_ENABLED:-false}
       OC_SECURITY_YUNET_ENABLED: ${OC_SECURITY_YUNET_ENABLED:-false}
+      OC_SECURITY_MALWARE_ENABLED: ${OC_SECURITY_MALWARE_ENABLED:-false}
+      OC_SECURITY_CLAMAV_SOCKET: ${OC_SECURITY_CLAMAV_SOCKET:-/run/clamav/clamd.ctl}
     volumes:
-      - oc_security_models:/models:ro
+      - oc_security_models:/models
+      - oc_clamav_run:/run/clamav:ro
     networks:
       - oc-test-private
       - oc-test-loopback
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/ready || exit 1"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/live', timeout=2)"]
       interval: 5s
       timeout: 3s
       retries: 24
       start_period: 10s
+
+  clamav:
+    profiles: ["malware", "integration"]
+    image: clamav/clamav-debian:1.4
+    environment:
+      CLAMAV_NO_CLAMD: "false"
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      - oc_clamav_db:/var/lib/clamav
+      - oc_clamav_run:/run/clamav
+    networks:
+      - oc-test-private
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  # Private backend route group protected by OWASP CRS WAF (FW-060).
+  # Intentionally has NO host port mapping and attaches ONLY to oc-test-private so clients cannot bypass WAF.
+  waf-backend:
+    profiles: ["waf", "integration"]
+    image: python:3.12-alpine
+    command: ["python3", "/app/demo_backend.py"]
+    volumes:
+      - ./waf/demo_backend.py:/app/demo_backend.py:ro
+    networks:
+      - oc-test-private
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/api/waf-demo/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+
+  # Pinned OWASP CRS reverse proxy (Apache-2.0) in blocking mode protecting waf-backend (FW-060).
+  waf:
+    profiles: ["waf", "integration"]
+    image: owasp/modsecurity-crs:4.11-nginx-alpine
+    ports:
+      - "127.0.0.1:${PORT_WAF:-8088}:8080"
+    environment:
+      BACKEND: http://waf-backend:8081
+      MODSEC_RULE_ENGINE: "On"
+      PARANOIA: "1"
+      BLOCKING_PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+      ANOMALY_OUTBOUND: "4"
+      MODSEC_REQ_BODY_LIMIT: "10485760"
+      MODSEC_REQ_BODY_NOFILES_LIMIT: "131072"
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"
+      MODSEC_AUDIT_LOG_PARTS: "AZ"
+    volumes:
+      - ./waf/crs-exclusions.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - ./waf/nginx-waf-proxy.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
+    networks:
+      - oc-test-private
+      - oc-test-loopback
+    depends_on:
+      waf-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
   test-host:
     profiles: ["harness", "integration"]
@@ -74,3 +149,7 @@ networks:
 volumes:
   oc_security_models:
     name: oc_security_models
+  oc_clamav_db:
+    name: oc_clamav_db
+  oc_clamav_run:
+    name: oc_clamav_run

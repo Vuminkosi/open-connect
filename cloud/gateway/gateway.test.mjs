@@ -305,3 +305,237 @@ test('local server ignores duplicate authorization headers', async () => {
         assert.equal(calls, 0);
     } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('problem responses include accurate retryable flags and standard error codes', async () => {
+    const cases = [
+        ['unauthorized', 401, 'unauthorized', false],
+        ['forbidden', 403, 'forbidden', false],
+        ['capability_not_entitled', 403, 'capability_not_entitled', false],
+        ['capability_disabled', 403, 'capability_disabled', false],
+        ['dependency_not_enabled', 403, 'dependency_not_enabled', false],
+        ['privacy_blocked', 403, 'privacy_blocked', false],
+        ['invalid_request', 400, 'invalid_request', false],
+        ['invalid_semantic_request', 422, 'invalid_request', false],
+        ['payload_too_large', 413, 'invalid_request', false],
+        ['unsupported_media_type', 415, 'invalid_request', false],
+        ['conflict', 409, 'conflict', false],
+        ['duplicate', 409, 'conflict', false],
+        ['idempotency_conflict', 409, 'idempotency_conflict', false],
+        ['quota_exceeded', 429, 'quota_exceeded', true],
+        ['rate_limited', 429, 'rate_limited', true],
+        ['capability_unavailable', 503, 'capability_unavailable', true],
+        ['detector_unavailable', 503, 'detector_unavailable', true],
+        ['upstream_unavailable', 503, 'upstream_unavailable', true],
+        ['upstream_timeout', 504, 'upstream_timeout', true],
+    ];
+    for (const [code, expectedStatus, expectedPublicCode, expectedRetryable] of cases) {
+        const response = await handle(
+            new Request('http://localhost/cloud/v1/inference/chat', { method: 'POST', headers: { authorization: 'Bearer key' } }),
+            { authorization: { authorize: async () => ({ authorized: false, code }) } },
+        );
+        assert.equal(response.status, expectedStatus, code);
+        assert.equal(response.headers.get('content-type'), 'application/problem+json', code);
+        assert.equal(response.headers.get('cache-control'), 'no-store', code);
+        const body = await response.json();
+        assert.equal(body.type, 'about:blank', code);
+        assert.equal(body.status, expectedStatus, code);
+        assert.equal(body.code, expectedPublicCode, code);
+        assert.equal(body.retryable, expectedRetryable, code);
+        assert.match(body.traceId, /^[0-9a-f]{32}$/, code);
+        assert.equal(body.traceId, response.headers.get('x-trace-id'), code);
+    }
+});
+
+test('GET /cloud/v1/health/ready uses the same fail-closed readiness handler without leaking backend URLs', async () => {
+    const unconfigured = await handle(new Request('http://localhost/cloud/v1/health/ready'));
+    assert.equal(unconfigured.status, 503);
+    assert.equal(unconfigured.headers.get('cache-control'), 'no-store');
+    const unconfiguredBody = await unconfigured.json();
+    assert.equal(unconfiguredBody.code, 'capability_unavailable');
+    assert.equal(unconfiguredBody.retryable, true);
+
+    const authorization = { isReady: async () => true };
+    const inferenceExecution = { probe: { probe: async () => true }, tokenizer: { ready: async () => true } };
+    const ready = await handle(new Request('http://localhost/cloud/v1/health/ready'), { authorization, inferenceExecution });
+    assert.equal(ready.status, 200);
+    assert.deepEqual(await ready.json(), { status: 'ready', capabilities: ['inference.chat'] });
+
+    const failing = await handle(new Request('http://localhost/cloud/v1/health/ready'), {
+        authorization,
+        inferenceExecution: {
+            probe: { probe: async () => { throw new Error('https://internal-worker.private:9443 failed'); } },
+            tokenizer: { ready: async () => true },
+        },
+    });
+    assert.equal(failing.status, 503);
+    const failingText = await failing.text();
+    assert.doesNotMatch(failingText, /internal-worker\.private/);
+    const failingBody = JSON.parse(failingText);
+    assert.equal(failingBody.code, 'capability_unavailable');
+    assert.equal(failingBody.retryable, true);
+});
+
+test('local server configures bounded headersTimeout and extended requestTimeout and includes retryable on malformed requests', async () => {
+    const server = createLocalServer();
+    assert.equal(server.headersTimeout, 10_000);
+    assert.equal(server.requestTimeout, 310_000);
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    try {
+        const res = await new Promise((resolve, reject) => {
+            const req = http.request({ hostname: '127.0.0.1', port: server.address().port, path: 'http://[::1', method: 'GET' }, response => {
+                const chunks = [];
+                response.on('data', chunk => chunks.push(chunk));
+                response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body: Buffer.concat(chunks).toString('utf8') }));
+            });
+            req.on('error', reject);
+            req.end();
+        });
+        assert.equal(res.status, 400);
+        assert.equal(res.headers['content-type'], 'application/problem+json');
+        const problem = JSON.parse(res.body);
+        assert.equal(problem.code, 'invalid_request');
+        assert.equal(problem.retryable, false);
+        assert.match(problem.traceId, /^[0-9a-f]{32}$/);
+    } finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('GET /cloud/v1/capabilities fails closed without authorization and rejects unauthenticated requests', async () => {
+    const unconfigured = await handle(new Request('http://localhost/cloud/v1/capabilities'));
+    assert.equal(unconfigured.status, 503);
+    assert.equal(unconfigured.headers.get('cache-control'), 'no-store');
+    assert.equal(unconfigured.headers.get('content-type'), 'application/problem+json');
+    const unconfiguredBody = await unconfigured.json();
+    assert.equal(unconfiguredBody.code, 'capability_unavailable');
+    assert.equal(unconfiguredBody.retryable, true);
+
+    let authorizeCalls = 0;
+    const authorization = {
+        authorize: async () => { authorizeCalls++; return { authorized: false, code: 'unauthorized' }; },
+    };
+    for (const header of [undefined, 'Basic secret', 'Bearer ', 'Bearer a, Bearer b']) {
+        const res = await handle(
+            new Request('http://localhost/cloud/v1/capabilities', { headers: header ? { authorization: header } : {} }),
+            { authorization },
+        );
+        assert.equal(res.status, 401);
+        assert.equal(res.headers.get('cache-control'), 'no-store');
+        assert.equal(res.headers.get('content-type'), 'application/problem+json');
+        const body = await res.json();
+        assert.equal(body.code, 'unauthorized');
+        assert.equal(body.retryable, false);
+        assert.match(body.traceId, /^[0-9a-f]{32}$/);
+        assert.equal(body.traceId, res.headers.get('x-trace-id'));
+    }
+    assert.equal(authorizeCalls, 0);
+
+    const rejected = await handle(
+        new Request('http://localhost/cloud/v1/capabilities', { headers: { authorization: 'Bearer invalid-key' } }),
+        { authorization },
+    );
+    assert.equal(rejected.status, 401);
+    const rejectedBody = await rejected.json();
+    assert.equal(rejectedBody.code, 'unauthorized');
+    assert.equal(rejectedBody.retryable, false);
+    assert.equal(authorizeCalls, 1);
+
+    const errored = await handle(
+        new Request('http://localhost/cloud/v1/capabilities', { headers: { authorization: 'Bearer key' } }),
+        { authorization: { authorize: async () => { throw new Error('https://internal-auth.private:8443 failed'); } } },
+    );
+    assert.equal(errored.status, 503);
+    const erroredText = await errored.text();
+    assert.doesNotMatch(erroredText, /internal-auth\.private/);
+    assert.equal(JSON.parse(erroredText).code, 'capability_unavailable');
+});
+
+test('GET /cloud/v1/capabilities returns sanitized capability statuses for authenticated callers without leaking internals', async () => {
+    const traceId = 'abcdef0123456789abcdef0123456789';
+    const seen = [];
+    const authorization = {
+        authorize: async (credential, capability, signal, traceparent) => {
+            seen.push({ credential, capability, traceparent });
+            return { authorized: true, identity: { tenantId: '11111111-1111-1111-1111-111111111111' } };
+        },
+    };
+    const sensitiveConfig = {
+        authorization,
+        inferenceExecution: {
+            deployment: { endpointReference: 'https://internal-inference.private:9443', deploymentId: 'dep-inf-secret-01' },
+            secretToken: 'top-secret-inference-key',
+        },
+        voiceExecution: {
+            deployment: { endpointReference: 'https://internal-voice.private:9444', deploymentId: 'dep-voice-secret-02' },
+        },
+        // classificationExecution without classificationProbe must stay unavailable
+        classificationExecution: { deploymentId: 'dep-cls-secret-03' },
+    };
+
+    const response = await handle(
+        new Request('http://localhost/cloud/v1/capabilities', {
+            headers: {
+                authorization: 'Bearer tenant-credential',
+                traceparent: `00-${traceId}-0123456789abcdef-01`,
+            },
+        }),
+        sensitiveConfig,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal(response.headers.get('x-trace-id'), traceId);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].credential, 'tenant-credential');
+    assert.equal(seen[0].capability, 'capabilities.read');
+    assert.match(seen[0].traceparent, new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`));
+
+    const text = await response.text();
+    assert.doesNotMatch(text, /internal-inference\.private/);
+    assert.doesNotMatch(text, /internal-voice\.private/);
+    assert.doesNotMatch(text, /dep-inf-secret-01/);
+    assert.doesNotMatch(text, /dep-voice-secret-02/);
+    assert.doesNotMatch(text, /dep-cls-secret-03/);
+    assert.doesNotMatch(text, /top-secret-inference-key/);
+    assert.doesNotMatch(text, /tenant-credential/);
+
+    const body = JSON.parse(text);
+    assert.equal(body.traceId, traceId);
+    assert.deepEqual(body.capabilities, [
+        { id: 'inference.chat', status: 'available', streamingSupported: false },
+        { id: 'inference.liveui', status: 'unavailable', streamingSupported: false },
+        { id: 'classification.classify', status: 'unavailable', streamingSupported: false },
+        { id: 'voice.synthesize', status: 'available', streamingSupported: false },
+        { id: 'analytics.analyze', status: 'unavailable', streamingSupported: false },
+        { id: 'knowledge.embed', status: 'unavailable', streamingSupported: false },
+        { id: 'translation.translate', status: 'unavailable', streamingSupported: false },
+        { id: 'security.inspect', status: 'unavailable', streamingSupported: false },
+        { id: 'speech.transcribe', status: 'unavailable', streamingSupported: false },
+        { id: 'voice.realtime', status: 'unavailable', streamingSupported: false },
+        { id: 'navigator.execute', status: 'unavailable', streamingSupported: false },
+        { id: 'agents.execute', status: 'unavailable', streamingSupported: false },
+        { id: 'outbox.publish', status: 'unavailable', streamingSupported: false },
+    ]);
+
+    const allWired = await handle(
+        new Request('http://localhost/cloud/v1/capabilities', { headers: { authorization: 'Bearer tenant-credential' } }),
+        {
+            authorization,
+            inferenceExecution: {},
+            liveUIExecution: {},
+            classificationProbe: {},
+            classificationExecution: {},
+            voiceExecution: {},
+            analyticsExecution: {},
+            knowledgeEmbeddingExecution: {},
+        },
+    );
+    assert.equal(allWired.status, 200);
+    const allWiredBody = await allWired.json();
+    const byId = new Map(allWiredBody.capabilities.map(item => [item.id, item]));
+    for (const id of ['inference.chat', 'inference.liveui', 'classification.classify', 'voice.synthesize', 'analytics.analyze', 'knowledge.embed']) {
+        assert.equal(byId.get(id)?.status, 'available', id);
+        assert.equal(byId.get(id)?.streamingSupported, false, id);
+    }
+    for (const id of ['translation.translate', 'security.inspect', 'speech.transcribe', 'voice.realtime', 'navigator.execute', 'agents.execute', 'outbox.publish']) {
+        assert.equal(byId.get(id)?.status, 'unavailable', id);
+        assert.equal(byId.get(id)?.streamingSupported, false, id);
+    }
+});

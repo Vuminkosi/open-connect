@@ -1,0 +1,490 @@
+@using System.Text
+@using Microsoft.Extensions.Options
+@using OpenConnect.Abstractions
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+@using OpenConnect.Hosting.AspNetCore.Messaging
+@using OpenConnect.Samples.Blazor.Models
+@implements IDisposable
+@inject IServiceProvider Services
+@inject IOptions<MessagingHostingOptions> HostingOptions
+@inject TodoDevelopmentPersonaState PersonaState
+@inject ISnackbar Snackbar
+
+@if (IsOpen)
+{
+    <div class="oc-sheet-backdrop" @onclick="CloseAsync" @onkeydown="OnKeyDown">
+        <MudFocusTrap>
+            <section class="oc-sheet-panel"
+                     role="dialog"
+                     aria-modal="true"
+                     aria-labelledby="oc-messaging-drawer-title"
+                     @onclick:stopPropagation="true">
+                <header class="oc-sheet-header">
+                    <div>
+                        <MudText id="oc-messaging-drawer-title" Typo="Typo.h6" Class="font-weight-bold">
+                            Encrypted Messaging
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @PersonaState.Current.DisplayName · @TenantDisplayName
+                        </MudText>
+                    </div>
+                    <div class="d-flex align-center gap-2">
+                        <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                                       Class="oc-touch-target"
+                                       Disabled="@_loading"
+                                       aria-label="Refresh conversations"
+                                       OnClick="LoadInboxAsync" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                       Class="oc-touch-target"
+                                       aria-label="Close messaging"
+                                       OnClick="CloseAsync" />
+                    </div>
+                </header>
+
+                @if (!HostingOptions.Value.Enabled)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                        IMessaging is disabled. Enable <code>OpenConnect:Messaging:Enabled=true</code> or run in SameHostGateway Development mode.
+                    </MudAlert>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap align-center justify-space-between gap-2">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Start an AgentE2EE thread with an authorized operational agent:
+                        </MudText>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var agent in _authorizedAgents)
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Outlined.SmartToy"
+                                           Class="oc-touch-target"
+                                           Disabled="@_busy"
+                                           OnClick="@(() => StartAgentConversationAsync(agent))">
+                                    @agent.DisplayName
+                                </MudButton>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column gap-4">
+                        <MessagingInbox Conversations="@_conversations"
+                                        SelectedConversationId="@_selectedConversationId"
+                                        ConnectionState="@MessagingConnectionState.Connected"
+                                        IsLoading="@_loading"
+                                        ErrorMessage="@_error"
+                                        OnSelectConversation="SelectConversationAsync"
+                                        OnRetry="LoadInboxAsync" />
+
+                        @if (_selectedConversation is not null)
+                        {
+                            <MessagingThread Title="@GetConversationTitle(_selectedConversation)"
+                                             SecurityProfile="@MapProfile(_selectedConversation.SecurityProfile)"
+                                             ConversationState="@MapLifecycle(_selectedConversation.State)"
+                                             PresenceLabel="@($"Epoch {_selectedConversation.CryptoEpoch} · {_selectedConversation.Participants.Count(p => p.Status == ParticipantStatus.Active)} participants")"
+                                             Messages="@_messages"
+                                             IsLoading="@_loadingMessages"
+                                             IsSending="@_sending"
+                                             OnSendMessage="SendMessageAsync" />
+                        }
+                    </div>
+                }
+            </section>
+        </MudFocusTrap>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private IReadOnlyList<OperationalAgentDiscoveryItem> _authorizedAgents = Array.Empty<OperationalAgentDiscoveryItem>();
+    private List<ConversationRecord> _conversationRecords = new();
+    private IReadOnlyList<MessagingConversationSummary> _conversations = Array.Empty<MessagingConversationSummary>();
+    private ConversationRecord? _selectedConversation;
+    private string? _selectedConversationId;
+    private IReadOnlyList<MessagingThreadMessage> _messages = Array.Empty<MessagingThreadMessage>();
+    private bool _loading;
+    private bool _loadingMessages;
+    private bool _sending;
+    private bool _busy;
+    private string? _error;
+    private bool _wasOpen;
+
+    private string TenantDisplayName => TodoDirectorySeed.FindTenant(PersonaState.Current.TenantId)?.DisplayName ?? PersonaState.Current.TenantKey;
+
+    protected override void OnInitialized()
+    {
+        PersonaState.Changed += OnPersonaChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _wasOpen = true;
+            await LoadInboxAsync();
+        }
+        else if (!IsOpen && _wasOpen)
+        {
+            _wasOpen = false;
+        }
+    }
+
+    private void OnPersonaChanged()
+    {
+        _selectedConversation = null;
+        _selectedConversationId = null;
+        _messages = Array.Empty<MessagingThreadMessage>();
+        if (IsOpen)
+        {
+            _ = InvokeAsync(LoadInboxAsync);
+        }
+    }
+
+    private async Task LoadInboxAsync()
+    {
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var persona = PersonaState.Current;
+            var discovery = Services.GetService<IAgentDiscoveryAuthorizer>();
+            if (discovery is not null)
+            {
+                _authorizedAgents = await discovery.GetAuthorizedAgentsAsync(
+                    persona.TenantId,
+                    HostingOptions.Value.ApplicationId,
+                    persona.PrincipalId);
+            }
+
+            var replay = Services.GetService<IMessagingEventReplayStore>();
+            if (replay is null)
+            {
+                _conversations = Array.Empty<MessagingConversationSummary>();
+                return;
+            }
+
+            var records = await replay.ListConversationsAsync(persona.TenantId, persona.PrincipalId, 50);
+            _conversationRecords = records.ToList();
+            _conversations = records
+                .Select(c => new MessagingConversationSummary(
+                    ConversationId: c.ConversationId.Value.ToString(),
+                    Title: GetConversationTitle(c),
+                    SecurityProfile: MapProfile(c.SecurityProfile),
+                    State: MapLifecycle(c.State),
+                    UnreadCount: 0,
+                    IncludesOperationalAgent: c.Participants.Any(p => p.Kind == ParticipantKind.Agent && p.Status == ParticipantStatus.Active),
+                    LastMessagePreview: $"{c.SecurityProfile} · Epoch {c.CryptoEpoch}",
+                    LastMessageAtUtc: c.CreatedAt))
+                .ToArray();
+
+            if (_selectedConversationId is not null)
+            {
+                var stillExists = _conversationRecords.FirstOrDefault(c => c.ConversationId.Value.ToString() == _selectedConversationId);
+                if (stillExists is not null)
+                {
+                    await SelectConversationAsync(_selectedConversationId);
+                }
+                else
+                {
+                    _selectedConversation = null;
+                    _selectedConversationId = null;
+                    _messages = Array.Empty<MessagingThreadMessage>();
+                }
+            }
+            else if (_conversationRecords.Count > 0)
+            {
+                await SelectConversationAsync(_conversationRecords[0].ConversationId.Value.ToString());
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to load conversations: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectConversationAsync(string conversationIdText)
+    {
+        _selectedConversationId = conversationIdText;
+        _selectedConversation = _conversationRecords.FirstOrDefault(c => c.ConversationId.Value.ToString() == conversationIdText);
+        if (_selectedConversation is null)
+        {
+            _messages = Array.Empty<MessagingThreadMessage>();
+            return;
+        }
+
+        var replay = Services.GetService<IMessagingEventReplayStore>();
+        if (replay is null)
+            return;
+
+        _loadingMessages = true;
+        StateHasChanged();
+        try
+        {
+            var persona = PersonaState.Current;
+            var crypto = Services.GetService<IMessagingCryptoProvider>();
+            var records = await replay.ListMessagesAsync(persona.TenantId, _selectedConversation.ConversationId, 0, 50);
+            var projected = new List<MessagingThreadMessage>(records.Count);
+
+            foreach (var msg in records)
+            {
+                var (body, decrypted) = await TryDecryptMessageAsync(crypto, _selectedConversation.ConversationId, msg);
+                var isOwn = msg.SenderKind == ParticipantKind.Human && msg.SenderPrincipalId == persona.PrincipalId;
+                projected.Add(new MessagingThreadMessage(
+                    MessageId: msg.MessageId.Value.ToString(),
+                    Sequence: msg.Sequence,
+                    SenderDisplayName: ResolveSenderName(msg),
+                    IsAgentSender: msg.SenderKind == ParticipantKind.Agent,
+                    IsOwnMessage: isOwn,
+                    BodyText: body,
+                    IsDecrypted: decrypted,
+                    CryptoEpoch: msg.Envelope.CryptoEpoch,
+                    SentAtUtc: msg.CreatedAt,
+                    ReceiptKind: MessagingReceiptStatus.Committed,
+                    CorrelationId: msg.CorrelationId));
+            }
+
+            _messages = projected;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to load messages: {ex.Message}";
+        }
+        finally
+        {
+            _loadingMessages = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartAgentConversationAsync(OperationalAgentDiscoveryItem agent)
+    {
+        var coordinator = Services.GetService<IMessagingCoordinator>();
+        var crypto = Services.GetService<IMessagingCryptoProvider>();
+        if (coordinator is null || crypto is null)
+        {
+            _error = "Messaging coordinator or crypto provider is unavailable.";
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var humanActor = new MessagingActor(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                ParticipantKind.Human,
+                PrincipalId: persona.PrincipalId,
+                AgentId: null,
+                DeviceId: DeriveDesktopDeviceId(persona.PrincipalId));
+
+            var agentActor = new MessagingActor(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                ParticipantKind.Agent,
+                PrincipalId: null,
+                AgentId: agent.AgentId,
+                DeviceId: null);
+
+            var created = await coordinator.CreateConversationAsync(
+                humanActor,
+                ConversationSecurityProfile.AgentE2EE,
+                [humanActor, agentActor]);
+
+            await EnsureCryptoGroupAsync(crypto, persona.TenantId, created.ConversationId, DeriveDesktopDeviceId(persona.PrincipalId));
+            Snackbar.Add($"Started AgentE2EE thread with {agent.DisplayName}.", Severity.Success);
+            await LoadInboxAsync();
+            await SelectConversationAsync(created.ConversationId.Value.ToString());
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to start conversation: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendMessageAsync(string plaintext)
+    {
+        if (_selectedConversation is null)
+            return;
+
+        var coordinator = Services.GetService<IMessagingCoordinator>();
+        var crypto = Services.GetService<IMessagingCryptoProvider>();
+        if (coordinator is null || crypto is null)
+        {
+            _error = "Messaging coordinator or crypto provider is unavailable.";
+            return;
+        }
+
+        _sending = true;
+        _error = null;
+        try
+        {
+            var persona = PersonaState.Current;
+            var deviceId = DeriveDesktopDeviceId(persona.PrincipalId);
+            await EnsureCryptoGroupAsync(crypto, persona.TenantId, _selectedConversation.ConversationId, deviceId);
+
+            var aad = Encoding.UTF8.GetBytes($"{persona.TenantId.Value}:{_selectedConversation.ConversationId.Value}");
+            var envelope = await crypto.EncryptAsync(
+                _selectedConversation.ConversationId,
+                deviceId,
+                Encoding.UTF8.GetBytes(plaintext),
+                aad);
+
+            var sender = new MessagingActor(
+                persona.TenantId,
+                HostingOptions.Value.ApplicationId,
+                ParticipantKind.Human,
+                PrincipalId: persona.PrincipalId,
+                AgentId: null,
+                DeviceId: deviceId);
+
+            await coordinator.CommitMessageAsync(
+                sender,
+                _selectedConversation.ConversationId,
+                envelope,
+                clientOperationId: $"desktop-{Ulid.NewUlid()}");
+
+            await SelectConversationAsync(_selectedConversation.ConversationId.Value.ToString());
+        }
+        catch (Exception ex)
+        {
+            _error = $"Unable to send encrypted message: {ex.Message}";
+        }
+        finally
+        {
+            _sending = false;
+            StateHasChanged();
+        }
+    }
+
+    private static async Task EnsureCryptoGroupAsync(
+        IMessagingCryptoProvider crypto,
+        TenantId tenantId,
+        ConversationId conversationId,
+        DeviceId desktopDeviceId)
+    {
+        try
+        {
+            var dummyPackage = new DeviceKeyPackage(
+                tenantId,
+                new KeyPackageId(Ulid.NewUlid()),
+                null,
+                null,
+                desktopDeviceId,
+                crypto.ProtocolName,
+                Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow.AddDays(7));
+            await crypto.CreateGroupAsync(conversationId, [dummyPackage]);
+        }
+        catch
+        {
+            // Group already initialized for this conversation.
+        }
+    }
+
+    private async Task<(string Body, bool Decrypted)> TryDecryptMessageAsync(
+        IMessagingCryptoProvider? crypto,
+        ConversationId conversationId,
+        MessageRecord msg)
+    {
+        if (crypto is not null)
+        {
+            try
+            {
+                var aad = string.IsNullOrWhiteSpace(msg.Envelope.AssociatedDataBase64)
+                    ? ReadOnlyMemory<byte>.Empty
+                    : Convert.FromBase64String(msg.Envelope.AssociatedDataBase64);
+                var recipientDevice = msg.SenderDeviceId ?? DeriveDesktopDeviceId(PersonaState.Current.PrincipalId);
+                var plainBytes = await crypto.DecryptAsync(conversationId, recipientDevice, msg.Envelope, aad);
+                return (Encoding.UTF8.GetString(plainBytes), true);
+            }
+            catch
+            {
+                // Honest fallback: never fabricate plaintext if encrypted for another device epoch.
+            }
+        }
+
+        return ($"[Encrypted envelope · {msg.Envelope.Protocol} · Epoch {msg.Envelope.CryptoEpoch} · SHA256 {msg.PayloadDigestSha256[..Math.Min(12, msg.PayloadDigestSha256.Length)]}…]", false);
+    }
+
+    private static DeviceId DeriveDesktopDeviceId(PrincipalId principalId) => new(principalId.Value);
+
+    private string ResolveSenderName(MessageRecord msg)
+    {
+        if (msg.SenderKind == ParticipantKind.Agent && msg.SenderAgentId is { } agentId)
+            return agentId.Value;
+
+        if (msg.SenderPrincipalId is { } pid)
+        {
+            var seed = TodoDirectorySeed.FindPrincipal(msg.TenantId, pid);
+            if (seed is not null)
+                return seed.DisplayName;
+            return pid.Value.ToString();
+        }
+
+        return "Participant";
+    }
+
+    private string GetConversationTitle(ConversationRecord conv)
+    {
+        var agent = conv.Participants.FirstOrDefault(p => p.Kind == ParticipantKind.Agent && p.Status == ParticipantStatus.Active);
+        if (agent?.AgentId is { } agentId)
+            return $"{agentId.Value} ({conv.SecurityProfile})";
+
+        var peer = conv.Participants.FirstOrDefault(p => p.Kind == ParticipantKind.Human && p.PrincipalId != PersonaState.Current.PrincipalId);
+        if (peer?.PrincipalId is { } peerId)
+        {
+            var found = TodoDirectorySeed.FindPrincipal(conv.TenantId, peerId);
+            if (found is not null)
+                return found.DisplayName;
+        }
+
+        return $"Conversation {conv.ConversationId.Value.ToString()[..8]}…";
+    }
+
+    private static MessagingSecurityProfileKind MapProfile(ConversationSecurityProfile profile) => profile switch
+    {
+        ConversationSecurityProfile.PrivateE2EE => MessagingSecurityProfileKind.PrivateE2EE,
+        ConversationSecurityProfile.AgentE2EE => MessagingSecurityProfileKind.AgentE2EE,
+        _ => MessagingSecurityProfileKind.Governed
+    };
+
+    private static MessagingConversationLifecycleState MapLifecycle(ConversationState state) => state switch
+    {
+        ConversationState.Closed => MessagingConversationLifecycleState.Closed,
+        ConversationState.Archived => MessagingConversationLifecycleState.Archived,
+        _ => MessagingConversationLifecycleState.Active
+    };
+
+    private Task OnKeyDown(KeyboardEventArgs args) =>
+        args.Key == "Escape" ? CloseAsync() : Task.CompletedTask;
+
+    private async Task CloseAsync()
+    {
+        if (OnClose.HasDelegate)
+            await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        PersonaState.Changed -= OnPersonaChanged;
+    }
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openconnect.dev/contracts/openconnect.v1/imessaging-execute-response-v1.json",
+  "title": "IMessaging Worker Execute Response v1",
+  "description": "Structured worker response envelope for POST /internal/v1/execute.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "taskId",
+    "kind",
+    "tenantId",
+    "status",
+    "result"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "openconnect.v1"
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "messaging.route",
+        "messaging.presence",
+        "messaging.signal",
+        "messaging.push.dispatch"
+      ]
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "status": {
+      "type": "string",
+      "enum": ["accepted", "deduplicated", "degraded", "rejected"]
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "dispatchedCount",
+        "failedTargets",
+        "processedAt"
+      ],
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "dispatchedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failedTargets": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "providerStatus": {
+          "type": "string",
+          "enum": ["sent", "queued", "invalid_token", "quota_exceeded", "provider_unavailable", "disabled", "deduplicated"]
+        },
+        "leaseExpiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reasonCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "processedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

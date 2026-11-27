@@ -1,14 +1,21 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OpenConnect.Privacy;
 
 /// <summary>Submits host privacy evidence to an explicitly configured Cloud authority.</summary>
 public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDisposable
 {
+    private static readonly JsonSerializerOptions PayloadSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly HttpClient _client;
     private readonly Uri _endpoint;
     private readonly string _token;
@@ -54,8 +61,15 @@ public sealed class CloudPrivacyEvidenceSink : IHostPrivacyEvidenceSink, IDispos
             allowed = evidence.Allowed,
             action = evidence.Action.ToString(),
             reasonCode = evidence.ReasonCode,
-            categories = evidence.Categories
-        });
+            categories = evidence.Categories,
+            traceId = evidence.TraceId,
+            requestId = evidence.RequestId,
+            occurredAt = evidence.OccurredAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            policyId = evidence.PolicyId,
+            policyRevision = evidence.PolicyRevision,
+            enforcementAuthority = evidence.EnforcementAuthority,
+            integrityDigest = evidence.IntegrityDigest,
+        }, PayloadSerializerOptions);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         HttpResponseMessage? response = null;

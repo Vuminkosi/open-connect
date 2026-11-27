@@ -1,0 +1,129 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+@if (Request is not null)
+{
+    var isExpired = !Request.IsResolved && Request.ExpiresAtUtc <= UtcNow;
+    <section class="oc-msg-approval"
+             role="region"
+             aria-label="@($"Approval request: {Request.ActionName}")">
+        <header class="oc-msg-approval__header">
+            <div class="oc-msg-approval__title-group">
+                <MudIcon Icon="@Icons.Material.Outlined.VerifiedUser" Size="Size.Small" Color="Color.Warning" aria-hidden="true" />
+                <span class="oc-msg-approval__title">@Request.ActionName</span>
+            </div>
+            <span class="oc-msg-approval__expiry">
+                @if (Request.IsResolved)
+                {
+                    @(Request.Approved == true ? "Approved" : "Denied")
+                }
+                else if (isExpired)
+                {
+                    @:Expired
+                }
+                else
+                {
+                    @($"Expires {Request.ExpiresAtUtc:HH:mm:ss} UTC")
+                }
+            </span>
+        </header>
+
+        <p class="oc-msg-approval__summary">@Request.ActionSummary</p>
+
+        <dl class="oc-msg-approval__meta">
+            <div>
+                <dt>Requested by</dt>
+                <dd>@Request.RequestedByDisplayName</dd>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Request.ResourceScope))
+            {
+                <div>
+                    <dt>Scope</dt>
+                    <dd>@Request.ResourceScope</dd>
+                </div>
+            }
+        </dl>
+
+        @if (!Request.IsResolved)
+        {
+            <div class="oc-msg-approval__actions">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           Disabled="@(isExpired || IsSubmitting)"
+                           Class="oc-msg-touch-target"
+                           OnClick="@(() => OnConfirm.InvokeAsync(Request.ApprovalRequestId))">
+                    Confirm action
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           Size="Size.Small"
+                           Disabled="@(isExpired || IsSubmitting)"
+                           Class="oc-msg-touch-target"
+                           OnClick="@(() => OnDeny.InvokeAsync(Request.ApprovalRequestId))">
+                    Deny
+                </MudButton>
+            </div>
+            @if (isExpired)
+            {
+                <p class="oc-msg-approval__expired-note" role="status">
+                    This approval request has expired and can no longer be confirmed.
+                </p>
+            }
+        }
+    </section>
+}
+
+<style>
+    .oc-msg-approval {
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 8px;
+        padding: 16px;
+        background-color: var(--mud-palette-surface, #ffffff);
+        color: var(--mud-palette-text-primary, #0f172a);
+    }
+    .oc-msg-approval__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    .oc-msg-approval__title-group { display: flex; align-items: center; gap: 8px; }
+    .oc-msg-approval__title { font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-approval__expiry {
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-approval__summary { margin: 0 0 12px 0; font-size: 0.875rem; line-height: 1.5; }
+    .oc-msg-approval__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin: 0 0 12px 0;
+        font-size: 0.8125rem;
+    }
+    .oc-msg-approval__meta dt { color: var(--mud-palette-text-secondary, #64748b); font-weight: 500; }
+    .oc-msg-approval__meta dd { margin: 2px 0 0 0; }
+    .oc-msg-approval__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .oc-msg-approval__expired-note {
+        margin: 8px 0 0 0;
+        font-size: 0.8125rem;
+        color: var(--mud-palette-error, #dc2626);
+    }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    [Parameter] public MessagingApprovalRequest? Request { get; set; }
+
+    [Parameter] public bool IsSubmitting { get; set; }
+
+    [Parameter] public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+
+    [Parameter] public EventCallback<string> OnConfirm { get; set; }
+
+    [Parameter] public EventCallback<string> OnDeny { get; set; }
+}

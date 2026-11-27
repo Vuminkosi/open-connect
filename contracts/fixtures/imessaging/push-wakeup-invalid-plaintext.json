@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "notificationId": "notif-0002",
+  "profileHandle": "prof-opaque-0001",
+  "eventClass": "message",
+  "displayTitle": "Claim #99812 from Alice",
+  "displayBody": "Please approve payout for https://gateway.company.example/claims/99812",
+  "ttlSeconds": 300,
+  "messageText": "Forbidden plaintext body",
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9.secret"
+}

@@ -52,7 +52,7 @@ jobs:
         run: node --test scripts/validate-openapi-references.test.cjs
       - name: Validate OpenAPI and JSON Schema contracts
         shell: pwsh
-        run: ./scripts/validate-docs-contracts.ps1
+        run: ./scripts/validate-docs-contracts.ps1 -UseParsedReferences
       - name: Check source tree for secrets in portal assets
         shell: pwsh
         run: |

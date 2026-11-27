@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "eventId": "evt-msg-0001",
+  "type": "messaging.message.committed",
+  "conversationId": "conv-0001",
+  "sequence": 42,
+  "cursor": "cur:v1:tenant-acme-01:conv-0001:42",
+  "occurredAt": "2026-11-25T12:00:00Z",
+  "payload": {
+    "messageId": "msg-0001",
+    "epoch": 3,
+    "ciphertext": "Y2lwaGVydGV4dC1wYXlsb2FkLWJ5dGVz"
+  }
+}

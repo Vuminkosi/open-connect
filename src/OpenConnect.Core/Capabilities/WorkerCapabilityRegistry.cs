@@ -119,7 +119,7 @@ public sealed class WorkerCapabilityRegistry : IWorkerCapabilityRegistry
             var mappedState = descriptor.Readiness switch
             {
                 WorkerReadiness.Ready => DetectorState.Ready,
-                WorkerReadiness.Loading or WorkerReadiness.Provisioning => DetectorState.Loading,
+                WorkerReadiness.Configured or WorkerReadiness.Loading or WorkerReadiness.Provisioning => DetectorState.Loading,
                 WorkerReadiness.Degraded => DetectorState.Degraded,
                 WorkerReadiness.Disabled => DetectorState.Disabled,
                 _ => DetectorState.Failed

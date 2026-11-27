@@ -27,29 +27,70 @@ const routes = new Map([
     ['/cloud/v1/outbox/events', 'outbox.publish'],
 ]);
 
+const logicalCapabilities = [
+    'inference.chat',
+    'inference.liveui',
+    'classification.classify',
+    'voice.synthesize',
+    'analytics.analyze',
+    'knowledge.embed',
+    'translation.translate',
+    'security.inspect',
+    'speech.transcribe',
+    'voice.realtime',
+    'navigator.execute',
+    'agents.execute',
+    'outbox.publish',
+];
+
+function parseBearer(request) {
+    const header = request.headers?.get('authorization');
+    const match = typeof header === 'string' ? /^Bearer ([^\s,]{1,160})$/i.exec(header) : null;
+    return match ? match[1] : null;
+}
+
+function buildCapabilityStatus({ classificationProbe, classificationExecution, inferenceExecution, liveUIExecution, analyticsExecution, voiceExecution, knowledgeEmbeddingExecution }) {
+    const enabled = new Set();
+    if (inferenceExecution) enabled.add('inference.chat');
+    if (liveUIExecution) enabled.add('inference.liveui');
+    if (classificationExecution && classificationProbe) enabled.add('classification.classify');
+    if (voiceExecution) enabled.add('voice.synthesize');
+    if (analyticsExecution) enabled.add('analytics.analyze');
+    if (knowledgeEmbeddingExecution) enabled.add('knowledge.embed');
+    return logicalCapabilities.map(id => ({
+        id,
+        status: enabled.has(id) ? 'available' : 'unavailable',
+        streamingSupported: false,
+    }));
+}
+
 const problems = {
-    unauthorized: [401, 'Authentication required'],
-    forbidden: [403, 'Access denied'],
-    capability_not_entitled: [403, 'Capability not entitled'],
-    capability_disabled: [403, 'Capability disabled'],
-    dependency_not_enabled: [403, 'Capability dependency unavailable'],
-    invalid_request: [400, 'Invalid request'],
-    invalid_semantic_request: [422, 'Invalid capability request'],
-    payload_too_large: [413, 'Request body is too large'],
-    unsupported_media_type: [415, 'Unsupported media type'],
-    privacy_blocked: [403, 'Privacy policy blocked the request'],
-    upstream_timeout: [504, 'Request deadline exceeded'],
-    quota_exceeded: [429, 'Quota exceeded'],
-    duplicate: [409, 'Request already submitted'],
-    idempotency_conflict: [409, 'Request identifier conflicts'],
-    capability_unavailable: [503, 'Cloud gateway is not ready'],
+    unauthorized: [401, 'Authentication required', false],
+    forbidden: [403, 'Access denied', false],
+    capability_not_entitled: [403, 'Capability not entitled', false],
+    capability_disabled: [403, 'Capability disabled', false],
+    dependency_not_enabled: [403, 'Capability dependency unavailable', false],
+    invalid_request: [400, 'Invalid request', false],
+    invalid_semantic_request: [422, 'Invalid capability request', false],
+    payload_too_large: [413, 'Request body is too large', false],
+    unsupported_media_type: [415, 'Unsupported media type', false],
+    privacy_blocked: [403, 'Privacy policy blocked the request', false],
+    upstream_timeout: [504, 'Request deadline exceeded', true],
+    quota_exceeded: [429, 'Quota exceeded', true],
+    rate_limited: [429, 'Rate limit exceeded', true],
+    conflict: [409, 'Request conflict', false],
+    duplicate: [409, 'Request already submitted', false],
+    idempotency_conflict: [409, 'Request identifier conflicts', false],
+    capability_unavailable: [503, 'Cloud gateway is not ready', true],
+    detector_unavailable: [503, 'Privacy detector is unavailable', true],
+    upstream_unavailable: [503, 'Upstream dependency is unavailable', true],
 };
 
 function problem(code, traceId) {
     const safeCode = Object.hasOwn(problems, code) ? code : 'capability_unavailable';
-    const [status, title] = problems[safeCode];
+    const [status, title, retryable] = problems[safeCode];
     const publicCode = ['invalid_semantic_request', 'payload_too_large', 'unsupported_media_type'].includes(safeCode) ? 'invalid_request' : safeCode === 'duplicate' ? 'conflict' : safeCode;
-    return Response.json({ type: 'about:blank', title, status, code: publicCode, traceId },
+    return Response.json({ type: 'about:blank', title, status, code: publicCode, retryable, traceId },
         { status, headers: { 'cache-control': 'no-store', 'content-type': 'application/problem+json', 'x-trace-id': traceId } });
 }
 
@@ -62,7 +103,7 @@ export async function handle(request, { authorization, classificationProbe, clas
             readiness: '/health/ready', liveness: '/health/live' }, { headers: { 'cache-control': 'no-store' } });
     if (request.method === 'GET' && url.pathname === '/health/live')
         return Response.json({ status: 'live' }, { headers: { 'cache-control': 'no-store' } });
-    if (request.method === 'GET' && url.pathname === '/health/ready') {
+    if (request.method === 'GET' && (url.pathname === '/health/ready' || url.pathname === '/cloud/v1/health/ready')) {
         if ((!classificationExecution && !inferenceExecution && !liveUIExecution && !analyticsExecution && !voiceExecution && !knowledgeEmbeddingExecution) || !authorization || typeof authorization.isReady !== 'function' ||
             (classificationExecution && !classificationProbe))
             return reject('capability_unavailable');
@@ -95,26 +136,38 @@ export async function handle(request, { authorization, classificationProbe, clas
         } catch { return reject('capability_unavailable'); }
     }
     if (!authorization) return reject('capability_unavailable');
+    if (request.method === 'GET' && url.pathname === '/cloud/v1/capabilities' && !url.search) {
+        const credential = parseBearer(request);
+        if (!credential) return reject('unauthorized');
+        let decision;
+        try { decision = await authorization.authorize(credential, 'capabilities.read', request.signal, trace.traceparent); }
+        catch { return reject('capability_unavailable'); }
+        if (decision?.authorized !== true) return reject(decision?.code);
+        const capabilities = buildCapabilityStatus({
+            classificationProbe, classificationExecution, inferenceExecution,
+            liveUIExecution, analyticsExecution, voiceExecution, knowledgeEmbeddingExecution,
+        });
+        return Response.json({ traceId: trace.traceId, capabilities }, { headers: { 'cache-control': 'no-store', 'x-trace-id': trace.traceId } });
+    }
     const capability = request.method === 'POST' && !url.search ? routes.get(url.pathname) : undefined;
     if (!capability) return reject('invalid_request');
-    const header = request.headers?.get('authorization');
-    const match = typeof header === 'string' ? /^Bearer ([^\s,]{1,160})$/i.exec(header) : null;
-    if (!match) return reject('unauthorized');
+    const credential = parseBearer(request);
+    if (!credential) return reject('unauthorized');
     let decision;
-    try { decision = await authorization.authorize(match[1], capability, request.signal, trace.traceparent); }
+    try { decision = await authorization.authorize(credential, capability, request.signal, trace.traceparent); }
     catch { return reject('capability_unavailable'); }
     if (decision?.authorized !== true) return reject(decision?.code);
     if (capability === 'knowledge.embed' && knowledgeEmbeddingExecution) {
         try {
             if (!await knowledgeEmbeddingExecution.probe.probe(request.signal, trace.traceparent) ||
-                !await knowledgeEmbeddingExecution.controlPlane.matchEmbeddingDeployment(match[1], knowledgeEmbeddingExecution.deployment, request.signal, trace.traceparent))
+                !await knowledgeEmbeddingExecution.controlPlane.matchEmbeddingDeployment(credential, knowledgeEmbeddingExecution.deployment, request.signal, trace.traceparent))
                 return reject('capability_unavailable');
             const outcome = await withKnowledgeEmbeddingRequest(request, async (value, body) => {
                 const remaining = Date.parse(value.expiresAt) - Date.now();
                 if (remaining <= 0) return reject('upstream_timeout');
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
-                const result = await executeKnowledgeEmbedding({ credential: match[1], identity: decision.identity, body,
+                const result = await executeKnowledgeEmbedding({ credential: credential, identity: decision.identity, body,
                     deployment: knowledgeEmbeddingExecution.deployment, signal, traceparent: trace.traceparent }, knowledgeEmbeddingExecution);
                 if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
                 if (signal.aborted) return reject('capability_unavailable');
@@ -133,7 +186,7 @@ export async function handle(request, { authorization, classificationProbe, clas
                 if (remaining <= 0) return reject('upstream_timeout');
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
-                const result = await executeVoiceSynthesis({ credential: match[1], identity: decision.identity, body,
+                const result = await executeVoiceSynthesis({ credential: credential, identity: decision.identity, body,
                     deployment: voiceExecution.deployment, modelId: voiceExecution.modelId, signal, traceparent: trace.traceparent }, voiceExecution);
                 const audio = result?.result?.audio;
                 try {
@@ -153,14 +206,14 @@ export async function handle(request, { authorization, classificationProbe, clas
     if (capability === 'analytics.analyze' && analyticsExecution) {
         try {
             if (!await analyticsExecution.probe.probe(request.signal, trace.traceparent) ||
-                !await analyticsExecution.controlPlane.matchAnalyticsDeployment(match[1], analyticsExecution.deployment, request.signal, trace.traceparent))
+                !await analyticsExecution.controlPlane.matchAnalyticsDeployment(credential, analyticsExecution.deployment, request.signal, trace.traceparent))
                 return reject('capability_unavailable');
             const outcome = await withAnalyticsRequest(request, async (value, body) => {
                 const remaining = Date.parse(value.expiresAt) - Date.now();
                 if (remaining <= 0) return reject('upstream_timeout');
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
-                const result = await executeAnalytics({ credential: match[1], identity: decision.identity, body,
+                const result = await executeAnalytics({ credential: credential, identity: decision.identity, body,
                     deployment: analyticsExecution.deployment, signal, traceparent: trace.traceparent }, analyticsExecution);
                 if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
                 if (signal.aborted) return reject('capability_unavailable');
@@ -180,7 +233,7 @@ export async function handle(request, { authorization, classificationProbe, clas
                 if (remaining <= 0) return reject('upstream_timeout');
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
-                const result = await executeInference({ credential: match[1], identity: decision.identity, body,
+                const result = await executeInference({ credential: credential, identity: decision.identity, body,
                     deployment: inferenceExecution.deployment, signal, traceparent: trace.traceparent },
                 { ...inferenceExecution, controlPlane: authorization });
                 if (deadline.aborted || Date.now() >= Date.parse(value.expiresAt)) return reject('upstream_timeout');
@@ -201,7 +254,7 @@ export async function handle(request, { authorization, classificationProbe, clas
                 if (remaining <= 0) return reject('upstream_timeout');
                 const deadline = AbortSignal.timeout(remaining);
                 const signal = request.signal ? AbortSignal.any([request.signal, deadline]) : deadline;
-                const result = await executeLiveUI({ credential: match[1], identity: decision.identity, body,
+                const result = await executeLiveUI({ credential: credential, identity: decision.identity, body,
                     deployment: liveUIExecution.deployment, modelId: liveUIExecution.modelId, tokenAmount: liveUIExecution.tokenAmount,
                     signal, traceparent: trace.traceparent },
                 { ...liveUIExecution, authorization });
@@ -218,7 +271,7 @@ export async function handle(request, { authorization, classificationProbe, clas
     if (capability === 'classification.classify' && classificationProbe) {
         try {
             if (typeof authorization.matchClassificationDeployment !== 'function' ||
-                !await authorization.matchClassificationDeployment(match[1], classificationProbe.deployment, request.signal, trace.traceparent))
+                !await authorization.matchClassificationDeployment(credential, classificationProbe.deployment, request.signal, trace.traceparent))
                 return reject('capability_unavailable');
             const readiness = await classificationProbe.probe(request.signal, trace.traceparent, !!classificationExecution, classificationExecution?.deploymentId);
             if (readiness?.ready !== true) return reject('capability_unavailable');
@@ -232,7 +285,7 @@ export async function handle(request, { authorization, classificationProbe, clas
                 const deadline = remaining === null ? null : AbortSignal.timeout(remaining);
                 const signal = deadline ? (request.signal ? AbortSignal.any([request.signal, deadline]) : deadline) : request.signal;
                 let privacy;
-                try { privacy = await authorization.inspectClassification(match[1], value.requestId, value.input.text, signal, trace.traceparent); }
+                try { privacy = await authorization.inspectClassification(credential, value.requestId, value.input.text, signal, trace.traceparent); }
                 catch (error) {
                     if (deadline && (deadline.aborted || Date.now() >= Date.parse(value.expiresAt))) return reject('upstream_timeout');
                     throw error;
@@ -241,7 +294,7 @@ export async function handle(request, { authorization, classificationProbe, clas
                 if (request.signal?.aborted) return reject('capability_unavailable');
                 if (privacy?.allowed !== true) return reject(privacy?.code === 'privacy_blocked' ? 'privacy_blocked' : 'capability_unavailable');
                 if (!classificationExecution || value.schemaVersion !== 'openconnect.cloud.classification/v2') return reject('capability_unavailable');
-                const result = await executeClassification({ credential: match[1], identity: decision.identity, value, body,
+                const result = await executeClassification({ credential: credential, identity: decision.identity, value, body,
                     deployment: classificationProbe.deployment, signal, traceparent: trace.traceparent },
                 { ...classificationExecution, controlPlane: authorization });
                 if (deadline && (deadline.aborted || Date.now() >= Date.parse(value.expiresAt))) return reject('upstream_timeout');

@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0-android;net10.0-windows10.0.19041.0</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenConnect.Samples.Mobile</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
+
+    <ApplicationTitle>OpenConnect Mobile</ApplicationTitle>
+    <ApplicationId>dev.openconnect.mobile.sample</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <WindowsPackageType>None</WindowsPackageType>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">26.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</TargetPlatformMinVersion>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.20" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    <PackageReference Include="MudBlazor" Version="8.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\OpenConnect.Abstractions\OpenConnect.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.Client\OpenConnect.Client.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.Components.Contracts\OpenConnect.Components.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\OpenConnect.Components.Blazor\OpenConnect.Components.Blazor.csproj" />
+  </ItemGroup>
+
+  <!--
+    OpenConnect.Client and OpenConnect.Components.Blazor carry a server-side FrameworkReference to
+    Microsoft.AspNetCore.App for ASP.NET Core hosts. MAUI Android has no Microsoft.AspNetCore.App
+    runtime pack; strip the transitive framework reference during Android runtime-pack resolution
+    while preserving full compile-time and MAUI BlazorWebView runtime support.
+  -->
+  <Target Name="RemoveAspNetCoreRuntimePackOnAndroid"
+          BeforeTargets="ResolveRuntimePackAssets"
+          Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <ItemGroup>
+      <FrameworkReference Remove="Microsoft.AspNetCore.App" />
+      <RuntimeFramework Remove="Microsoft.AspNetCore.App" />
+      <RuntimePack Remove="@(RuntimePack)" Condition="'%(RuntimePack.FrameworkName)' == 'Microsoft.AspNetCore.App'" />
+      <UnavailableRuntimePack Remove="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+  </Target>
+
+</Project>

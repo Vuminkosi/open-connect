@@ -1,0 +1,190 @@
+@namespace OpenConnect.Components.Blazor.Messaging
+@using OpenConnect.Abstractions.Messaging
+@using OpenConnect.Components.Contracts.Messaging
+
+<section class="oc-msg-devices" aria-label="Linked devices">
+    @if (IsLoading)
+    {
+        <div class="oc-msg-skeleton-list" role="status" aria-label="Loading linked devices">
+            <MudSkeleton Height="56px" Class="mb-2" />
+            <MudSkeleton Height="56px" />
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="oc-msg-banner oc-msg-banner--error" role="alert">
+            <span>@ErrorMessage</span>
+            @if (OnRetry.HasDelegate)
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="OnRetry">Retry</MudButton>
+            }
+        </div>
+    }
+    else if (Devices is null || Devices.Count == 0)
+    {
+        <div class="oc-msg-empty" role="status">
+            <p class="oc-msg-empty__title">No linked devices yet</p>
+            <p class="oc-msg-empty__body">Link OpenConnect Mobile to receive encrypted messages and operational alerts on your phone.</p>
+        </div>
+    }
+    else
+    {
+        <ul class="oc-msg-device-list">
+            @foreach (var device in Devices)
+            {
+                var confirming = _confirmingRevokeId == device.DeviceId;
+                <li @key="device.DeviceId" class="oc-msg-device-row">
+                    <div class="oc-msg-device-row__main">
+                        <MudIcon Icon="@GetPlatformIcon(device.Platform)" Size="Size.Small" aria-hidden="true" />
+                        <div class="oc-msg-device-row__meta">
+                            <div class="oc-msg-device-row__title-line">
+                                <span class="oc-msg-device-row__name">@device.DisplayName</span>
+                                @if (device.IsCurrentSession)
+                                {
+                                    <span class="oc-msg-pill oc-msg-pill--current">Current session</span>
+                                }
+                                <span class="oc-msg-pill">@device.Status</span>
+                            </div>
+                            <div class="oc-msg-device-row__details">
+                                <span>@device.Platform</span>
+                                <span aria-hidden="true">·</span>
+                                <span class="oc-msg-mono">Fingerprint: @device.KeyFingerprint</span>
+                                <span aria-hidden="true">·</span>
+                                <span class="oc-msg-tabular">Last seen @device.LastSeenAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!device.IsRevoked)
+                    {
+                        <div class="oc-msg-device-row__actions">
+                            @if (confirming)
+                            {
+                                <span class="oc-msg-confirm-label">Revoke access and rekey?</span>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           Class="oc-msg-touch-target"
+                                           Disabled="@IsRevoking"
+                                           OnClick="@(() => ConfirmRevokeAsync(device.DeviceId))">
+                                    Confirm revoke
+                                </MudButton>
+                                <MudButton Variant="Variant.Text"
+                                           Size="Size.Small"
+                                           Class="oc-msg-touch-target"
+                                           Disabled="@IsRevoking"
+                                           OnClick="@(() => _confirmingRevokeId = null)">
+                                    Cancel
+                                </MudButton>
+                            }
+                            else
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           Class="oc-msg-touch-target"
+                                           Disabled="@IsRevoking"
+                                           OnClick="@(() => _confirmingRevokeId = device.DeviceId)">
+                                    Revoke
+                                </MudButton>
+                            }
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<style>
+    .oc-msg-device-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .oc-msg-device-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-lines-default, #e2e8f0);
+        border-radius: 8px;
+        background-color: var(--mud-palette-surface, #ffffff);
+    }
+    .oc-msg-device-row__main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; flex: 1; }
+    .oc-msg-device-row__meta { min-width: 0; }
+    .oc-msg-device-row__title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .oc-msg-device-row__name { font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-device-row__details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 4px;
+        font-size: 0.75rem;
+        color: var(--mud-palette-text-secondary, #64748b);
+    }
+    .oc-msg-device-row__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .oc-msg-confirm-label { font-size: 0.8125rem; color: var(--mud-palette-error, #dc2626); font-weight: 500; }
+    .oc-msg-pill {
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--mud-palette-lines-default, #cbd5e1);
+    }
+    .oc-msg-pill--current {
+        border-color: var(--mud-palette-primary, #5e6ad2);
+        color: var(--mud-palette-primary, #5e6ad2);
+        font-weight: 500;
+    }
+    .oc-msg-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .oc-msg-tabular { font-variant-numeric: tabular-nums; }
+    .oc-msg-empty {
+        padding: 24px 16px;
+        border: 1px dashed var(--mud-palette-lines-default, #cbd5e1);
+        border-radius: 8px;
+        text-align: center;
+    }
+    .oc-msg-empty__title { margin: 0 0 4px 0; font-weight: 600; font-size: 0.9375rem; }
+    .oc-msg-empty__body { margin: 0; font-size: 0.8125rem; color: var(--mud-palette-text-secondary, #64748b); }
+    .oc-msg-banner--error {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border: 1px solid var(--mud-palette-error, #dc2626);
+        border-radius: 8px;
+        font-size: 0.875rem;
+        color: var(--mud-palette-error, #dc2626);
+    }
+    .oc-msg-touch-target { min-width: 44px; min-height: 44px; }
+</style>
+
+@code {
+    private string? _confirmingRevokeId;
+
+    [Parameter] public IReadOnlyList<MessagingLinkedDeviceSummary>? Devices { get; set; }
+
+    [Parameter] public bool IsLoading { get; set; }
+
+    [Parameter] public bool IsRevoking { get; set; }
+
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    [Parameter] public EventCallback<string> OnRevoke { get; set; }
+
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    private async Task ConfirmRevokeAsync(string deviceId)
+    {
+        _confirmingRevokeId = null;
+        await OnRevoke.InvokeAsync(deviceId);
+    }
+
+    private static string GetPlatformIcon(string platform) => platform.ToLowerInvariant() switch
+    {
+        "android" => Icons.Material.Outlined.PhoneAndroid,
+        "ios" => Icons.Material.Outlined.PhoneIphone,
+        "desktop" => Icons.Material.Outlined.DesktopWindows,
+        "web" => Icons.Material.Outlined.Language,
+        "agent-endpoint" or "agentendpoint" => Icons.Material.Outlined.SmartToy,
+        _ => Icons.Material.Outlined.Devices
+    };
+}
