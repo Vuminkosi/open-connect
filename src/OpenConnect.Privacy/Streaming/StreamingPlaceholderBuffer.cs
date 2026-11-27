@@ -24,6 +24,10 @@ public sealed class StreamingPlaceholderBuffer
     }
 
     /// <summary>Initializes a buffer with a custom resolver delegate.</summary>
+    /// <remarks>
+    /// No vault is available in this mode, so the buffer cannot classify tokens. The delegate owns the
+    /// decision and must itself never return plaintext for secret-category tokens. Prefer the vault constructor.
+    /// </remarks>
     public StreamingPlaceholderBuffer(Func<string, ValueTask<string?>> resolver)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
@@ -146,6 +150,11 @@ public sealed class StreamingPlaceholderBuffer
         }
         if (_vault is not null && _scope is not null)
         {
+            // Secret-category tokens are never restored, whichever vault implementation is registered.
+            if (!Restoration.SecretRestorationGuard.IsRestorable(_vault, token, _scope))
+            {
+                return null;
+            }
             return await _vault.ResolveAsync(token, _scope, cancellationToken).ConfigureAwait(false);
         }
         return null;

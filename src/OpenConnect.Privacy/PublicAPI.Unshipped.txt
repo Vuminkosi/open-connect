@@ -120,6 +120,8 @@ OpenConnect.Privacy.IPrivacyFirewall.Enabled.get -> bool
 OpenConnect.Privacy.IPrivacyFirewall.EvaluateAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.EgressDecision!>
 OpenConnect.Privacy.ISecurityDetector
 OpenConnect.Privacy.ISecurityDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
+OpenConnect.Privacy.ISecretAwareTokenVault
+OpenConnect.Privacy.ISecretAwareTokenVault.IsSecretToken(string! token, OpenConnect.Privacy.PrivacyScope! scope) -> bool
 OpenConnect.Privacy.ITokenVault
 OpenConnect.Privacy.ITokenVault.ResolveAsync(string! token, OpenConnect.Privacy.PrivacyScope! scope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 OpenConnect.Privacy.ITokenVault.StoreAsync(string! value, string! entityType, OpenConnect.Privacy.PrivacyScope! scope, System.TimeSpan ttl, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>

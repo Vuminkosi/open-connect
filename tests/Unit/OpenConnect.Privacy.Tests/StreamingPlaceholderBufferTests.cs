@@ -51,7 +51,7 @@ public sealed class StreamingPlaceholderBufferTests
         var token2 = await vault.StoreAsync("secret_key_123", "SECRET", Scope, TimeSpan.FromMinutes(10));
 
         var fullInput = $"Prefix text {token1} middle non-token text [brackets] and then {token2} suffix.";
-        var expectedOutput = "Prefix text user@example.com middle non-token text [brackets] and then secret_key_123 suffix.";
+        var expectedOutput = $"Prefix text user@example.com middle non-token text [brackets] and then {token2} suffix.";
 
         var buffer = new StreamingPlaceholderBuffer(vault, Scope);
         var sb = new StringBuilder();
