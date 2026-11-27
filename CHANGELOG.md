@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `GET /openconnect/v1/messaging/keys/packages` now requires an `IMessagingAuthorizer` allow decision (`MessagingPermission.Initiate`) to consume key packages owned by another principal or an agent, denies device-only lookups, and returns 429 with `Retry-After` past `MessagingHostingOptions.KeyPackageConsumeLimitPerCaller`/`KeyPackageConsumeLimitPerTarget`. Hosts without an authorizer now receive 403 for cross-principal consumption. See ADR-IMSG-004 (#167).
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

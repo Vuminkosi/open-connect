@@ -397,6 +397,12 @@ OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpPollInt
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.FollowUpPollInterval.set -> void
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Issuer.get -> string!
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Issuer.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeLimitPerCaller.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeLimitPerCaller.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeLimitPerTarget.get -> int
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeLimitPerTarget.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeWindow.get -> System.TimeSpan
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.KeyPackageConsumeWindow.set -> void
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxAttachmentBytes.get -> long
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxAttachmentBytes.set -> void
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.MaxReplayPageSize.get -> int

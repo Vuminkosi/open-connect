@@ -45,6 +45,15 @@ public sealed class MessagingHostingOptions
     /// <summary>Maximum page size for paginated list and cursor replay endpoints (default 100).</summary>
     public int MaxReplayPageSize { get; set; } = 100;
 
+    /// <summary>Maximum key package consumption attempts per authenticated caller per <see cref="KeyPackageConsumeWindow"/> (default 30). Non-positive values deny all consumption.</summary>
+    public int KeyPackageConsumeLimitPerCaller { get; set; } = 30;
+
+    /// <summary>Maximum key package consumptions against one target (principal or agent) per <see cref="KeyPackageConsumeWindow"/> across all callers (default 60). Non-positive values deny all consumption.</summary>
+    public int KeyPackageConsumeLimitPerTarget { get; set; } = 60;
+
+    /// <summary>Fixed window for key package consumption limits (default 1 minute). Non-positive values deny all consumption.</summary>
+    public TimeSpan KeyPackageConsumeWindow { get; set; } = TimeSpan.FromMinutes(1);
+
     /// <summary>Optional HMAC-SHA256 signing key for opaque scope-bound cursors. If null, a process-local CSPRNG key is used.</summary>
     public byte[]? CursorSigningKey { get; set; }
 
