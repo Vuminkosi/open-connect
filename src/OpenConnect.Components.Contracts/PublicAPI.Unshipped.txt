@@ -214,10 +214,10 @@ OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ResourceScop
 OpenConnect.Components.Contracts.Messaging.MessagingApprovalRequest.ResourceScope.init -> void
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.<Clone>$() -> OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation!
-OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.get -> string!
-OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.init -> void
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallId.get -> string!
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallId.init -> void
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.get -> string!
+OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.CallerDisplayName.init -> void
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationId.get -> string!
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationId.init -> void
 OpenConnect.Components.Contracts.Messaging.MessagingCallInvitation.ConversationTitle.get -> string!
@@ -421,14 +421,14 @@ OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.get ->
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.CloseBehavior.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableComponentDiscovery.set -> void
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.get -> bool
-OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableTaskProgress.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceInput.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.get -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.EnableVoiceOutput.set -> void
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.get -> bool
+OpenConnect.Components.Contracts.OpenConnectComposerOptions.Enabled.set -> void
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.Equals(OpenConnect.Components.Contracts.OpenConnectComposerOptions? other) -> bool
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.get -> OpenConnect.Components.Contracts.ComposerHistoryPresentation
 OpenConnect.Components.Contracts.OpenConnectComposerOptions.History.set -> void

@@ -1,23 +1,4 @@
 ﻿#nullable enable
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.Allowed = "allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ApplicationMismatch = "application_mismatch" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.DnsResolutionFailed = "dns_resolution_failed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.HostNotAllowed = "host_not_allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.InvalidUri = "invalid_uri" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MetadataIpBlocked = "metadata_ip_blocked" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MethodNotAllowed = "method_not_allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MissingExecutionContext = "missing_execution_context" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PortNotAllowed = "port_not_allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PrincipalMismatch = "principal_mismatch" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PrivateIpBlocked = "private_ip_blocked" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PurposeNotAllowed = "purpose_not_allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.RedirectBlocked = "redirect_blocked" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.RedirectLimitExceeded = "redirect_limit_exceeded" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.SchemeNotAllowed = "scheme_not_allowed" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ServiceNotRegistered = "service_not_registered" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.TenantMismatch = "tenant_mismatch" -> string!
-const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.UserInfoRejected = "userinfo_rejected" -> string!
-const OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeWebSocketHandler.SubProtocol = "openconnect.messaging.v1" -> string!
 OpenConnect.Hosting.AspNetCore.CanonicalEventEndpointAdapter
 OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions
 OpenConnect.Hosting.AspNetCore.Execution.DurableToolExecutionTracker
@@ -185,6 +166,8 @@ OpenConnect.Hosting.AspNetCore.Fencing.FencedHttpMessageHandler.FencedHttpMessag
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowAnyAuthenticatedTenant.get -> bool
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowAnyAuthenticatedTenant.set -> void
+OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowPrivateNetwork.get -> bool
+OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowPrivateNetwork.set -> void
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedApplications.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedHost.get -> string!
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedHost.set -> void
@@ -194,8 +177,6 @@ OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedPrincipals.get
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedPurposes.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedSchemes.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowedTenants.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.TenantId>!
-OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowPrivateNetwork.get -> bool
-OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.AllowPrivateNetwork.set -> void
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.FencedServicePolicy() -> void
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.MaxRedirectHops.get -> int
 OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.MaxRedirectHops.set -> void
@@ -206,15 +187,15 @@ OpenConnect.Hosting.AspNetCore.Fencing.FencedServicePolicy.ServiceId.set -> void
 OpenConnect.Hosting.AspNetCore.Fencing.FencedSocketsHttpHandlerFactory
 OpenConnect.Hosting.AspNetCore.Fencing.IFencedHostAddressResolver
 OpenConnect.Hosting.AspNetCore.Fencing.IFencedHostAddressResolver.ResolveAsync(string! host, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Net.IPAddress![]!>!
-OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink
-OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.InMemoryServiceFencingEvidenceSink(int capacity = 512) -> void
-OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.RecordAsync(OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.Snapshot() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence!>!
 OpenConnect.Hosting.AspNetCore.Fencing.IServiceFencingContextAccessor
 OpenConnect.Hosting.AspNetCore.Fencing.IServiceFencingContextAccessor.BeginScope(OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext! context) -> System.IDisposable!
 OpenConnect.Hosting.AspNetCore.Fencing.IServiceFencingContextAccessor.Current.get -> OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingExecutionContext?
 OpenConnect.Hosting.AspNetCore.Fencing.IServiceFencingEvidenceSink
 OpenConnect.Hosting.AspNetCore.Fencing.IServiceFencingEvidenceSink.RecordAsync(OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink
+OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.InMemoryServiceFencingEvidenceSink(int capacity = 512) -> void
+OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.RecordAsync(OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+OpenConnect.Hosting.AspNetCore.Fencing.InMemoryServiceFencingEvidenceSink.Snapshot() -> System.Collections.Generic.IReadOnlyList<OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence!>!
 OpenConnect.Hosting.AspNetCore.Fencing.NullServiceFencingEvidenceSink
 OpenConnect.Hosting.AspNetCore.Fencing.NullServiceFencingEvidenceSink.NullServiceFencingEvidenceSink() -> void
 OpenConnect.Hosting.AspNetCore.Fencing.NullServiceFencingEvidenceSink.RecordAsync(OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingEvidence! evidence, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -291,6 +272,8 @@ OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingServiceCollectionExtensions
 OpenConnect.Hosting.AspNetCore.Fencing.SystemFencedHostAddressResolver
 OpenConnect.Hosting.AspNetCore.Fencing.SystemFencedHostAddressResolver.ResolveAsync(string! host, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Net.IPAddress![]!>!
 OpenConnect.Hosting.AspNetCore.Fencing.SystemFencedHostAddressResolver.SystemFencedHostAddressResolver() -> void
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
+OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.AppendAsync(OpenConnect.Abstractions.EventRecord! event, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<long>!
 OpenConnect.Hosting.AspNetCore.InMemoryEventJournal.InMemoryEventJournal() -> void
@@ -312,8 +295,6 @@ OpenConnect.Hosting.AspNetCore.InMemorySessionUuidResolver.Unregister(System.Gui
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.InMemoryTaskStore() -> void
 OpenConnect.Hosting.AspNetCore.InMemoryTaskStore.TransitionAsync(OpenConnect.Abstractions.TaskId taskId, OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.AgentRunState expectedState, OpenConnect.Abstractions.AgentRunState newState, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<OpenConnect.Abstractions.TaskRecord?>!
-OpenConnect.Hosting.AspNetCore.ISessionUuidResolver
-OpenConnect.Hosting.AspNetCore.ISessionUuidResolver.TryResolve(System.Guid sessionUuid, out OpenConnect.Abstractions.Ulid sessionUlid) -> bool
 OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker
 OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker.DefaultMessagingVoiceAdmissionBroker(OpenConnect.Hosting.AspNetCore.InMemorySessionStore! sessionStore, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Hosting.AspNetCore.Messaging.DefaultMessagingVoiceAdmissionBroker.IssueAdmissionAsync(OpenConnect.Abstractions.TenantId tenantId, OpenConnect.Abstractions.PrincipalId principalId, OpenConnect.Abstractions.Messaging.DeviceId deviceId, OpenConnect.Abstractions.Messaging.CallId callId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Hosting.AspNetCore.Messaging.MessagingVoiceAdmission!>
@@ -374,9 +355,9 @@ OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService.ExecuteSingleCycleAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<int>!
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService.MessagingFollowUpSupervisorService(OpenConnect.Abstractions.Messaging.IFollowUpSchedulerCoordinator! coordinator, OpenConnect.Hosting.AspNetCore.Messaging.IMessagingFollowUpDispatcher! dispatcher, Microsoft.Extensions.Options.IOptions<OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions!>! options, Microsoft.Extensions.Logging.ILogger<OpenConnect.Hosting.AspNetCore.Messaging.MessagingFollowUpSupervisorService!>! logger, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions
-OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowedWebSocketOrigins.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowUnencryptedFallback.get -> bool
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowUnencryptedFallback.set -> void
+OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.AllowedWebSocketOrigins.get -> System.Collections.Generic.ISet<string!>!
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.ApplicationId.get -> string!
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.ApplicationId.set -> void
 OpenConnect.Hosting.AspNetCore.Messaging.MessagingHostingOptions.Audience.get -> string!
@@ -512,6 +493,25 @@ OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitor.WorkerCapabilityMonitor(O
 OpenConnect.Hosting.AspNetCore.WorkerCapabilityMonitorServiceCollectionExtensions
 OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource
 OpenConnect.Hosting.AspNetCore.WorkerCapabilitySource.WorkerCapabilitySource(string! endpoint, string! token, System.Collections.Generic.IReadOnlyList<string!>! capabilityIds, bool inference = false, bool allowInsecureHttp = false) -> void
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.Allowed = "allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ApplicationMismatch = "application_mismatch" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.DnsResolutionFailed = "dns_resolution_failed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.HostNotAllowed = "host_not_allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.InvalidUri = "invalid_uri" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MetadataIpBlocked = "metadata_ip_blocked" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MethodNotAllowed = "method_not_allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.MissingExecutionContext = "missing_execution_context" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PortNotAllowed = "port_not_allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PrincipalMismatch = "principal_mismatch" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PrivateIpBlocked = "private_ip_blocked" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.PurposeNotAllowed = "purpose_not_allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.RedirectBlocked = "redirect_blocked" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.RedirectLimitExceeded = "redirect_limit_exceeded" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.SchemeNotAllowed = "scheme_not_allowed" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.ServiceNotRegistered = "service_not_registered" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.TenantMismatch = "tenant_mismatch" -> string!
+const OpenConnect.Hosting.AspNetCore.Fencing.ServiceFencingReasonCodes.UserInfoRejected = "userinfo_rejected" -> string!
+const OpenConnect.Hosting.AspNetCore.Messaging.MessagingRealtimeWebSocketHandler.SubProtocol = "openconnect.messaging.v1" -> string!
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.Equals(object? obj) -> bool
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.GetHashCode() -> int
 override OpenConnect.Hosting.AspNetCore.Execution.DurableToolInvocationRecord.ToString() -> string!
