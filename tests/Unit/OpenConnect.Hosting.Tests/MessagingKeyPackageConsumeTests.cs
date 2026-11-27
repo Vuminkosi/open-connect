@@ -154,6 +154,74 @@ public sealed class MessagingKeyPackageConsumeTests
         Assert.True(limiter.TryAcquire("overflow", 1, TimeSpan.FromMinutes(1), out _));
     }
 
+    [Fact]
+    public async Task Consume_Responses_AreNoStore()
+    {
+        using var h = Harness.Create(new FakeAuthorizer(allow: true), hasPackage: true, o => o.KeyPackageConsumeLimitPerCaller = 1);
+        Assert.Equal(200, await h.ConsumeAsync(TenantA, Caller, $"principalId={Other}"));
+        Assert.Equal("no-store", h.LastCacheControl);
+        Assert.Equal(429, await h.ConsumeAsync(TenantA, Caller, $"principalId={Other}"));
+        Assert.Equal("no-store", h.LastCacheControl);
+        using var denied = Harness.Create(new FakeAuthorizer(allow: false));
+        Assert.Equal(403, await denied.ConsumeAsync(TenantA, Caller, $"principalId={Other}"));
+        Assert.Equal("no-store", denied.LastCacheControl);
+    }
+
+    [Fact]
+    public async Task Consume_AuthorizerThrows_FailsClosedWithoutDetail()
+    {
+        using var h = Harness.Create(new ThrowingAuthorizer(), hasPackage: true);
+        var status = await h.ConsumeAsync(TenantA, Caller, $"principalId={Other}");
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, status);
+        Assert.Equal(0, h.Store.ConsumeCalls);
+        Assert.DoesNotContain("secret-backend-detail", h.LastBody);
+    }
+
+    [Fact]
+    public async Task Consume_PrincipalAndAgent_AuthorizesBothAndDeniesIfSecondDenied()
+    {
+        var authorizer = new FakeAuthorizer(allow: true);
+        using var ok = Harness.Create(authorizer, hasPackage: true);
+        Assert.Equal(200, await ok.ConsumeAsync(TenantA, Caller, $"principalId={Other}&agentId=agent-1"));
+        Assert.Equal(2, authorizer.Calls.Count);
+
+        var partial = new FakeAuthorizer(allow: true, denyKind: ParticipantKind.Human);
+        using var h = Harness.Create(partial, hasPackage: true);
+        Assert.Equal(403, await h.ConsumeAsync(TenantA, Caller, $"principalId={Other}&agentId=agent-1"));
+        Assert.Equal(0, h.Store.ConsumeCalls);
+    }
+
+    [Fact]
+    public async Task Consume_PrincipalAndAgent_CountsBothTargetQuotas()
+    {
+        using var h = Harness.Create(new FakeAuthorizer(allow: true), hasPackage: true, o => o.KeyPackageConsumeLimitPerTarget = 1);
+        Assert.Equal(200, await h.ConsumeAsync(TenantA, Caller, $"principalId={Other}&agentId=agent-1"));
+        // Principal-only request must hit the principal's quota consumed by the combined request.
+        Assert.Equal(429, await h.ConsumeAsync(TenantA, Ulid.NewUlid().ToString(), $"principalId={Other}"));
+    }
+
+    [Fact]
+    public void Limiter_FullTableDoesNotRescanWithinSameWindow()
+    {
+        var clock = new TestClock();
+        var limiter = new KeyPackageConsumeLimiter(clock);
+        var window = TimeSpan.FromMinutes(1);
+        for (var i = 0; i < 10_000; i++)
+            Assert.True(limiter.TryAcquire($"k{i}", 1, window, out _));
+        Assert.False(limiter.TryAcquire("a", 1, window, out _));
+        Assert.False(limiter.TryAcquire("b", 1, window, out _));
+        clock.Advance(window);
+        Assert.True(limiter.TryAcquire("c", 1, window, out _));
+    }
+
+    private sealed class ThrowingAuthorizer : IMessagingAuthorizer
+    {
+        public ValueTask<MessagingAuthorizationDecision> AuthorizeAsync(
+            MessagingActor actor, MessagingPermission permission, ConversationId? conversationId = null,
+            MessagingActor? target = null, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("secret-backend-detail");
+    }
+
     private sealed class TestClock : TimeProvider
     {
         private DateTimeOffset _now = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
@@ -161,7 +229,7 @@ public sealed class MessagingKeyPackageConsumeTests
         public void Advance(TimeSpan by) => _now += by;
     }
 
-    private sealed class FakeAuthorizer(bool allow) : IMessagingAuthorizer
+    private sealed class FakeAuthorizer(bool allow, ParticipantKind? denyKind = null) : IMessagingAuthorizer
     {
         public List<(MessagingActor Actor, MessagingPermission Permission, MessagingActor? Target)> Calls { get; } = [];
 
@@ -170,7 +238,8 @@ public sealed class MessagingKeyPackageConsumeTests
             MessagingActor? target = null, CancellationToken cancellationToken = default)
         {
             Calls.Add((actor, permission, target));
-            return ValueTask.FromResult(new MessagingAuthorizationDecision(allow, allow ? null : "denied", allow ? null : "denied"));
+            var allowed = allow && (denyKind is null || target?.Kind != denyKind);
+            return ValueTask.FromResult(new MessagingAuthorizationDecision(allowed, allowed ? null : "denied", allowed ? null : "denied"));
         }
     }
 
@@ -202,6 +271,8 @@ public sealed class MessagingKeyPackageConsumeTests
         public FakeStore Store { get; }
         public TestClock Clock { get; }
         public string? LastRetryAfter { get; private set; }
+        public string? LastCacheControl { get; private set; }
+        public string LastBody { get; private set; } = string.Empty;
 
         private Harness(ServiceProvider sp, RequestDelegate handler, FakeStore store, TestClock clock)
         {
@@ -253,6 +324,9 @@ public sealed class MessagingKeyPackageConsumeTests
                 [new Claim("tenant_id", tenant), new Claim("sub", principal)], "test"));
             await _handler(context);
             LastRetryAfter = context.Response.Headers.TryGetValue("Retry-After", out StringValues v) ? v.ToString() : null;
+            LastCacheControl = context.Response.Headers.CacheControl.ToString();
+            context.Response.Body.Position = 0;
+            LastBody = await new StreamReader(context.Response.Body).ReadToEndAsync();
             return context.Response.StatusCode;
         }
 

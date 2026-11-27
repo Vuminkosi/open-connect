@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- `GET /openconnect/v1/messaging/keys/packages` now requires an `IMessagingAuthorizer` allow decision (`MessagingPermission.Initiate`) to consume key packages owned by another principal or an agent, denies device-only lookups, and returns 429 with `Retry-After` past `MessagingHostingOptions.KeyPackageConsumeLimitPerCaller`/`KeyPackageConsumeLimitPerTarget`. Hosts without an authorizer now receive 403 for cross-principal consumption. See ADR-IMSG-004 (#167).
+- **BREAKING CHANGE:** `GET /openconnect/v1/messaging/keys/packages` now requires an `IMessagingAuthorizer` allow decision (`MessagingPermission.Initiate`) to consume key packages owned by another principal or an agent, denies device-only lookups, and returns 429 with `Retry-After` past `MessagingHostingOptions.KeyPackageConsumeLimitPerCaller`/`KeyPackageConsumeLimitPerTarget`. Hosts that do not register an `IMessagingAuthorizer` now receive 403 for every cross-principal or agent consumption and must register one to restore it. Responses carry `Cache-Control: no-store`, and an authorizer fault returns 503 without detail. See ADR-IMSG-004 (#167).
 
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 

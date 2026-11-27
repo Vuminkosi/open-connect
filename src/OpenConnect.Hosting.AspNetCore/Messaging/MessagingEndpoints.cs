@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Messaging;
@@ -466,6 +467,9 @@ internal static class MessagingEndpoints
         if (!TryGetIdentity(context, out var tenantId, out var callerPrincipal, out var callerDevice))
             return Forbidden(context, ErrorCodes.Unauthorized, "Missing required tenant or subject claims.");
 
+        // Consumption is state-changing; intermediaries and clients must never cache any response.
+        context.Response.Headers.CacheControl = "no-store";
+
         var store = context.RequestServices.GetService<IMessagingKeyPackageStore>();
         if (store is null)
             return Unavailable(context, ErrorCodes.CapabilityUnavailable, "Key package store is not configured.");
@@ -526,17 +530,30 @@ internal static class MessagingEndpoints
             var caller = new MessagingActor(tenantId, applicationId, ParticipantKind.Human, callerPrincipal, null, callerDevice);
             foreach (var target in targets)
             {
-                var decision = await authorizer.AuthorizeAsync(caller, MessagingPermission.Initiate, null, target, cancellationToken).ConfigureAwait(false);
+                MessagingAuthorizationDecision decision;
+                try
+                {
+                    decision = await authorizer.AuthorizeAsync(caller, MessagingPermission.Initiate, null, target, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Fail closed without disclosing the host authorizer's fault.
+                    context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("OpenConnect.Hosting.Messaging")
+                        .LogError(ex, "Messaging authorizer failed while authorizing key package consumption.");
+                    return Unavailable(context, ErrorCodes.CapabilityUnavailable, "Key package consumption could not be authorized.");
+                }
                 if (!decision.Allowed)
                     return Forbidden(context, ErrorCodes.Unauthorized, deniedMessage);
             }
         }
 
-        var targetKey = ownerAgent is not null
-            ? $"target:{tenantId.Value}:agent:{ownerAgent.Value.Value}"
-            : $"target:{tenantId.Value}:principal:{ownerPrincipal!.Value.Value}";
-        if (!limiter.TryAcquire(targetKey, options.KeyPackageConsumeLimitPerTarget, options.KeyPackageConsumeWindow, out var targetRetry))
-            return TooManyRequests(context, targetRetry);
+        // Every named owner counts against its own quota.
+        if (ownerAgent is not null &&
+            !limiter.TryAcquire($"target:{tenantId.Value}:agent:{ownerAgent.Value.Value}", options.KeyPackageConsumeLimitPerTarget, options.KeyPackageConsumeWindow, out var agentRetry))
+            return TooManyRequests(context, agentRetry);
+        if (ownerPrincipal is not null &&
+            !limiter.TryAcquire($"target:{tenantId.Value}:principal:{ownerPrincipal.Value.Value}", options.KeyPackageConsumeLimitPerTarget, options.KeyPackageConsumeWindow, out var principalRetry))
+            return TooManyRequests(context, principalRetry);
 
         return await ExecuteDomainAsync(context, async () =>
         {

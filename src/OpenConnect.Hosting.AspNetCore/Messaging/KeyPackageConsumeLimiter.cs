@@ -8,6 +8,7 @@ internal sealed class KeyPackageConsumeLimiter(TimeProvider timeProvider)
 {
     private const int MaxTrackedKeys = 10_000;
 
+    private DateTimeOffset _lastSweep = DateTimeOffset.MinValue;
     private readonly object _gate = new();
     private readonly Dictionary<string, (DateTimeOffset WindowStart, int Count)> _windows = new(StringComparer.Ordinal);
 
@@ -33,6 +34,10 @@ internal sealed class KeyPackageConsumeLimiter(TimeProvider timeProvider)
 
             if (!_windows.ContainsKey(key) && _windows.Count >= MaxTrackedKeys)
             {
+                // Sweep at most once per window so a full table cannot force a linear scan on every request.
+                if (now - _lastSweep < window)
+                    return false;
+                _lastSweep = now;
                 var expired = _windows.Where(kv => now - kv.Value.WindowStart >= window).Select(kv => kv.Key).ToArray();
                 foreach (var k in expired)
                     _windows.Remove(k);

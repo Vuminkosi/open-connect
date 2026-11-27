@@ -266,6 +266,7 @@ paths:
         '400': { description: Invalid or missing principalId, agentId, or deviceId }
         '403': { description: Caller is not authorized to consume key packages for the target }
         '404': { description: No key package available }
+        '503': { description: Authorization could not be evaluated or the key package store is unavailable }
         '429':
           description: Key package consumption quota exceeded
           headers:
