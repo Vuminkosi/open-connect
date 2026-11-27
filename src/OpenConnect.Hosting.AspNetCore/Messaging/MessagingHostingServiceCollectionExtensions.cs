@@ -18,6 +18,7 @@ public static class MessagingHostingServiceCollectionExtensions
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<MessagingCursorCodec>();
+        services.TryAddSingleton<KeyPackageConsumeLimiter>();
         services.TryAddSingleton<IMessagingWebSocketTicketService, InMemoryMessagingWebSocketTicketService>();
         services.TryAddSingleton<MessagingRealtimeHub>();
         services.TryAddSingleton<IMessagingRealtimeHub>(sp => sp.GetRequiredService<MessagingRealtimeHub>());

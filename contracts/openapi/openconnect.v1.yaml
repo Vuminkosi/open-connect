@@ -252,10 +252,25 @@ paths:
     get:
       operationId: consumeDeviceKeyPackage
       summary: Fetch and consume a single-use public device key package
+      description: >-
+        State-changing despite using GET; the method is retained for backward compatibility
+        (see docs/adr/ADR-IMSG-004-key-package-consumption-authorization.md). Consuming packages
+        owned by another principal or by an agent requires an allow decision from the host's
+        IMessagingAuthorizer (MessagingPermission.Initiate with the owner as target); the call is
+        denied when no authorizer is registered. Device-only lookups are denied. Consumption is
+        limited per caller and per target; every attempt counts against the caller limit.
+        Responses must not be cached.
       security: [{ bearerAuth: [] }]
       responses:
         '200': { description: Key package consumed }
+        '400': { description: Invalid or missing principalId, agentId, or deviceId }
+        '403': { description: Caller is not authorized to consume key packages for the target }
         '404': { description: No key package available }
+        '503': { description: Authorization could not be evaluated or the key package store is unavailable }
+        '429':
+          description: Key package consumption quota exceeded
+          headers:
+            Retry-After: { description: Seconds until the quota window resets, schema: { type: integer, minimum: 1 } }
   /messaging/attachments/init:
     post:
       operationId: initEncryptedAttachment

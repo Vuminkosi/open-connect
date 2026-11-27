@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Messaging;
@@ -461,10 +462,13 @@ internal static class MessagingEndpoints
 
     private static async Task<IResult> HandleConsumeKeyPackageAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        if (!TryGetEnabledOptions(context, out _, out var disabledResult))
+        if (!TryGetEnabledOptions(context, out var options, out var disabledResult))
             return disabledResult!;
-        if (!TryGetIdentity(context, out var tenantId, out _, out _))
+        if (!TryGetIdentity(context, out var tenantId, out var callerPrincipal, out var callerDevice))
             return Forbidden(context, ErrorCodes.Unauthorized, "Missing required tenant or subject claims.");
+
+        // Consumption is state-changing; intermediaries and clients must never cache any response.
+        context.Response.Headers.CacheControl = "no-store";
 
         var store = context.RequestServices.GetService<IMessagingKeyPackageStore>();
         if (store is null)
@@ -495,6 +499,61 @@ internal static class MessagingEndpoints
 
         if (ownerPrincipal is null && ownerAgent is null && targetDevice is null)
             return BadRequest(context, ErrorCodes.InvalidRequest, "At least one of principalId, agentId, or deviceId is required.");
+
+        const string deniedMessage = "Key package consumption is not permitted for the requested target.";
+
+        // The owner of a package must be identifiable to authorize consumption; device-only lookups fail closed.
+        if (ownerPrincipal is null && ownerAgent is null)
+            return Forbidden(context, ErrorCodes.Unauthorized, deniedMessage);
+
+        var limiter = context.RequestServices.GetService<KeyPackageConsumeLimiter>();
+        if (limiter is null)
+            return Unavailable(context, ErrorCodes.CapabilityUnavailable, "Key package consumption limiter is not configured.");
+
+        // Every attempt, including denied ones, counts against the caller so authorization probing is bounded.
+        if (!limiter.TryAcquire($"caller:{tenantId.Value}:{callerPrincipal.Value}", options!.KeyPackageConsumeLimitPerCaller, options.KeyPackageConsumeWindow, out var callerRetry))
+            return TooManyRequests(context, callerRetry);
+
+        var applicationId = options.ApplicationId;
+        var targets = new List<MessagingActor>(2);
+        if (ownerAgent is not null)
+            targets.Add(new MessagingActor(tenantId, applicationId, ParticipantKind.Agent, null, ownerAgent));
+        if (ownerPrincipal is not null && ownerPrincipal.Value != callerPrincipal)
+            targets.Add(new MessagingActor(tenantId, applicationId, ParticipantKind.Human, ownerPrincipal));
+
+        if (targets.Count > 0)
+        {
+            var authorizer = context.RequestServices.GetService<IMessagingAuthorizer>();
+            if (authorizer is null)
+                return Forbidden(context, ErrorCodes.Unauthorized, deniedMessage);
+
+            var caller = new MessagingActor(tenantId, applicationId, ParticipantKind.Human, callerPrincipal, null, callerDevice);
+            foreach (var target in targets)
+            {
+                MessagingAuthorizationDecision decision;
+                try
+                {
+                    decision = await authorizer.AuthorizeAsync(caller, MessagingPermission.Initiate, null, target, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // Fail closed without disclosing the host authorizer's fault.
+                    context.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("OpenConnect.Hosting.Messaging")
+                        .LogError(ex, "Messaging authorizer failed while authorizing key package consumption.");
+                    return Unavailable(context, ErrorCodes.CapabilityUnavailable, "Key package consumption could not be authorized.");
+                }
+                if (!decision.Allowed)
+                    return Forbidden(context, ErrorCodes.Unauthorized, deniedMessage);
+            }
+        }
+
+        // Every named owner counts against its own quota.
+        if (ownerAgent is not null &&
+            !limiter.TryAcquire($"target:{tenantId.Value}:agent:{ownerAgent.Value.Value}", options.KeyPackageConsumeLimitPerTarget, options.KeyPackageConsumeWindow, out var agentRetry))
+            return TooManyRequests(context, agentRetry);
+        if (ownerPrincipal is not null &&
+            !limiter.TryAcquire($"target:{tenantId.Value}:principal:{ownerPrincipal.Value.Value}", options.KeyPackageConsumeLimitPerTarget, options.KeyPackageConsumeWindow, out var principalRetry))
+            return TooManyRequests(context, principalRetry);
 
         return await ExecuteDomainAsync(context, async () =>
         {
@@ -1216,6 +1275,13 @@ internal static class MessagingEndpoints
 
     private static IResult NotFound(HttpContext context, string errorCode, string title) =>
         Problem(context, StatusCodes.Status404NotFound, errorCode, title);
+
+    private static IResult TooManyRequests(HttpContext context, TimeSpan retryAfter)
+    {
+        var seconds = (int)Math.Max(1, Math.Ceiling(retryAfter.TotalSeconds));
+        context.Response.Headers.RetryAfter = seconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Problem(context, StatusCodes.Status429TooManyRequests, ErrorCodes.RateLimited, "Too many key package requests.");
+    }
 
     private static IResult Unavailable(HttpContext context, string errorCode, string title) =>
         Problem(context, StatusCodes.Status503ServiceUnavailable, errorCode, title);
