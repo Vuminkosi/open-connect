@@ -1,23 +1,4 @@
 ﻿#nullable enable
-const OpenConnect.Tools.Messaging.MessagingToolIds.CancelFollowUp = "messaging_cancel_followup" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.Escalate = "messaging_escalate" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.GetHistory = "messaging_get_history" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.GetStatus = "messaging_get_status" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.RequestApproval = "messaging_request_approval" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.RequestResponse = "messaging_request_response" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.ResolveRecipient = "messaging_resolve_recipient" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.ScheduleFollowUp = "messaging_schedule_followup" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.Send = "messaging_send" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.SendVoiceNote = "messaging_send_voice_note" -> string!
-const OpenConnect.Tools.Messaging.MessagingToolIds.StartCall = "messaging_start_call" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.CheckDataAccess = "security_check_data_access" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.CheckDestination = "security_check_destination" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.ExplainEvent = "security_explain_event" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.RedactContent = "security_redact_content" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.ScanFile = "security_scan_file" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.ScanImage = "security_scan_image" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.ScanPrompt = "security_scan_prompt" -> string!
-const OpenConnect.Tools.Security.SecurityToolIds.ScanText = "security_scan_text" -> string!
 OpenConnect.Tools.IToolAccessPolicy
 OpenConnect.Tools.IToolAccessPolicy.IsAllowedAsync(OpenConnect.Tools.ToolAccessRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.Tools.Messaging.IMessagingApprovalStore
@@ -360,6 +341,25 @@ OpenConnect.Tools.ToolRegistration.ToolRegistration(OpenConnect.Abstractions.Too
 OpenConnect.Tools.ToolRetryClassifier
 OpenConnect.Tools.ToolValidationException
 OpenConnect.Tools.ToolValidationException.ToolValidationException(string! message) -> void
+const OpenConnect.Tools.Messaging.MessagingToolIds.CancelFollowUp = "messaging_cancel_followup" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.Escalate = "messaging_escalate" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.GetHistory = "messaging_get_history" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.GetStatus = "messaging_get_status" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.RequestApproval = "messaging_request_approval" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.RequestResponse = "messaging_request_response" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.ResolveRecipient = "messaging_resolve_recipient" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.ScheduleFollowUp = "messaging_schedule_followup" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.Send = "messaging_send" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.SendVoiceNote = "messaging_send_voice_note" -> string!
+const OpenConnect.Tools.Messaging.MessagingToolIds.StartCall = "messaging_start_call" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.CheckDataAccess = "security_check_data_access" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.CheckDestination = "security_check_destination" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ExplainEvent = "security_explain_event" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.RedactContent = "security_redact_content" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanFile = "security_scan_file" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanImage = "security_scan_image" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanPrompt = "security_scan_prompt" -> string!
+const OpenConnect.Tools.Security.SecurityToolIds.ScanText = "security_scan_text" -> string!
 override OpenConnect.Tools.Messaging.MessagingEscalationResult.Equals(object? obj) -> bool
 override OpenConnect.Tools.Messaging.MessagingEscalationResult.GetHashCode() -> int
 override OpenConnect.Tools.Messaging.MessagingEscalationResult.ToString() -> string!

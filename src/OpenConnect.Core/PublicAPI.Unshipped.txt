@@ -1,15 +1,4 @@
 #nullable enable
-~override OpenConnect.Core.VoiceSessionKey.Equals(object obj) -> bool
-~override OpenConnect.Core.VoiceSessionKey.ToString() -> string
-const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
-const OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.MaxAllowedAttemptsLimit = 20 -> int
-const OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.CanonicalProtocolName = "openconnect.e2ee.p256-hkdf-aes256gcm.v1" -> string!
-const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
-const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
-const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
-const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultHandshakeTimeoutSeconds = 10 -> int
-const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultMaxAudioBytes = 33554432 -> long
-const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 OpenConnect.Core.AdaptiveEndpointDecision
 OpenConnect.Core.AdaptiveEndpointDecision.BackchannelIgnore = 2 -> OpenConnect.Core.AdaptiveEndpointDecision
 OpenConnect.Core.AdaptiveEndpointDecision.ContinueListening = 0 -> OpenConnect.Core.AdaptiveEndpointDecision
@@ -365,12 +354,12 @@ OpenConnect.Core.Configuration.PrivacyOptions
 OpenConnect.Core.Configuration.PrivacyOptions.AgentTools.get -> OpenConnect.Core.Configuration.SecurityAgentToolsOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Deberta.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.DebertaInjection.get -> OpenConnect.Core.Configuration.DetectorOptions!
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
-OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableOutputInspection.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.EnableTokenization.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.get -> bool
+OpenConnect.Core.Configuration.PrivacyOptions.Enabled.set -> void
 OpenConnect.Core.Configuration.PrivacyOptions.Gliner.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.GlinerPii.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.ImageRedaction.get -> OpenConnect.Core.Configuration.SecurityImageRedactionOptions!
@@ -385,9 +374,9 @@ OpenConnect.Core.Configuration.PrivacyOptions.Policies.get -> OpenConnect.Core.C
 OpenConnect.Core.Configuration.PrivacyOptions.PrivacyOptions() -> void
 OpenConnect.Core.Configuration.PrivacyOptions.PromptInjection.get -> OpenConnect.Core.Configuration.SecurityPromptInjectionOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.Qwen3Guard.get -> OpenConnect.Core.Configuration.DetectorOptions!
-OpenConnect.Core.Configuration.PrivacyOptions.RequiredCoverage.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.SecurityCoverage>!
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.get -> bool
 OpenConnect.Core.Configuration.PrivacyOptions.RequireEgressValidation.set -> void
+OpenConnect.Core.Configuration.PrivacyOptions.RequiredCoverage.get -> System.Collections.Generic.ISet<OpenConnect.Abstractions.SecurityCoverage>!
 OpenConnect.Core.Configuration.PrivacyOptions.Rules.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.PrivacyOptions.YuNet.get -> OpenConnect.Core.Configuration.DetectorOptions!
 OpenConnect.Core.Configuration.RealtimeVoiceWorkerOptions
@@ -953,6 +942,15 @@ OpenConnect.Core.VoiceTurnCoordinator.HandlePartialHypothesis(OpenConnect.Abstra
 OpenConnect.Core.VoiceTurnCoordinator.InterruptBargeIn(OpenConnect.Abstractions.SessionId sessionId) -> long
 OpenConnect.Core.VoiceTurnCoordinator.ValidateRecordedUpload(OpenConnect.Abstractions.SessionId sessionId, OpenConnect.Abstractions.TenantId tenant, OpenConnect.Abstractions.PrincipalId principal, OpenConnect.Core.RecordedAudioUpload! upload) -> OpenConnect.Core.VoiceTurnCommitResult!
 OpenConnect.Core.VoiceTurnCoordinator.VoiceTurnCoordinator(Microsoft.Extensions.Options.IOptions<OpenConnect.Core.Configuration.OpenConnectVoiceOptions!>! options) -> void
+const OpenConnect.Core.Configuration.OpenConnectOptions.SectionName = "OpenConnect" -> string!
+const OpenConnect.Core.Messaging.FollowUpSchedulerCoordinator.MaxAllowedAttemptsLimit = 20 -> int
+const OpenConnect.Core.Messaging.MessagingCryptoEnvelopeService.CanonicalProtocolName = "openconnect.e2ee.p256-hkdf-aes256gcm.v1" -> string!
+const OpenConnect.Core.Runtime.InstructionLoader.DefaultMaximumBytes = 65536 -> int
+const OpenConnect.Core.ServerSileroVadEngine.ContextSamples = 64 -> int
+const OpenConnect.Core.ServerSileroVadEngine.RecurrentStateLength = 256 -> int
+const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultHandshakeTimeoutSeconds = 10 -> int
+const OpenConnect.Core.Speech.SpeechToTextOptions.DefaultMaxAudioBytes = 33554432 -> long
+const OpenConnect.Core.VoiceTurnCoordinator.MaxRecordingBytes = 10485760 -> int
 override OpenConnect.Core.AdaptiveEndpointInput.Equals(object? obj) -> bool
 override OpenConnect.Core.AdaptiveEndpointInput.GetHashCode() -> int
 override OpenConnect.Core.AdaptiveEndpointInput.ToString() -> string!
@@ -1092,3 +1090,5 @@ static readonly OpenConnect.Core.Messaging.MessagingCallCoordinator.DefaultRingT
 static readonly OpenConnect.Core.Messaging.MessagingCallCoordinator.MaxRingTimeout -> System.TimeSpan
 static readonly OpenConnect.Core.OpenConnectLeadAgent.Definition -> OpenConnect.Abstractions.AgentDefinition!
 virtual OpenConnect.Core.Runtime.InstructionLoader.ResolveOpenedFilePath(Microsoft.Win32.SafeHandles.SafeFileHandle! handle) -> string!
+~override OpenConnect.Core.VoiceSessionKey.Equals(object obj) -> bool
+~override OpenConnect.Core.VoiceSessionKey.ToString() -> string

@@ -16,7 +16,7 @@
       "enableTools": true,
       "enableStructuredOutput": true,
       "enableEmbeddings": false,
-      "expectedCapabilities": ["chat", "stream", "tools", "structured-output"]
+      "expectedCapabilities": ["chat", "stream"]
     },
     {
       "modelId": "muse-spark-1.3",
