@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authorization;
-using OpenConnect.Hosting.AspNetCore.Execution;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Abstractions;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Core;
+using OpenConnect.Hosting.AspNetCore.Execution;
 using Xunit;
 
 namespace OpenConnect.Hosting.AspNetCore.Tests;

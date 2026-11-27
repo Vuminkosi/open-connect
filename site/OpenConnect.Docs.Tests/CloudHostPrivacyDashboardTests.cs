@@ -14,7 +14,8 @@ public sealed class CloudHostPrivacyDashboardTests : BunitContext
     [Fact]
     public void ReportsAndCaseClearWhenIdentityOrTenantChanges()
     {
-        var tenant = Guid.NewGuid(); var eventId = Guid.NewGuid();
+        var tenant = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
         var auth = new MutableAuthentication();
         var reader = new Reader(tenant, eventId);
         Services.AddSingleton<ICloudHostPrivacyObservationReader>(reader);

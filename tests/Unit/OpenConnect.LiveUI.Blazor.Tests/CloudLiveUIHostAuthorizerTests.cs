@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.LiveUI.Blazor;
 using OpenConnect.LiveUI.Inference;
 using OpenConnect.Privacy;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.LiveUI.Blazor.Tests;
@@ -85,7 +85,8 @@ public sealed class CloudLiveUIHostAuthorizerTests
         {
             var page = new LiveUIAgentPage("current", "/items", "Items", "build", "hash",
                 [new("item", "Button", "Open", new HashSet<LiveUICapability> { LiveUICapability.Activate }, false)]);
-            Current = new(Context.Session.Value.ToString()); Sessions = new(Context);
+            Current = new(Context.Session.Value.ToString());
+            Sessions = new(Context);
             Request = new("open", Context.Session.Value.ToString(), "current", "v1", LiveUIInferenceCapabilities.FromPage(page), "hash");
             Authorizer = new(Current, Manifests, new Pages(page), Sessions);
         }

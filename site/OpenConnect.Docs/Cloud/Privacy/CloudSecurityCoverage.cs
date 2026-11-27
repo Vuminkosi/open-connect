@@ -73,21 +73,25 @@ public static class CloudSecurityCoverageClassifier
         var distinctCloudTraces = new HashSet<string>(StringComparer.Ordinal);
         foreach (var traceId in cloudTraceIds)
         {
-            if (!string.IsNullOrWhiteSpace(traceId)) distinctCloudTraces.Add(traceId);
+            if (!string.IsNullOrWhiteSpace(traceId))
+                distinctCloudTraces.Add(traceId);
         }
 
         var distinctHostTraces = new HashSet<string>(StringComparer.Ordinal);
         foreach (var traceId in hostTraceIds)
         {
-            if (!string.IsNullOrWhiteSpace(traceId)) distinctHostTraces.Add(traceId);
+            if (!string.IsNullOrWhiteSpace(traceId))
+                distinctHostTraces.Add(traceId);
         }
 
         long correlated = 0;
         long missing = 0;
         foreach (var traceId in distinctCloudTraces)
         {
-            if (distinctHostTraces.Contains(traceId)) correlated++;
-            else missing++;
+            if (distinctHostTraces.Contains(traceId))
+                correlated++;
+            else
+                missing++;
         }
 
         return Classify(cloudEvidenceCount, hostEvidenceCount, correlated, missing);
@@ -106,7 +110,8 @@ public static class CloudSecurityCoverageReader
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(subject);
-        if (tenantId == Guid.Empty) throw new ArgumentException("Invalid security coverage query.");
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("Invalid security coverage query.");
 
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var actor = db.Memberships.AsNoTracking().Where(item =>
@@ -174,7 +179,8 @@ public static class CloudSecurityCoverageReader
             // Re-verify role after read to prevent TOCTOU downgrade from turning a denied read into zero counts.
             role = await actor.Select(item => item.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "SecurityAnalyst";
-            if (!authorized) coverage = null;
+            if (!authorized)
+                coverage = null;
         }
 
         var status = authorized ? "succeeded" : role is null ? "not_found" : "forbidden";

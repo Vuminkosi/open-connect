@@ -35,17 +35,21 @@ public sealed class CloudLiveUIHostAuthorizer(
     {
         ArgumentNullException.ThrowIfNull(request);
         var before = await currentContext.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
-        if (before is null || before.SessionId != request.SessionId || before.CurrentRouteId != request.RouteId) return null;
+        if (before is null || before.SessionId != request.SessionId || before.CurrentRouteId != request.RouteId)
+            return null;
         var identity = await sessions.GetContextAsync(before.SessionId, cancellationToken).ConfigureAwait(false);
         if (identity is null || identity.Destination != EgressDestination.ExternalModel ||
-            identity.Session.Value.ToString() != before.SessionId) return null;
+            identity.Session.Value.ToString() != before.SessionId)
+            return null;
         var page = await pages.GetCurrentPageAsync(cancellationToken).ConfigureAwait(false);
         var manifest = await manifests.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
         if (page is null || manifest is null || manifest.SchemaVersion != request.SchemaVersion ||
-            manifest.ContentHash != page.ContentHash || !LiveUIInferenceCapabilities.IsAuthorized(request, page)) return null;
+            manifest.ContentHash != page.ContentHash || !LiveUIInferenceCapabilities.IsAuthorized(request, page))
+            return null;
         var after = await currentContext.GetCurrentAsync(cancellationToken).ConfigureAwait(false);
         if (after is null || after.SessionId != before.SessionId || after.CurrentRouteId != before.CurrentRouteId ||
-            !string.Equals(after.CurrentPath, before.CurrentPath, StringComparison.Ordinal)) return null;
+            !string.Equals(after.CurrentPath, before.CurrentPath, StringComparison.Ordinal))
+            return null;
         var currentIdentity = await sessions.GetContextAsync(before.SessionId, cancellationToken).ConfigureAwait(false);
         return currentIdentity == identity ? identity : null;
     }

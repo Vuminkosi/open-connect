@@ -38,7 +38,8 @@ public sealed class EfCloudKnowledgeEmbeddingPrivacyReader(IDbContextFactory<Clo
 
     public async Task<CloudKnowledgeEmbeddingPrivacyDashboard?> GetTenantAsync(CloudSubject subject, Guid tenantId, CancellationToken cancellationToken)
     {
-        if (tenantId == Guid.Empty) throw new ArgumentException("Invalid tenant.");
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("Invalid tenant.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var actor = db.Memberships.AsNoTracking().Where(x => x.TenantId == tenantId && x.SubjectIssuer == subject.Issuer && x.SubjectId == subject.SubjectId);
         var role = await actor.Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
@@ -77,12 +78,21 @@ public sealed class EfCloudKnowledgeEmbeddingPrivacyReader(IDbContextFactory<Clo
                 categories.Select(row => new CloudKnowledgeEmbeddingCategoryTotal(row.Direction, row.Label, row.Count)).ToArray());
             role = await actor.Select(x => x.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "SecurityAnalyst";
-            if (!authorized) result = null;
+            if (!authorized)
+                result = null;
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "knowledge_embedding.privacy.read",
-            Outcome = authorized ? "succeeded" : "forbidden", TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
-            OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "knowledge_embedding.privacy.read",
+            Outcome = authorized ? "succeeded" : "forbidden",
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         return result;
     }

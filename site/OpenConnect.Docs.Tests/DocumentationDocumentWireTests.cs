@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -46,19 +46,33 @@ public sealed class DocumentationDocumentWireTests
             if (operation == "execute")
             {
                 const string text = "Reference: ABC";
-                return Results.Json(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.ocr", result = new
+                return Results.Json(new
                 {
-                    pages = new[] { new { text, width = 10, height = 10, model_id = "fixture", model_fingerprint = new string('a', 64), language = "eng",
+                    schemaVersion = "openconnect.v1",
+                    taskId,
+                    kind = "documents.ocr",
+                    result = new
+                    {
+                        pages = new[] { new { text, width = 10, height = 10, model_id = "fixture", model_fingerprint = new string('a', 64), language = "eng",
                         spans = new[] { new { text, start = 0, end = text.Length, box = new[] { 0.0, 0.0, 1.0, 1.0 }, confidence = .9 } } } }
-                } });
+                    }
+                });
             }
             Assert.Equal("extract", operation);
             Assert.Equal("Reference: ABC", root.GetProperty("payload").GetProperty("document").GetString());
-            return Results.Json(new { schemaVersion = "openconnect.v1", taskId, kind = "documents.extract", result = new
+            return Results.Json(new
             {
-                fields = new { reference = new { value = "ABC", start = 11, end = 14 } },
-                warnings = new[] { "source_support_not_semantic_validation" }, schema_valid = true, confidence_method = "not_estimated"
-            } });
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "documents.extract",
+                result = new
+                {
+                    fields = new { reference = new { value = "ABC", start = 11, end = 14 } },
+                    warnings = new[] { "source_support_not_semantic_validation" },
+                    schema_valid = true,
+                    confidence_method = "not_estimated"
+                }
+            });
         });
         try
         {
@@ -92,7 +106,8 @@ public sealed class DocumentationDocumentWireTests
         finally
         {
             await app.StopAsync();
-            if (File.Exists(socket)) File.Delete(socket);
+            if (File.Exists(socket))
+                File.Delete(socket);
             CryptographicOperations.ZeroMemory(key);
         }
     }

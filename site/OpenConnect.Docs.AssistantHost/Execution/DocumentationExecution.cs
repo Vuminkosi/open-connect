@@ -68,10 +68,18 @@ internal sealed class DocumentationExecutionInputsFactory(
             "documentation-assistant", "documentation-v1", "maf", "v1", "configured-provider");
         var context = new AgentExecutionContext
         {
-            TenantScope = task.TenantId.Value.ToString(), PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(),
-            IdentityKind = AgentIdentityMode.ActiveUser, SessionId = task.SessionId, TaskId = task.TaskId,
-            AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1, PolicyRevision = 1,
-            AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(3), RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+            TenantScope = task.TenantId.Value.ToString(),
+            PrincipalOrWorkloadScope = task.PrincipalId.Value.ToString(),
+            IdentityKind = AgentIdentityMode.ActiveUser,
+            SessionId = task.SessionId,
+            TaskId = task.TaskId,
+            AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+            Depth = 0,
+            CatalogRevision = 1,
+            PolicyRevision = 1,
+            AuthRevision = 1,
+            Deadline = DateTimeOffset.UtcNow.AddMinutes(3),
+            RemainingBudgets = ImmutableDictionary<string, long>.Empty,
             CancellationToken = cancellationToken
         };
         var egress = new EgressContext(task.TenantId, task.PrincipalId, task.SessionId, EgressDestination.ExternalModel);
@@ -84,7 +92,8 @@ internal sealed class DocumentationExecutionInputsFactory(
     private static string ListOpenConnectDocs()
     {
         var directory = ResolveDocsDirectory();
-        if (directory is null) return "No documentation files are packaged in this host.";
+        if (directory is null)
+            return "No documentation files are packaged in this host.";
         var slugs = Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly)
             .Select(path => Path.GetFileNameWithoutExtension(path))
             .OrderBy(slug => slug, StringComparer.Ordinal)
@@ -94,14 +103,16 @@ internal sealed class DocumentationExecutionInputsFactory(
 
     private static string ReadOpenConnectDoc(string slug)
     {
-        if (string.IsNullOrWhiteSpace(slug)) return "A documentation slug is required.";
+        if (string.IsNullOrWhiteSpace(slug))
+            return "A documentation slug is required.";
         var normalized = slug.Trim().Trim('/').ToLowerInvariant();
         if (normalized.StartsWith("docs/v1/", StringComparison.Ordinal))
             normalized = normalized["docs/v1/".Length..];
         if (normalized.Length is < 1 or > 80 || !normalized.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
             return "Invalid documentation slug.";
         var directory = ResolveDocsDirectory();
-        if (directory is null) return "Documentation content directory is unavailable.";
+        if (directory is null)
+            return "Documentation content directory is unavailable.";
         var fullPath = Path.GetFullPath(Path.Combine(directory, $"{normalized}.md"));
         if (!fullPath.StartsWith(directory, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
             return $"Documentation page '{normalized}' was not found.";

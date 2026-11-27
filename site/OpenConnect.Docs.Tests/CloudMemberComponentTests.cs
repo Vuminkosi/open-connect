@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using Bunit;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 using OpenConnect.Docs.Cloud;
 using OpenConnect.Docs.Components.Pages.Cloud;
 using Xunit;
@@ -18,7 +18,8 @@ public sealed class CloudMemberComponentTests : BunitContext
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", "owner-" + Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject(owner.Issuer, "developer-" + Guid.NewGuid().ToString("N"));
         var store = new EfCloudTenantStore(factory, TimeProvider.System);

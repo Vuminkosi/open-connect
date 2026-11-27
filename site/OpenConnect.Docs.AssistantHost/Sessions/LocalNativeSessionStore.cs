@@ -11,7 +11,8 @@ internal sealed class LocalNativeSessionStore : INativeAgentSessionStore
     public Task<NativeAgentSessionRecord?> GetAsync(NativeAgentSessionBinding binding, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        lock (_records) return Task.FromResult(_records.GetValueOrDefault(binding));
+        lock (_records)
+            return Task.FromResult(_records.GetValueOrDefault(binding));
     }
 
     public Task<NativeAgentSessionSaveOutcome> SaveAsync(NativeAgentSessionRecord record, long expectedVersion, CancellationToken ct = default)

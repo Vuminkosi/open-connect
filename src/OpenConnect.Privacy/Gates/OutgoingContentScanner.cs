@@ -26,7 +26,8 @@ public sealed class OutgoingContentScanner
         ArgumentNullException.ThrowIfNull(context);
 
         EgressDecision result;
-        try { result = _policy.EvaluateAsync(content, context, FirewallMode.StrictLocal, true).GetAwaiter().GetResult(); }
+        try
+        { result = _policy.EvaluateAsync(content, context, FirewallMode.StrictLocal, true).GetAwaiter().GetResult(); }
         catch { return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure"); }
         if (result is null || !result.Allowed || result.SanitizedContent is null || result.DetectedEntities is null)
             return new EgressDecision(false, null, [], SecurityPolicyAction.Block, "detector_failure");
@@ -42,7 +43,8 @@ public sealed class OutgoingContentScanner
                 for (var depth = 0; depth < 2 && decoded.Contains('%'); depth++)
                 {
                     var next = Uri.UnescapeDataString(decoded);
-                    if (next == decoded) break;
+                    if (next == decoded)
+                        break;
                     decoded = next;
                     var inspected = _policy.EvaluateAsync(decoded, context, FirewallMode.StrictLocal, true).GetAwaiter().GetResult();
                     if (inspected is null || !inspected.Allowed || inspected.SanitizedContent is null || inspected.DetectedEntities is null)

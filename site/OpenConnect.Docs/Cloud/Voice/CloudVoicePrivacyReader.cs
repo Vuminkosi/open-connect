@@ -44,7 +44,8 @@ public sealed class EfCloudVoicePrivacyReader(IDbContextFactory<CloudControlPlan
         {
             var hasCursor = before is not null;
             var time = before?.OccurredAt.ToUniversalTime() ?? DateTimeOffset.UnixEpoch;
-            var id = before?.Id ?? Guid.Empty; var boundary = before?.Boundary ?? "";
+            var id = before?.Id ?? Guid.Empty;
+            var boundary = before?.Boundary ?? "";
             var rows = await db.Database.SqlQuery<Row>($"""
                 SELECT v."Id", v."ApplicationId", v."RequestId", v."Boundary", v."Outcome", v."TraceId", v."OccurredAt", v."ModelFingerprint"
                 FROM (
@@ -58,15 +59,25 @@ public sealed class EfCloudVoicePrivacyReader(IDbContextFactory<CloudControlPlan
                 ORDER BY v."OccurredAt" DESC, v."Id" DESC, v."Boundary" DESC LIMIT {limit + 1}
                 """).ToListAsync(cancellationToken);
             var hasMore = rows.Count > limit;
-            if (hasMore) rows.RemoveAt(rows.Count - 1);
+            if (hasMore)
+                rows.RemoveAt(rows.Count - 1);
             var last = rows.LastOrDefault();
             result = new(rows.Select(row => new CloudVoicePrivacyObservation(row.Id, row.ApplicationId, row.RequestId, row.Boundary,
                 row.Outcome, row.TraceId, row.OccurredAt, row.ModelFingerprint)).ToArray(),
                 hasMore && last is not null ? new(last.OccurredAt, last.Id, last.Boundary) : null);
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "voice.privacy.read", Outcome = result is null ? "forbidden" : "succeeded",
-            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"), OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "voice.privacy.read",
+            Outcome = result is null ? "forbidden" : "succeeded",
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return result;

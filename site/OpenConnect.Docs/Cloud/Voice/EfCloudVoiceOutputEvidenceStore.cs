@@ -13,7 +13,8 @@ public sealed class EfCloudVoiceOutputEvidenceStore(IDbContextFactory<CloudContr
             outcome is not ("allowed" or "privacy_blocked" or "detector_unavailable") || !IsHex(traceId, 32))
             throw new ArgumentException("Invalid voice output observation.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var id = Guid.NewGuid(); var now = timeProvider.GetUtcNow();
+        var id = Guid.NewGuid();
+        var now = timeProvider.GetUtcNow();
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO cloud.voice_output_privacy_evidence
                 ("Id", "TenantId", "ApplicationId", "RequestId", "ReservationId", "ClaimId", "ModelFingerprint", "Outcome", "TraceId", "OccurredAt")

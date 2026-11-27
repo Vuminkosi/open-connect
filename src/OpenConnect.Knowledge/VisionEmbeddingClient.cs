@@ -70,7 +70,8 @@ public sealed class VisionEmbeddingClient : IDisposable
         CancellationToken cancellationToken = default)
     {
         ValidateContext(context);
-        if (image.Length is < 1 or > 10 * 1024 * 1024) throw new ArgumentException("Invalid image size.", nameof(image));
+        if (image.Length is < 1 or > 10 * 1024 * 1024)
+            throw new ArgumentException("Invalid image size.", nameof(image));
         cancellationToken.ThrowIfCancellationRequested();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_requestTimeout);
@@ -101,7 +102,8 @@ public sealed class VisionEmbeddingClient : IDisposable
                     throw new PrivacyBlockedException("Image privacy enforcement is unavailable.");
             }
             var decision = _imageGate.EvaluateModality(new ModalityEgressRequest(ContentModality.Image, context), _options.Value.Mode);
-            if (!decision.Allowed) throw new PrivacyBlockedException("Image embedding was denied by privacy policy.");
+            if (!decision.Allowed)
+                throw new PrivacyBlockedException("Image embedding was denied by privacy policy.");
             return await SendAsync(context, new { modality = "image", contentBase64 = Convert.ToBase64String(copy) },
                 operationToken).ConfigureAwait(false);
         }
@@ -113,7 +115,8 @@ public sealed class VisionEmbeddingClient : IDisposable
         CancellationToken cancellationToken = default)
     {
         ValidateContext(context);
-        if (string.IsNullOrWhiteSpace(text) || text.Length > 8192) throw new ArgumentException("Invalid query.", nameof(text));
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 8192)
+            throw new ArgumentException("Invalid query.", nameof(text));
         cancellationToken.ThrowIfCancellationRequested();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(_requestTimeout);
@@ -144,9 +147,16 @@ public sealed class VisionEmbeddingClient : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString("N");
-        var body = JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "vision.embed", tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5),
-            expiresAt = now.AddMinutes(2), payload });
+        var body = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "vision.embed",
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload
+        });
         byte[]? chunk = null;
         MemoryStream? buffer = null;
         try
@@ -157,23 +167,27 @@ public sealed class VisionEmbeddingClient : IDisposable
             request.Content = new ByteArrayContent(body);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) throw new HttpRequestException("The vision worker rejected the request.", null, response.StatusCode);
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException("The vision worker rejected the request.", null, response.StatusCode);
             const int maxResponse = 64 * 1024;
-            if (response.Content.Headers.ContentLength > maxResponse) throw new InvalidOperationException("Invalid worker response.");
+            if (response.Content.Headers.ContentLength > maxResponse)
+                throw new InvalidOperationException("Invalid worker response.");
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
             buffer = new MemoryStream();
             chunk = new byte[4096];
             int count;
             while ((count = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) > 0)
             {
-                if (buffer.Length + count > maxResponse) throw new InvalidOperationException("Invalid worker response.");
+                if (buffer.Length + count > maxResponse)
+                    throw new InvalidOperationException("Invalid worker response.");
                 buffer.Write(chunk, 0, count);
             }
             using var doc = JsonDocument.Parse(buffer.GetBuffer().AsMemory(0, (int)buffer.Length));
             var root = doc.RootElement;
             Properties(root, "schemaVersion", "taskId", "kind", "result");
             if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" || root.GetProperty("taskId").GetString() != taskId ||
-                root.GetProperty("kind").GetString() != "vision.embed") Invalid();
+                root.GetProperty("kind").GetString() != "vision.embed")
+                Invalid();
             var result = root.GetProperty("result");
             Properties(result, "vector", "model_id", "fingerprint", "space_id", "dimension");
             var model = result.GetProperty("model_id").GetString();
@@ -182,7 +196,8 @@ public sealed class VisionEmbeddingClient : IDisposable
             var vector = result.GetProperty("vector");
             if (!KnowledgeIndexSubmission.Identifier(model) || !KnowledgeIndexSubmission.Digest(fingerprint) ||
                 !KnowledgeIndexSubmission.Digest(space) || !result.GetProperty("dimension").TryGetInt32(out var dimension) ||
-                dimension != 512 || vector.ValueKind != JsonValueKind.Array || vector.GetArrayLength() != dimension) Invalid();
+                dimension != 512 || vector.ValueKind != JsonValueKind.Array || vector.GetArrayLength() != dimension)
+                Invalid();
             await PrivacyJsonInspection.DemandGateUnchangedAsync(_textGate,
                 JsonSerializer.SerializeToElement(new { model, fingerprint, space }),
                 context with { Destination = EgressDestination.Output }, cancellationToken).ConfigureAwait(false);
@@ -190,21 +205,25 @@ public sealed class VisionEmbeddingClient : IDisposable
             var index = 0;
             foreach (var item in vector.EnumerateArray())
             {
-                if (!item.TryGetSingle(out var value) || !float.IsFinite(value) || Math.Abs(value) > 1) Invalid();
+                if (!item.TryGetSingle(out var value) || !float.IsFinite(value) || Math.Abs(value) > 1)
+                    Invalid();
                 values[index++] = value;
             }
             var norm = Math.Sqrt(values.Sum(value => (double)value * value));
-            if (!double.IsFinite(norm) || Math.Abs(norm - 1) > .001) Invalid();
+            if (!double.IsFinite(norm) || Math.Abs(norm - 1) > .001)
+                Invalid();
             return new KnowledgeEmbeddingResult([new KnowledgeEmbedding(Array.AsReadOnly(values), false, norm)],
                 model!, fingerprint!, 512, space!);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(body);
-            if (chunk is not null) CryptographicOperations.ZeroMemory(chunk);
+            if (chunk is not null)
+                CryptographicOperations.ZeroMemory(chunk);
             if (buffer is not null)
             {
-                if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan());
+                if (buffer.TryGetBuffer(out var bytes))
+                    CryptographicOperations.ZeroMemory(bytes.AsSpan());
                 buffer.Dispose();
             }
         }
@@ -212,11 +231,14 @@ public sealed class VisionEmbeddingClient : IDisposable
 
     private static void Properties(JsonElement value, params string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
-            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
-        if (seen.Count != expected.Length) Invalid();
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
+        if (seen.Count != expected.Length)
+            Invalid();
     }
 
     private static void Invalid() => throw new InvalidOperationException("Invalid worker response.");
@@ -230,7 +252,8 @@ public sealed class VisionEmbeddingClient : IDisposable
         handler.ConnectCallback = async (_, cancellationToken) =>
         {
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            try { await socket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false); return new NetworkStream(socket, true); }
+            try
+            { await socket.ConnectAsync(endpoint, cancellationToken).ConfigureAwait(false); return new NetworkStream(socket, true); }
             catch { socket.Dispose(); throw; }
         };
         return new HttpClient(handler);
@@ -239,9 +262,11 @@ public sealed class VisionEmbeddingClient : IDisposable
     /// <summary>Clears signing material and disposes the owned transport.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         CryptographicOperations.ZeroMemory(_key);
-        if (_ownsHttp) _http.Dispose();
+        if (_ownsHttp)
+            _http.Dispose();
     }
 }

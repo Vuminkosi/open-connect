@@ -260,7 +260,8 @@ public sealed class TodoDeadlineMonitorService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Initial delay so startup migrations complete cleanly
-        try { await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false); }
+        try
+        { await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken).ConfigureAwait(false); }
         catch (OperationCanceledException) { return; }
 
         while (!stoppingToken.IsCancellationRequested)
@@ -278,7 +279,8 @@ public sealed class TodoDeadlineMonitorService : BackgroundService
                 _logger.LogWarning("Background deadline sweep failed ({ExceptionType}).", ex.GetType().Name);
             }
 
-            try { await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken).ConfigureAwait(false); }
+            try
+            { await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken).ConfigureAwait(false); }
             catch (OperationCanceledException) { break; }
         }
     }

@@ -169,15 +169,27 @@ public sealed class CloudPortalUiFixesTests : BunitContext
         var slowTenantA = new TaskCompletionSource<CloudCapabilitySnapshot?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var capA = new CloudCapabilityDefinition
         {
-            Id = "cap.alpha", Name = "Alpha Capability", Description = "Alpha desc",
-            ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available",
-            Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]",
+            Id = "cap.alpha",
+            Name = "Alpha Capability",
+            Description = "Alpha desc",
+            ContractVersion = "1",
+            BillingUnit = "request",
+            PlatformAvailability = "available",
+            Dependencies = "[]",
+            Modalities = "[]",
+            AllowedRegions = "[]",
         };
         var capB = new CloudCapabilityDefinition
         {
-            Id = "cap.beta", Name = "Beta Capability", Description = "Beta desc",
-            ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available",
-            Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]",
+            Id = "cap.beta",
+            Name = "Beta Capability",
+            Description = "Beta desc",
+            ContractVersion = "1",
+            BillingUnit = "request",
+            PlatformAvailability = "available",
+            Dependencies = "[]",
+            Modalities = "[]",
+            AllowedRegions = "[]",
         };
 
         var tenantStore = new SwitchableTenantStore(

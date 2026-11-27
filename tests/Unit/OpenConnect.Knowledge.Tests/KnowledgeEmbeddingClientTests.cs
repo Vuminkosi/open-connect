@@ -41,9 +41,16 @@ public sealed class KnowledgeEmbeddingClientTests
             var id = json.RootElement.GetProperty("requestId").GetString();
             using var workerResponse = Response(id!, dimension: 2);
             using var worker = JsonDocument.Parse(await workerResponse.Content.ReadAsByteArrayAsync());
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
-            { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = mismatch ? Guid.NewGuid().ToString("D") : id,
-                traceId = mismatch ? new string('a', 32) : "invalid", result = worker.RootElement.GetProperty("result") })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "openconnect.cloud.knowledge-embed.result/v1",
+                    requestId = mismatch ? Guid.NewGuid().ToString("D") : id,
+                    traceId = mismatch ? new string('a', 32) : "invalid",
+                    result = worker.RootElement.GetProperty("result")
+                }))
+            };
         });
         using var http = new HttpClient(handler);
         using var client = new KnowledgeEmbeddingClient(http, new PassThroughGate(), new Uri("https://worker.test"), "cloud-token", Key,
@@ -70,8 +77,14 @@ public sealed class KnowledgeEmbeddingClientTests
         var handler = new Handler(async request =>
         {
             using var json = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            var result = new { model_id = "model", fingerprint = new string('a', 64), dimension = 2, space_id = new string('b', 64),
-                items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1, note = "person@example.test" } } };
+            var result = new
+            {
+                model_id = "model",
+                fingerprint = new string('a', 64),
+                dimension = 2,
+                space_id = new string('b', 64),
+                items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1, note = "person@example.test" } }
+            };
             var body = cloud
                 ? JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = json.RootElement.GetProperty("requestId").GetString(), traceId = new string('a', 32), result })
                 : JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId = json.RootElement.GetProperty("taskId").GetString(), kind = "knowledge.embed", result });
@@ -120,8 +133,11 @@ public sealed class KnowledgeEmbeddingClientTests
             var id = root.GetProperty("requestId").GetString();
             using var workerResponse = Response(id!, dimension: 2);
             using var worker = JsonDocument.Parse(await workerResponse.Content.ReadAsByteArrayAsync());
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new
-            { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = id, traceId = new string('a', 32), result = worker.RootElement.GetProperty("result") })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1", requestId = id, traceId = new string('a', 32), result = worker.RootElement.GetProperty("result") }))
+            };
         });
         using var http = new HttpClient(handler);
         using var client = new KnowledgeEmbeddingClient(http, new CloudMaskGate(), new Uri("https://worker.test"), "cloud-token", Key,
@@ -374,9 +390,15 @@ public sealed class KnowledgeEmbeddingClientTests
     {
         var json = JsonSerializer.Serialize(new
         {
-            schemaVersion = "openconnect.v1", taskId, kind = "knowledge.embed", result = new
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.embed",
+            result = new
             {
-                model_id = "model", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension,
+                model_id = "model",
+                fingerprint = new string('a', 64),
+                space_id = new string('b', 64),
+                dimension,
                 items = new[] { new { vector = vector ?? [0.6, 0.8], truncated = false, norm } }
             }
         });
@@ -415,7 +437,8 @@ public sealed class KnowledgeEmbeddingClientTests
         private bool _changed;
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            if (!_changed) { inputs.Add("second"); _changed = true; }
+            if (!_changed)
+            { inputs.Add("second"); _changed = true; }
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }

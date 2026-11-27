@@ -46,7 +46,8 @@ public sealed class AsyncLocalServiceFencingContextAccessor : IServiceFencingCon
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+                return;
             _disposed = true;
             if (ReferenceEquals(CurrentHolder.Value, active))
                 CurrentHolder.Value = prior;
@@ -142,7 +143,8 @@ public sealed class InMemoryServiceFencingEvidenceSink : IServiceFencingEvidence
 
     public InMemoryServiceFencingEvidenceSink(int capacity = 512)
     {
-        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
         _capacity = capacity;
     }
 

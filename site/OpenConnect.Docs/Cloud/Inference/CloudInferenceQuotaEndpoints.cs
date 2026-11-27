@@ -15,29 +15,39 @@ public static class CloudInferenceQuotaEndpoints
         app.MapPost("/cloud/internal/v1/inference/quota/reservations", async (HttpContext context, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return Results.Unauthorized();
-            if (!databaseConfigured) return Results.StatusCode(503);
+            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
+                return Results.Unauthorized();
+            if (!databaseConfigured)
+                return Results.StatusCode(503);
             var headers = context.Request.Headers.Authorization;
             if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
                 !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return Results.Unauthorized();
+                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace))
+                return Results.Unauthorized();
             var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>()
                 .AuthorizeAsync(header.Parameter, "inference.chat", cancellationToken);
-            if (!authorization.Authorized || authorization.Identity is null) return Results.StatusCode(authorization.Code switch
-            {
-                "unauthorized" => 401, "capability_unavailable" => 503, _ => 403,
-            });
+            if (!authorization.Authorized || authorization.Identity is null)
+                return Results.StatusCode(authorization.Code switch
+                {
+                    "unauthorized" => 401,
+                    "capability_unavailable" => 503,
+                    _ => 403,
+                });
             var request = await ReadAsync(context.Request, cancellationToken);
-            if (request is null || request.RequestId == Guid.Empty || !CloudRequestFingerprint.IsValidKeyId(request.FingerprintKeyId) || request.Fingerprint is null || request.ReservedTokens <= 0) return Results.BadRequest();
+            if (request is null || request.RequestId == Guid.Empty || !CloudRequestFingerprint.IsValidKeyId(request.FingerprintKeyId) || request.Fingerprint is null || request.ReservedTokens <= 0)
+                return Results.BadRequest();
             byte[] fingerprint;
-            try { fingerprint = Convert.FromBase64String(request.Fingerprint); }
+            try
+            { fingerprint = Convert.FromBase64String(request.Fingerprint); }
             catch (FormatException) { return Results.BadRequest(); }
-            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != request.Fingerprint) return Results.BadRequest();
+            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != request.Fingerprint)
+                return Results.BadRequest();
             try
             {
                 var clock = context.RequestServices.GetRequiredService<TimeProvider>();
                 var now = clock.GetUtcNow();
-                if (request.ExpiresAt <= now || request.ExpiresAt > now.AddMinutes(5)) return Results.BadRequest();
+                if (request.ExpiresAt <= now || request.ExpiresAt > now.AddMinutes(5))
+                    return Results.BadRequest();
                 var result = await context.RequestServices.GetRequiredService<CloudQuotaService>().ReserveAsync(new CloudQuotaRequest(
                     authorization.Identity.TenantId, authorization.Identity.ApplicationId, "inference.chat", "token",
                     request.RequestId, request.FingerprintKeyId, fingerprint, request.ReservedTokens, request.ExpiresAt), cancellationToken);
@@ -50,7 +60,8 @@ public static class CloudInferenceQuotaEndpoints
 
     private static async Task<CloudInferenceReserveRequest?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 1024) return null;
+        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 1024)
+            return null;
         var buffer = new byte[1025];
         try
         {
@@ -58,14 +69,19 @@ public static class CloudInferenceQuotaEndpoints
             while (length < buffer.Length)
             {
                 var count = await request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 1024) return null;
+            if (length > 1024)
+                return null;
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var property in document.RootElement.EnumerateObject()) if (!names.Add(property.Name)) return null;
+            foreach (var property in document.RootElement.EnumerateObject())
+                if (!names.Add(property.Name))
+                    return null;
             return document.RootElement.Deserialize<CloudInferenceReserveRequest>(Options);
         }
         catch (JsonException) { return null; }

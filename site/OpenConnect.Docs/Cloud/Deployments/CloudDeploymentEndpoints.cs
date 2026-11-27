@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace OpenConnect.Docs.Cloud;
@@ -14,7 +14,8 @@ public static class CloudDeploymentEndpoints
             CloudDeploymentRegistry registry, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!operators.IsAllowed(principal)) return Results.Forbid();
+            if (!operators.IsAllowed(principal))
+                return Results.Forbid();
             var start = offset ?? 0;
             var size = limit ?? 50;
             if (!CloudDeploymentRegistry.ValidToken(capability, 80) || start is < 0 or > 1000000 || size is < 1 or > 100)
@@ -31,7 +32,8 @@ public static class CloudDeploymentEndpoints
             context.Response.Headers.CacheControl = "no-store";
             var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
             var actor = CloudSubjectResolver.FromPrincipal(principal, configuration["OpenConnect:Cloud:Identity:Authority"]);
-            if (actor is null) return Results.Unauthorized();
+            if (actor is null)
+                return Results.Unauthorized();
             try
             {
                 if (!operators.IsAllowed(principal))
@@ -50,12 +52,24 @@ public static class CloudDeploymentEndpoints
                     await registry.RecordInvalidAsync(actor, traceId, deploymentId, cancellationToken);
                     return Results.Problem(statusCode: 400, title: "Deployment request is invalid.", extensions: new Dictionary<string, object?> { ["code"] = "invalid_request", ["traceId"] = traceId });
                 }
-                var deployment = new CloudWorkerDeployment { Id = deploymentId, CapabilityId = request.CapabilityId ?? "",
-                    EndpointReference = request.EndpointReference ?? "", Transport = request.Transport ?? "", Region = request.Region ?? "",
-                    ContractVersion = request.ContractVersion ?? "", ModelId = request.ModelId, ModelRevision = request.ModelRevision,
-                    ModelDigest = request.ModelDigest, ImageDigest = request.ImageDigest ?? "", ConcurrencyLimit = request.ConcurrencyLimit, Enabled = request.Enabled };
+                var deployment = new CloudWorkerDeployment
+                {
+                    Id = deploymentId,
+                    CapabilityId = request.CapabilityId ?? "",
+                    EndpointReference = request.EndpointReference ?? "",
+                    Transport = request.Transport ?? "",
+                    Region = request.Region ?? "",
+                    ContractVersion = request.ContractVersion ?? "",
+                    ModelId = request.ModelId,
+                    ModelRevision = request.ModelRevision,
+                    ModelDigest = request.ModelDigest,
+                    ImageDigest = request.ImageDigest ?? "",
+                    ConcurrencyLimit = request.ConcurrencyLimit,
+                    Enabled = request.Enabled
+                };
                 var status = await registry.PutAsync(actor, traceId, deployment, revision, cancellationToken);
-                if (status == "succeeded") { context.Response.Headers.ETag = $"\"{revision + 1}\""; return Results.NoContent(); }
+                if (status == "succeeded")
+                { context.Response.Headers.ETag = $"\"{revision + 1}\""; return Results.NoContent(); }
                 return Results.Problem(statusCode: status == "conflict" ? 409 : 422, title: "Deployment change could not be applied.",
                     extensions: new Dictionary<string, object?> { ["code"] = status, ["traceId"] = traceId });
             }
@@ -72,7 +86,8 @@ public static class CloudDeploymentEndpoints
     {
         revision = 0;
         var headers = context.Request.Headers.IfMatch;
-        if (headers.Count != 1) return false;
+        if (headers.Count != 1)
+            return false;
         var value = headers.ToString();
         return value.Length > 2 && value[0] == '"' && value[^1] == '"' &&
             long.TryParse(value.AsSpan(1, value.Length - 2), NumberStyles.None, CultureInfo.InvariantCulture, out revision) &&

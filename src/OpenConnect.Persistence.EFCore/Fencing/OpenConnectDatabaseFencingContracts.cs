@@ -47,7 +47,8 @@ public sealed class AsyncLocalDatabaseFencingContextAccessor : IDatabaseFencingC
 
         public void Dispose()
         {
-            if (_disposed) return;
+            if (_disposed)
+                return;
             _disposed = true;
             if (ReferenceEquals(CurrentHolder.Value, active))
                 CurrentHolder.Value = prior;
@@ -156,7 +157,8 @@ public sealed class InMemoryDatabaseFencingEvidenceSink : IDatabaseFencingEviden
 
     public InMemoryDatabaseFencingEvidenceSink(int capacity = 512)
     {
-        if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
         _capacity = capacity;
     }
 

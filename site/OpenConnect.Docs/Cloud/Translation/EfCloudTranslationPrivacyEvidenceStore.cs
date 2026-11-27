@@ -24,8 +24,10 @@ public sealed class EfCloudTranslationPrivacyEvidenceStore(IDbContextFactory<Clo
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM cloud.applications WHERE \"Id\" = {identity.ApplicationId} AND \"TenantId\" = {identity.TenantId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        if (application is null) throw new InvalidOperationException("Application unavailable.");
-        var id = Guid.NewGuid(); var now = timeProvider.GetUtcNow();
+        if (application is null)
+            throw new InvalidOperationException("Application unavailable.");
+        var id = Guid.NewGuid();
+        var now = timeProvider.GetUtcNow();
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO cloud.translation_privacy_evidence ("Id", "TenantId", "ApplicationId", "RequestId", "Outcome", "TraceId", "OccurredAt", "FingerprintKeyId", "RequestFingerprint", "Characters")
             VALUES ({id}, {identity.TenantId}, {identity.ApplicationId}, {requestId}, {outcome}, {traceId}, {now}, {fingerprintKeyId}, {fingerprintSnapshot}, {characters})

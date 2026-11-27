@@ -1,8 +1,8 @@
-using OpenConnect.Docs.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Client;
+using OpenConnect.Docs.Services;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -61,8 +61,10 @@ public sealed class DocumentationGatewayVisitorTokensTests
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:VisitorTenant"] = Tenant, ["OpenConnect:Assistant:VisitorSigningKey"] = Key
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:VisitorTenant"] = Tenant,
+            ["OpenConnect:Assistant:VisitorSigningKey"] = Key
         });
         builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
         using var provider = builder.Services.BuildServiceProvider();
@@ -80,8 +82,10 @@ public sealed class DocumentationGatewayVisitorTokensTests
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:GatewayBearer"] = "shared", ["OpenConnect:Assistant:VisitorTenant"] = Tenant,
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:GatewayBearer"] = "shared",
+            ["OpenConnect:Assistant:VisitorTenant"] = Tenant,
             ["OpenConnect:Assistant:VisitorSigningKey"] = Key
         });
         Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment));
@@ -93,8 +97,10 @@ public sealed class DocumentationGatewayVisitorTokensTests
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:VisitorTenant"] = Tenant, ["OpenConnect:Assistant:VisitorSigningKey"] = Key
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:VisitorTenant"] = Tenant,
+            ["OpenConnect:Assistant:VisitorSigningKey"] = Key
         });
         var handler = new RecordingHandler();
         builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);

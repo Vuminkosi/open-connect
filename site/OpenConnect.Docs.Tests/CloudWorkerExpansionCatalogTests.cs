@@ -1,7 +1,7 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using System.Text.Json;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -18,9 +18,18 @@ public sealed class CloudWorkerExpansionCatalogTests
     {
         var tenant = Guid.NewGuid();
         var application = Guid.NewGuid();
-        var definitions = Ids.Select(id => new CloudCapabilityDefinition { Id = id, Name = id, Description = "fixture",
-            ContractVersion = "openconnect.v1", BillingUnit = "unconfigured", PlatformAvailability = "available",
-            Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }).ToArray();
+        var definitions = Ids.Select(id => new CloudCapabilityDefinition
+        {
+            Id = id,
+            Name = id,
+            Description = "fixture",
+            ContractVersion = "openconnect.v1",
+            BillingUnit = "unconfigured",
+            PlatformAvailability = "available",
+            Dependencies = "[]",
+            Modalities = "[]",
+            AllowedRegions = "[]"
+        }).ToArray();
         var entitlements = Ids.ToDictionary(id => id, id => new CloudTenantEntitlement { TenantId = tenant, CapabilityId = id, PlanGranted = true });
         var tenantSelections = Ids.ToDictionary(id => id, id => new CloudTenantCapabilitySelection { TenantId = tenant, CapabilityId = id, Enabled = true });
         var applicationSelections = Ids.ToDictionary(id => id, id => new CloudApplicationCapabilitySelection
@@ -41,18 +50,36 @@ public sealed class CloudWorkerExpansionCatalogTests
     {
         var tenant = Guid.NewGuid();
         var application = Guid.NewGuid();
-        var definitions = Ids.Select(id => new CloudCapabilityDefinition { Id = id, Name = id, Description = "fixture",
-            ContractVersion = "openconnect.v1", BillingUnit = "unconfigured", PlatformAvailability = "available",
-            Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }).ToArray();
+        var definitions = Ids.Select(id => new CloudCapabilityDefinition
+        {
+            Id = id,
+            Name = id,
+            Description = "fixture",
+            ContractVersion = "openconnect.v1",
+            BillingUnit = "unconfigured",
+            PlatformAvailability = "available",
+            Dependencies = "[]",
+            Modalities = "[]",
+            AllowedRegions = "[]"
+        }).ToArray();
         var entitlements = Ids.ToDictionary(id => id, id => new CloudTenantEntitlement { TenantId = tenant, CapabilityId = id, PlanGranted = true });
         var selections = Ids.ToDictionary(id => id, id => new CloudTenantCapabilitySelection { TenantId = tenant, CapabilityId = id, Enabled = true });
         var applications = Ids.ToDictionary(id => id, id => new CloudApplicationCapabilitySelection
-            { TenantId = tenant, ApplicationId = application, CapabilityId = id, Enabled = true });
+        { TenantId = tenant, ApplicationId = application, CapabilityId = id, Enabled = true });
         var snapshot = new CloudCapabilitySnapshot(definitions, entitlements, selections, applications);
         var material = CloudCredentialSecrets.Create("Development");
-        var credential = new CloudCredential { Id = material.Id, TenantId = tenant, ApplicationId = application,
-            Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = "[]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
+        var credential = new CloudCredential
+        {
+            Id = material.Id,
+            TenantId = tenant,
+            ApplicationId = application,
+            Environment = "Development",
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = "[]",
+            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
+        };
         var service = new CloudMachineAuthorizationService(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System),
             new CapabilityReader(snapshot), TimeProvider.System);
 
@@ -104,7 +131,8 @@ public sealed class CloudWorkerExpansionCatalogTests
             .UseNpgsql("Host=localhost;Database=unused;Username=unused;Password=unused").Options;
         using var db = new CloudControlPlaneDbContext(options);
         var script = db.GetService<IMigrator>().GenerateScript("20261120163836_AddCloudPrivacyEvidence", "20261121235958_AddWorkerExpansionCatalog");
-        foreach (var id in Ids) Assert.Contains($"'{id}'", script, StringComparison.Ordinal);
+        foreach (var id in Ids)
+            Assert.Contains($"'{id}'", script, StringComparison.Ordinal);
         Assert.Contains("'not_configured'", script, StringComparison.Ordinal);
         Assert.Contains("ON CONFLICT (\"Id\") DO NOTHING", script, StringComparison.Ordinal);
     }

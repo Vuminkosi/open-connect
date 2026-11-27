@@ -9,7 +9,7 @@ public static class CloudTranslationClaimEndpoints
     private sealed record ClaimProof(string FingerprintKeyId, string Fingerprint, string WorkerPayloadFingerprint,
         CloudTranslationDeploymentMatchRequest Deployment);
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
-        { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true, MaxDepth = 4 };
+    { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true, MaxDepth = 4 };
 
     public static void MapCloudTranslationClaim(this WebApplication app, CloudGatewayClientTrust trust, bool databaseConfigured) =>
         app.MapPost("/cloud/internal/v1/translation/quota/reservations/{reservationId:guid}/claim",
@@ -19,18 +19,23 @@ public static class CloudTranslationClaimEndpoints
         bool databaseConfigured, CancellationToken cancellationToken)
     {
         var (identity, error) = await CloudTranslationAuthorization.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
-        if (reservationId == Guid.Empty) return Results.BadRequest();
+        if (error is not null)
+            return error;
+        if (reservationId == Guid.Empty)
+            return Results.BadRequest();
         var proof = await ReadAsync(context.Request, cancellationToken);
         if (proof is null || !CloudRequestFingerprint.IsValidKeyId(proof.FingerprintKeyId) || proof.Fingerprint is null ||
-            proof.WorkerPayloadFingerprint is null || !CloudTranslationDeploymentMatch.IsValid(proof.Deployment)) return Results.BadRequest();
+            proof.WorkerPayloadFingerprint is null || !CloudTranslationDeploymentMatch.IsValid(proof.Deployment))
+            return Results.BadRequest();
         byte[]? fingerprint = null, workerFingerprint = null;
         try
         {
-            try { fingerprint = Convert.FromBase64String(proof.Fingerprint); workerFingerprint = Convert.FromBase64String(proof.WorkerPayloadFingerprint); }
+            try
+            { fingerprint = Convert.FromBase64String(proof.Fingerprint); workerFingerprint = Convert.FromBase64String(proof.WorkerPayloadFingerprint); }
             catch (FormatException) { return Results.BadRequest(); }
             if (fingerprint.Length != 32 || workerFingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != proof.Fingerprint ||
-                Convert.ToBase64String(workerFingerprint) != proof.WorkerPayloadFingerprint) return Results.BadRequest();
+                Convert.ToBase64String(workerFingerprint) != proof.WorkerPayloadFingerprint)
+                return Results.BadRequest();
             var result = await context.RequestServices.GetRequiredService<CloudTranslationClaim>().ClaimAsync(
                 identity!, reservationId, proof.FingerprintKeyId, fingerprint, workerFingerprint, proof.Deployment, cancellationToken);
             return Results.Json(result, statusCode: result.Status switch { "claimed" => 200, "already_claimed" or "idempotency_conflict" => 409, "invalid_request" => 400, _ => 503 });
@@ -39,14 +44,17 @@ public static class CloudTranslationClaimEndpoints
         catch { return Results.StatusCode(503); }
         finally
         {
-            if (fingerprint is not null) CryptographicOperations.ZeroMemory(fingerprint);
-            if (workerFingerprint is not null) CryptographicOperations.ZeroMemory(workerFingerprint);
+            if (fingerprint is not null)
+                CryptographicOperations.ZeroMemory(fingerprint);
+            if (workerFingerprint is not null)
+                CryptographicOperations.ZeroMemory(workerFingerprint);
         }
     }
 
     private static async Task<ClaimProof?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 4096) return null;
+        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 4096)
+            return null;
         var buffer = new byte[4097];
         try
         {
@@ -54,12 +62,15 @@ public static class CloudTranslationClaimEndpoints
             while (length < buffer.Length)
             {
                 var count = await request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 4096) return null;
+            if (length > 4096)
+                return null;
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length), new JsonDocumentOptions { MaxDepth = 4 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object || !Unique(document.RootElement)) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object || !Unique(document.RootElement))
+                return null;
             return document.RootElement.Deserialize<ClaimProof>(Options);
         }
         catch (JsonException) { return null; }
@@ -68,9 +79,12 @@ public static class CloudTranslationClaimEndpoints
 
     private static bool Unique(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.Object) return true;
+        if (value.ValueKind != JsonValueKind.Object)
+            return true;
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var property in value.EnumerateObject()) if (!names.Add(property.Name) || !Unique(property.Value)) return false;
+        foreach (var property in value.EnumerateObject())
+            if (!names.Add(property.Name) || !Unique(property.Value))
+                return false;
         return true;
     }
 }

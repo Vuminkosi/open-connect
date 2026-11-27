@@ -11,8 +11,10 @@ public static class CloudVoiceAccessEndpoints
         CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         var (identity, error) = await CloudVoiceQuotaEndpoints.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
-        if (reservationId == Guid.Empty || claimId == Guid.Empty) return Results.BadRequest();
+        if (error is not null)
+            return error;
+        if (reservationId == Guid.Empty || claimId == Guid.Empty)
+            return Results.BadRequest();
         try
         {
             var allowed = await context.RequestServices.GetRequiredService<ICloudVoiceAccessStore>()

@@ -69,7 +69,8 @@ public sealed class TodoAcceptanceDiagnosticsService(
             Provider: provider,
             Status: status,
             Summary: summary));
-        while (_pushAttempts.Count > MaxRingEntries && _pushAttempts.TryDequeue(out _)) { }
+        while (_pushAttempts.Count > MaxRingEntries && _pushAttempts.TryDequeue(out _))
+        { }
     }
 
     public void RecordSecurityEvidence(string category, string outcome, string summary, string? tenantId = null)
@@ -81,7 +82,8 @@ public sealed class TodoAcceptanceDiagnosticsService(
             Outcome: outcome,
             TenantId: tenantId,
             Summary: summary));
-        while (_securityEvidence.Count > MaxRingEntries && _securityEvidence.TryDequeue(out _)) { }
+        while (_securityEvidence.Count > MaxRingEntries && _securityEvidence.TryDequeue(out _))
+        { }
     }
 
     public async Task<UrgentTaskCreationResult> CreateUrgentExpiringTaskAsync(

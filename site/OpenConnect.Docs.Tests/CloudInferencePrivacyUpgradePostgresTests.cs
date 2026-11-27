@@ -20,7 +20,10 @@ public sealed class CloudInferencePrivacyUpgradePostgresTests
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Privacy upgrade", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var id = Guid.NewGuid(); var request = Guid.NewGuid(); var now = DateTimeOffset.UtcNow; var trace = new string('a', 32);
+        var id = Guid.NewGuid();
+        var request = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var trace = new string('a', 32);
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.ExecuteSqlInterpolatedAsync($"""

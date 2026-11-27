@@ -23,17 +23,21 @@ public sealed class CloudAnalyticsConsumptionTests
         DefaultHttpContext Context()
         {
             var value = new DefaultHttpContext { RequestServices = services };
-            value.Request.Scheme = "https"; value.Connection.ClientCertificate = certificate;
+            value.Request.Scheme = "https";
+            value.Connection.ClientCertificate = certificate;
             value.Request.Headers["X-OpenConnect-Worker-Payload-Fingerprint"] = Convert.ToBase64String(new byte[32]);
             return value;
         }
         var id = Guid.NewGuid();
-        var untrusted = Context(); untrusted.Connection.ClientCertificate = null;
+        var untrusted = Context();
+        untrusted.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudAnalyticsConsumptionEndpoints.ConsumeAsync(id, id, untrusted, trust, true, CancellationToken.None)));
         Assert.Equal(503, Status(await CloudAnalyticsConsumptionEndpoints.ConsumeAsync(id, id, Context(), trust, false, CancellationToken.None)));
-        var body = Context(); body.Request.ContentLength = 1;
+        var body = Context();
+        body.Request.ContentLength = 1;
         Assert.Equal(400, Status(await CloudAnalyticsConsumptionEndpoints.ConsumeAsync(id, id, body, trust, true, CancellationToken.None)));
-        var malformed = Context(); malformed.Request.Headers["X-OpenConnect-Worker-Payload-Fingerprint"] = "bad";
+        var malformed = Context();
+        malformed.Request.Headers["X-OpenConnect-Worker-Payload-Fingerprint"] = "bad";
         Assert.Equal(400, Status(await CloudAnalyticsConsumptionEndpoints.ConsumeAsync(id, id, malformed, trust, true, CancellationToken.None)));
         Assert.Equal(0, store.Calls);
         var accepted = Context();

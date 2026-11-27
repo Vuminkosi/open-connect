@@ -204,8 +204,10 @@ public static class TextOverlapResolver
             // If input is valid JSON, avoid slicing through structural quote characters.
             if (inputIsValidJson)
             {
-                while (start < end && content[start] == '"') start++;
-                while (end > start && content[end - 1] == '"') end--;
+                while (start < end && content[start] == '"')
+                    start++;
+                while (end > start && content[end - 1] == '"')
+                    end--;
                 if (start >= end)
                     return new TextSanitizationResult(false, null, SecurityPolicyAction.Block, resolvedSpans, entitySpans, "json_syntax_preservation_failed");
             }
@@ -259,7 +261,8 @@ public static class TextOverlapResolver
 
     private static int GetCategoryPriority(string category)
     {
-        if (IsSecretCategory(category)) return 100;
+        if (IsSecretCategory(category))
+            return 100;
         return category.ToUpperInvariant() switch
         {
             "PAYMENT_CARD" or "CREDIT_CARD" => 80,

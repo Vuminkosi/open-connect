@@ -22,7 +22,8 @@ public sealed class BrowserLiveUIActionConfirmationTests
         using var scope = services.CreateScope();
         var context = Context("report");
         var capabilities = new HashSet<LiveUICapability>();
-        if (filter) capabilities.Add(LiveUICapability.Filter);
+        if (filter)
+            capabilities.Add(LiveUICapability.Filter);
         var target = context.Target! with { Id = "oc.runtime.test", Kind = kind, Label = label, Capabilities = capabilities };
         var action = context.Action with { Type = actionType };
         var confirmation = scope.ServiceProvider.GetRequiredService<ILiveUIActionConfirmation>();

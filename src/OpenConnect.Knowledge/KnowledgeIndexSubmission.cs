@@ -24,11 +24,20 @@ public sealed class KnowledgeIndexSubmission
             principalSnapshot.Count + roleSnapshot.Count == 0 || principalSnapshot.Any(value => !Identifier(value)) ||
             roleSnapshot.Any(value => !Identifier(value)))
             throw new ArgumentException("The indexing submission is invalid.");
-        JobId = jobId; ApplicationId = applicationId; CollectionId = collectionId; DocumentId = documentId;
-        SourceRevision = sourceRevision; EmbeddingSpaceId = embeddingSpaceId; ObjectId = objectId;
-        ObjectSha256 = objectSha256; ObjectSize = objectSize; ObjectVersion = objectVersion;
-        ExpectedGeneration = expectedGeneration; Principals = principalSnapshot;
-        Roles = roleSnapshot; DocumentExpiresAt = documentExpiresAt;
+        JobId = jobId;
+        ApplicationId = applicationId;
+        CollectionId = collectionId;
+        DocumentId = documentId;
+        SourceRevision = sourceRevision;
+        EmbeddingSpaceId = embeddingSpaceId;
+        ObjectId = objectId;
+        ObjectSha256 = objectSha256;
+        ObjectSize = objectSize;
+        ObjectVersion = objectVersion;
+        ExpectedGeneration = expectedGeneration;
+        Principals = principalSnapshot;
+        Roles = roleSnapshot;
+        DocumentExpiresAt = documentExpiresAt;
     }
 
     public Guid JobId { get; }
@@ -49,8 +58,10 @@ public sealed class KnowledgeIndexSubmission
     internal static bool Identifier(string? value) => !string.IsNullOrWhiteSpace(value) && SafeText(value, 256);
     private static bool SafeText(string? value, int maximum)
     {
-        if (string.IsNullOrEmpty(value)) return false;
-        try { _ = new UTF8Encoding(false, true).GetByteCount(value); }
+        if (string.IsNullOrEmpty(value))
+            return false;
+        try
+        { _ = new UTF8Encoding(false, true).GetByteCount(value); }
         catch (EncoderFallbackException) { return false; }
         return value.EnumerateRunes().Count() <= maximum && value.EnumerateRunes().All(rune => rune.Value >= 32 && rune.Value != 127);
     }

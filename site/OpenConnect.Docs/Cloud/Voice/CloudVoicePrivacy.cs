@@ -28,10 +28,12 @@ public sealed class CloudVoicePrivacyService(ISecurityDetector? detector)
             request is null || string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 4000 ||
             request.VoiceId != "af_heart" || string.IsNullOrEmpty(request.Locale) || request.Locale.Length > 32 ||
             !TryCountScalars(request.Locale, out var localeLength) || localeLength > 16 || request.Format is not ("wav" or "pcm") ||
-            !TryCountScalars(request.Text, out var characters) || characters is < 1 or > 2000) return new(false, "invalid_request");
+            !TryCountScalars(request.Text, out var characters) || characters is < 1 or > 2000)
+            return new(false, "invalid_request");
         try
         {
-            if (!_firewall.Enabled) return new(false, "detector_unavailable", characters);
+            if (!_firewall.Enabled)
+                return new(false, "detector_unavailable", characters);
             var context = new EgressContext(new TenantId(ToUlid(identity.TenantId)), new PrincipalId(ToUlid(identity.ApplicationId)),
                 new SessionId(ToUlid(requestId)), EgressDestination.Worker);
             string[] fields = [request.Text, request.VoiceId, request.Locale, request.Format];
@@ -55,7 +57,8 @@ public sealed class CloudVoicePrivacyService(ISecurityDetector? detector)
         var remaining = value.AsSpan();
         while (!remaining.IsEmpty)
         {
-            if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done) return false;
+            if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done)
+                return false;
             remaining = remaining[consumed..];
             count++;
         }
@@ -65,10 +68,12 @@ public sealed class CloudVoicePrivacyService(ISecurityDetector? detector)
     private static Ulid ToUlid(Guid value)
     {
         UInt128 number = 0;
-        foreach (var b in value.ToByteArray(bigEndian: true)) number = (number << 8) | b;
+        foreach (var b in value.ToByteArray(bigEndian: true))
+            number = (number << 8) | b;
         Span<char> encoded = stackalloc char[26];
         const string alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-        for (var i = encoded.Length - 1; i >= 0; i--) { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
+        for (var i = encoded.Length - 1; i >= 0; i--)
+        { encoded[i] = alphabet[(int)(number & 31)]; number >>= 5; }
         return Ulid.Parse(new string(encoded));
     }
 }

@@ -25,7 +25,8 @@ public sealed class CloudDeploymentRegistry(ICloudDeploymentStore store)
         ArgumentNullException.ThrowIfNull(actor);
         ArgumentNullException.ThrowIfNull(deployment);
         if (string.IsNullOrWhiteSpace(actor.Issuer) || actor.Issuer.Length > 2048 || string.IsNullOrWhiteSpace(actor.SubjectId) || actor.SubjectId.Length > 1024 ||
-            string.IsNullOrWhiteSpace(traceId) || traceId.Length > 128) throw new ArgumentException("A valid actor and trace identifier are required.");
+            string.IsNullOrWhiteSpace(traceId) || traceId.Length > 128)
+            throw new ArgumentException("A valid actor and trace identifier are required.");
         if (deployment.Id == Guid.Empty || expectedRevision < 0 || expectedRevision == long.MaxValue ||
             !ValidToken(deployment.CapabilityId, 80) || !ValidToken(deployment.EndpointReference, 128) ||
             deployment.Transport != "https-mtls" || !ValidToken(deployment.Region, 80) ||

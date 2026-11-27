@@ -20,10 +20,20 @@ public sealed class CloudAnalyticsQuotaEndpointTests
         using var certificate = certificateRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10));
         var trust = new CloudGatewayClientTrust([Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256))]);
         var material = CloudCredentialSecrets.Create("Development");
-        var tenant = Guid.NewGuid(); var application = Guid.NewGuid();
-        var credential = new CloudCredential { Id = material.Id, TenantId = tenant, ApplicationId = application,
-            Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = "[\"analytics.analyze\"]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
+        var tenant = Guid.NewGuid();
+        var application = Guid.NewGuid();
+        var credential = new CloudCredential
+        {
+            Id = material.Id,
+            TenantId = tenant,
+            ApplicationId = application,
+            Environment = "Development",
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = "[\"analytics.analyze\"]",
+            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
+        };
         var snapshot = new CloudCapabilitySnapshot(
             [new CloudCapabilityDefinition { Id = "analytics.analyze", Name = "Analytics", Description = "fixture", ContractVersion = "openconnect.v1",
                 BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }],
@@ -46,30 +56,45 @@ public sealed class CloudAnalyticsQuotaEndpointTests
             .AddSingleton<ICloudAnalyticsDeploymentReader>(deployments)
             .AddSingleton<ICloudAnalyticsCompletionStore>(completions).BuildServiceProvider();
         var id = Guid.NewGuid();
-        var json = System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
-            fingerprint = Convert.ToBase64String(new byte[32]), expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            requestId = id,
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            expiresAt = DateTimeOffset.UtcNow.AddMinutes(1)
+        });
         DefaultHttpContext Context(string body)
         {
             var context = new DefaultHttpContext { RequestServices = services };
-            context.Request.Scheme = "https"; context.Connection.ClientCertificate = certificate;
+            context.Request.Scheme = "https";
+            context.Connection.ClientCertificate = certificate;
             context.Request.Headers.Authorization = "Bearer " + material.Secret;
-            context.Request.ContentType = "application/json"; context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+            context.Request.ContentType = "application/json";
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
             return context;
         }
-        var plain = Context(json); plain.Request.Scheme = "http";
+        var plain = Context(json);
+        plain.Request.Scheme = "http";
         Assert.Equal(401, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(plain, trust, true, CancellationToken.None)));
-        var noCert = Context(json); noCert.Connection.ClientCertificate = null;
+        var noCert = Context(json);
+        noCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(noCert, trust, true, CancellationToken.None)));
         Assert.Equal(503, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(Context(json), trust, false, CancellationToken.None)));
         var duplicate = Context(json.Replace("{", "{\"requestId\":\"" + id + "\",", StringComparison.Ordinal));
         Assert.Equal(400, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(duplicate, trust, true, CancellationToken.None)));
         Assert.Equal(400, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(Context(json.Replace("{", "{\"tenantId\":\"other\",", StringComparison.Ordinal)), trust, true, CancellationToken.None)));
-        var expired = System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
-            fingerprint = Convert.ToBase64String(new byte[32]), expiresAt = DateTimeOffset.UtcNow.AddMinutes(-1) });
+        var expired = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            requestId = id,
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            expiresAt = DateTimeOffset.UtcNow.AddMinutes(-1)
+        });
         Assert.Equal(400, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(Context(expired), trust, true, CancellationToken.None)));
         var oversized = Context(new string(' ', 1025));
         Assert.Equal(400, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(oversized, trust, true, CancellationToken.None)));
-        var compressed = Context(json); compressed.Request.Headers.ContentEncoding = "gzip";
+        var compressed = Context(json);
+        compressed.Request.Headers.ContentEncoding = "gzip";
         Assert.Equal(400, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(compressed, trust, true, CancellationToken.None)));
         credential.Scopes = "[]";
         Assert.Equal(403, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(Context(json), trust, true, CancellationToken.None)));
@@ -81,8 +106,10 @@ public sealed class CloudAnalyticsQuotaEndpointTests
         var accepted = Context(json);
         Assert.Equal(200, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(accepted, trust, true, CancellationToken.None)));
         Assert.Equal("no-store", accepted.Response.Headers.CacheControl.ToString());
-        Assert.Equal(tenant, quotas.Last!.TenantId); Assert.Equal(application, quotas.Last.ApplicationId);
-        Assert.Equal("analytics.analyze", quotas.Last.CapabilityId); Assert.Equal("request", quotas.Last.Unit);
+        Assert.Equal(tenant, quotas.Last!.TenantId);
+        Assert.Equal(application, quotas.Last.ApplicationId);
+        Assert.Equal("analytics.analyze", quotas.Last.CapabilityId);
+        Assert.Equal("request", quotas.Last.Unit);
         Assert.Equal(id, quotas.Last.RequestId);
         quotas.NextStatus = "quota_exceeded";
         Assert.Equal(429, Status(await CloudAnalyticsQuotaEndpoints.ReserveAsync(Context(json), trust, true, CancellationToken.None)));
@@ -91,8 +118,13 @@ public sealed class CloudAnalyticsQuotaEndpointTests
         Assert.Equal(200, Status(await CloudAnalyticsQuotaEndpoints.LookupAsync(Context(""), trust, true, id, CancellationToken.None)));
         Assert.Equal((tenant, application, "analytics.analyze", id), quotas.Lookup);
 
-        var privacyJson = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.cloud.analytics/v1",
-            requestId = id, capability = "analytics.analyze", input = new { feature = "weight", values = new[] { 1, 2 } } });
+        var privacyJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.cloud.analytics/v1",
+            requestId = id,
+            capability = "analytics.analyze",
+            input = new { feature = "weight", values = new[] { 1, 2 } }
+        });
         DefaultHttpContext PrivacyContext(string value)
         {
             var context = Context(value);
@@ -101,10 +133,12 @@ public sealed class CloudAnalyticsQuotaEndpointTests
             context.Request.Headers["X-Cloud-Request-Fingerprint"] = Convert.ToBase64String(new byte[32]);
             return context;
         }
-        var privacyNoCert = PrivacyContext(privacyJson); privacyNoCert.Connection.ClientCertificate = null;
+        var privacyNoCert = PrivacyContext(privacyJson);
+        privacyNoCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(privacyNoCert, trust, true, CancellationToken.None)));
         Assert.Equal(400, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(PrivacyContext(privacyJson.Replace("{", "{\"requestId\":\"" + id + "\",", StringComparison.Ordinal)), trust, true, CancellationToken.None)));
-        var mismatched = PrivacyContext(privacyJson); mismatched.Request.Headers["X-Cloud-Request-Id"] = Guid.NewGuid().ToString();
+        var mismatched = PrivacyContext(privacyJson);
+        mismatched.Request.Headers["X-Cloud-Request-Id"] = Guid.NewGuid().ToString();
         Assert.Equal(400, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(mismatched, trust, true, CancellationToken.None)));
         Assert.Equal(0, evidence.Calls);
         Assert.Equal(200, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(PrivacyContext(privacyJson), trust, true, CancellationToken.None)));
@@ -114,21 +148,40 @@ public sealed class CloudAnalyticsQuotaEndpointTests
         Assert.Equal(403, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(PrivacyContext(sensitive), trust, true, CancellationToken.None)));
         Assert.Equal((tenant, application, id, "privacy_blocked"), evidence.Last);
         Assert.Contains(evidence.Categories, category => category.Category == "EMAIL" && category.Count >= 1);
-        var responseJson = System.Text.Json.JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId = id,
-            kind = "analytics.analyze", result = new { lineage = "person@example.test" } });
+        var responseJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId = id,
+            kind = "analytics.analyze",
+            result = new { lineage = "person@example.test" }
+        });
         Assert.Equal(403, Status(await CloudAnalyticsPrivacyEndpoints.EvaluateAsync(PrivacyContext(responseJson), trust, true, CancellationToken.None, response: true)));
         Assert.Equal("response", evidence.Direction);
         Assert.Equal((tenant, application, id, "privacy_blocked"), evidence.Last);
-        var claimJson = System.Text.Json.JsonSerializer.Serialize(new { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
-            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), endpointReference = "analytics", region = "region-a",
-            contractVersion = "openconnect.v1", modelRevision = "rev-1", modelDigest = "sha256:" + new string('a', 64) });
+        var claimJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]),
+            endpointReference = "analytics",
+            region = "region-a",
+            contractVersion = "openconnect.v1",
+            modelRevision = "rev-1",
+            modelDigest = "sha256:" + new string('a', 64)
+        });
         var invalidClaim = Context(claimJson.Replace("workerPayloadFingerprint", "unknownField", StringComparison.Ordinal));
         Assert.Equal(400, Status(await CloudAnalyticsClaimEndpoints.ClaimAsync(id, invalidClaim, trust, true, CancellationToken.None)));
         Assert.Equal(0, claims.Calls);
         Assert.Equal(200, Status(await CloudAnalyticsClaimEndpoints.ClaimAsync(id, Context(claimJson), trust, true, CancellationToken.None)));
         Assert.Equal((tenant, application, id, "analytics.analyze"), claims.Last);
-        var deploymentJson = System.Text.Json.JsonSerializer.Serialize(new { endpointReference = "analytics", region = "region-a",
-            contractVersion = "openconnect.v1", modelRevision = "rev-1", modelDigest = "sha256:" + new string('a', 64) });
+        var deploymentJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            endpointReference = "analytics",
+            region = "region-a",
+            contractVersion = "openconnect.v1",
+            modelRevision = "rev-1",
+            modelDigest = "sha256:" + new string('a', 64)
+        });
         Assert.Equal(200, Status(await CloudAnalyticsDeploymentEndpoints.MatchAsync(Context(deploymentJson), trust, true, CancellationToken.None)));
         Assert.Equal(tenant, deployments.Tenant);
         Assert.Equal(400, Status(await CloudAnalyticsCompletionEndpoints.CompleteAsync(id, id, Context("body"), trust, true, CancellationToken.None)));
@@ -150,7 +203,10 @@ public sealed class CloudAnalyticsQuotaEndpointTests
         public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint,
             string direction, string outcome, string traceId, IReadOnlyList<CloudPrivacyCategoryCount> categories, CancellationToken cancellationToken)
         {
-            Calls++; Direction = direction; Categories = categories; Last = (identity.TenantId, identity.ApplicationId, requestId, outcome);
+            Calls++;
+            Direction = direction;
+            Categories = categories;
+            Last = (identity.TenantId, identity.ApplicationId, requestId, outcome);
             return Task.CompletedTask;
         }
     }
@@ -164,7 +220,8 @@ public sealed class CloudAnalyticsQuotaEndpointTests
             CancellationToken cancellationToken, byte[]? workerPayloadFingerprint = null, string? inferenceModelId = null,
             CloudInferenceDeploymentMatch? inferenceDeployment = null)
         {
-            Calls++; Last = (tenantId, applicationId, reservationId, capabilityId);
+            Calls++;
+            Last = (tenantId, applicationId, reservationId, capabilityId);
             return Task.FromResult(new CloudExecutionClaimResult("claimed", Guid.NewGuid()));
         }
     }

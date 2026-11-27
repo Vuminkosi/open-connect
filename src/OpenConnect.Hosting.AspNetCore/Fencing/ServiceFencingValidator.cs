@@ -193,7 +193,8 @@ internal static class ServiceFencingValidator
 
     internal static string NormalizeHost(string host)
     {
-        if (string.IsNullOrWhiteSpace(host)) return string.Empty;
+        if (string.IsNullOrWhiteSpace(host))
+            return string.Empty;
         var trimmed = host.Trim().TrimEnd('.');
         if (Uri.CheckHostName(trimmed) == UriHostNameType.Unknown)
             return string.Empty;

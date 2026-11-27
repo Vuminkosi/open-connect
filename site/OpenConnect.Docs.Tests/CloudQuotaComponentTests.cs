@@ -43,7 +43,8 @@ public sealed class CloudQuotaComponentTests : BunitContext
     {
         public Task<CloudQuotaPage?> GetTenantAsync(CloudSubject subject, Guid tenantId, int offset, int limit, CancellationToken cancellationToken)
         {
-            if (tenantId != tenant) return Task.FromResult<CloudQuotaPage?>(null);
+            if (tenantId != tenant)
+                return Task.FromResult<CloudQuotaPage?>(null);
             var quota = new CloudQuotaView(Guid.NewGuid(), Guid.NewGuid(), offset == 0 ? "inference.chat" : "classification.classify",
                 "request", DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddDays(1), 10, 2, 3);
             return Task.FromResult<CloudQuotaPage?>(new([quota], offset, offset == 0 ? limit : null));

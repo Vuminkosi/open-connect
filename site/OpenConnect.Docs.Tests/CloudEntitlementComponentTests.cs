@@ -27,8 +27,10 @@ public sealed class CloudEntitlementComponentTests : BunitContext
             await db.SaveChangesAsync();
         }
         var config = ConfigureCommon(factory, "operator", true);
-        Services.AddSingleton<CloudOperatorAccess>(); Services.AddSingleton<ICloudEntitlementAdministrationStore, EfCloudEntitlementAdministrationStore>();
-        Services.AddSingleton<CloudEntitlementAdministration>(); Services.AddSingleton<CloudOperatorEntitlementAdministration>();
+        Services.AddSingleton<CloudOperatorAccess>();
+        Services.AddSingleton<ICloudEntitlementAdministrationStore, EfCloudEntitlementAdministrationStore>();
+        Services.AddSingleton<CloudEntitlementAdministration>();
+        Services.AddSingleton<CloudOperatorEntitlementAdministration>();
         var component = Render<OperatorEntitlements>();
         component.WaitForAssertion(() => Assert.Contains(capability, component.Markup));
         component.Find("#entitlement-tenant").Change(tenant.ToString());
@@ -59,11 +61,17 @@ public sealed class CloudEntitlementComponentTests : BunitContext
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example", ["OpenConnect:Cloud:Operators:0:Subject"] = operatorAccess ? subjectId : "other"
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Subject"] = operatorAccess ? subjectId : "other"
         }).Build();
-        Services.AddSingleton<IConfiguration>(config); Services.AddSingleton(factory); Services.AddSingleton(TimeProvider.System);
-        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>(); Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>(); Services.AddSingleton<CloudCapabilityService>();
+        Services.AddSingleton<IConfiguration>(config);
+        Services.AddSingleton(factory);
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>();
+        Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>();
+        Services.AddSingleton<CloudCapabilityService>();
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication(subjectId));
         return config;
     }

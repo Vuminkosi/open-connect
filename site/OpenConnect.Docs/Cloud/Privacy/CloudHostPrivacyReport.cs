@@ -35,7 +35,8 @@ public static class CloudHostPrivacyReportParser
         foreach (var property in body.EnumerateObject())
             if (property.Name is not ("schemaVersion" or "eventId" or "tenantId" or "destination" or "allowed" or "action" or "reasonCode" or "categories"
                     or "traceId" or "requestId" or "occurredAt" or "policyId" or "policyRevision" or "enforcementAuthority" or "integrityDigest") ||
-                !fields.TryAdd(property.Name, property.Value)) throw new ArgumentException("Invalid host privacy evidence.");
+                !fields.TryAdd(property.Name, property.Value))
+                throw new ArgumentException("Invalid host privacy evidence.");
         try
         {
             if (fields.Count < 7 || fields["schemaVersion"].GetString() != "openconnect.privacy-evidence.v1" ||
@@ -109,35 +110,43 @@ public static class CloudHostPrivacyReportParser
 
     internal static SortedDictionary<string, int> Categories(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.Object) throw new ArgumentException("Invalid host privacy evidence.");
+        if (value.ValueKind != JsonValueKind.Object)
+            throw new ArgumentException("Invalid host privacy evidence.");
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var category in value.EnumerateObject())
             if (category.Name is not ("EMAIL" or "PHONE" or "PAYMENT_CARD" or "SECRET" or "PERSONAL_DATA" or "OTHER") ||
                 !category.Value.TryGetInt32(out var count) || count is < 1 or > 20000 || !counts.TryAdd(category.Name, count))
                 throw new ArgumentException("Invalid host privacy evidence.");
-        if (counts.Values.Sum(value => (long)value) > 20000) throw new ArgumentException("Invalid host privacy evidence.");
+        if (counts.Values.Sum(value => (long)value) > 20000)
+            throw new ArgumentException("Invalid host privacy evidence.");
         return counts;
     }
 
     private static string? ParseOptionalIdentifier(Dictionary<string, JsonElement> fields, string name, int maxLength, bool allowSlash)
     {
-        if (!fields.TryGetValue(name, out var element) || element.ValueKind == JsonValueKind.Null) return null;
-        if (element.ValueKind != JsonValueKind.String) throw new ArgumentException("Invalid host privacy evidence.");
+        if (!fields.TryGetValue(name, out var element) || element.ValueKind == JsonValueKind.Null)
+            return null;
+        if (element.ValueKind != JsonValueKind.String)
+            throw new ArgumentException("Invalid host privacy evidence.");
         var value = element.GetString();
-        if (string.IsNullOrEmpty(value) || value.Length > maxLength) throw new ArgumentException("Invalid host privacy evidence.");
+        if (string.IsNullOrEmpty(value) || value.Length > maxLength)
+            throw new ArgumentException("Invalid host privacy evidence.");
         foreach (var ch in value)
         {
             var valid = ch is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '.' or '_' or '-' or ':' ||
                         (allowSlash && ch == '/');
-            if (!valid) throw new ArgumentException("Invalid host privacy evidence.");
+            if (!valid)
+                throw new ArgumentException("Invalid host privacy evidence.");
         }
         return value;
     }
 
     private static DateTimeOffset? ParseOptionalTimestamp(Dictionary<string, JsonElement> fields, string name)
     {
-        if (!fields.TryGetValue(name, out var element) || element.ValueKind == JsonValueKind.Null) return null;
-        if (element.ValueKind != JsonValueKind.String) throw new ArgumentException("Invalid host privacy evidence.");
+        if (!fields.TryGetValue(name, out var element) || element.ValueKind == JsonValueKind.Null)
+            return null;
+        if (element.ValueKind != JsonValueKind.String)
+            throw new ArgumentException("Invalid host privacy evidence.");
         var raw = element.GetString();
         if (string.IsNullOrWhiteSpace(raw) || raw.Length > 64 ||
             !DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
@@ -156,10 +165,13 @@ public static class CloudHostPrivacyReportParser
 
     private static string? ParseOptionalDigest(Dictionary<string, JsonElement> fields)
     {
-        if (!fields.TryGetValue("integrityDigest", out var element) || element.ValueKind == JsonValueKind.Null) return null;
-        if (element.ValueKind != JsonValueKind.String) throw new ArgumentException("Invalid host privacy evidence.");
+        if (!fields.TryGetValue("integrityDigest", out var element) || element.ValueKind == JsonValueKind.Null)
+            return null;
+        if (element.ValueKind != JsonValueKind.String)
+            throw new ArgumentException("Invalid host privacy evidence.");
         var value = element.GetString();
-        if (value is null || value.Length != 64) throw new ArgumentException("Invalid host privacy evidence.");
+        if (value is null || value.Length != 64)
+            throw new ArgumentException("Invalid host privacy evidence.");
         foreach (var ch in value)
         {
             if (ch is not ((>= '0' and <= '9') or (>= 'a' and <= 'f')))

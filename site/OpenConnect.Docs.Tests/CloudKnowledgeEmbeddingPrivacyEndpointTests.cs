@@ -20,10 +20,21 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         using var certificate = certRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10));
         var trust = new CloudGatewayClientTrust([Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256))]);
         var material = CloudCredentialSecrets.Create("Development");
-        var tenant = Guid.NewGuid(); var application = Guid.NewGuid(); var id = Guid.NewGuid();
-        var credential = new CloudCredential { Id = material.Id, TenantId = tenant, ApplicationId = application,
-            Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = "[\"knowledge.embed\"]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
+        var tenant = Guid.NewGuid();
+        var application = Guid.NewGuid();
+        var id = Guid.NewGuid();
+        var credential = new CloudCredential
+        {
+            Id = material.Id,
+            TenantId = tenant,
+            ApplicationId = application,
+            Environment = "Development",
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = "[\"knowledge.embed\"]",
+            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
+        };
         var snapshot = new CloudCapabilitySnapshot(
             [new CloudCapabilityDefinition { Id = "knowledge.embed", Name = "Embedding", Description = "fixture", ContractVersion = "openconnect.v1",
                 BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }],
@@ -50,15 +61,18 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
                 ? (object)new { schemaVersion = "openconnect.v1", taskId = id, kind = "knowledge.embed", result = new { text } }
                 : new { schemaVersion = "openconnect.cloud.knowledge-embed/v1", requestId = id, capability = "knowledge.embed", input = new { inputKind = "query", texts = new[] { text } } });
             var context = new DefaultHttpContext { RequestServices = services };
-            context.Request.Scheme = "https"; context.Connection.ClientCertificate = certificate;
+            context.Request.Scheme = "https";
+            context.Connection.ClientCertificate = certificate;
             context.Request.Headers.Authorization = "Bearer " + material.Secret;
             context.Request.Headers["X-Cloud-Request-Id"] = id.ToString();
             context.Request.Headers["X-Cloud-Fingerprint-Key-Id"] = "active";
             context.Request.Headers["X-Cloud-Request-Fingerprint"] = Convert.ToBase64String(new byte[32]);
-            context.Request.ContentType = "application/json"; context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+            context.Request.ContentType = "application/json";
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
             return context;
         }
-        var untrusted = Context("safe"); untrusted.Connection.ClientCertificate = null;
+        var untrusted = Context("safe");
+        untrusted.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudKnowledgeEmbeddingPrivacyEndpoints.EvaluateAsync(untrusted, trust, true, CancellationToken.None)));
         credential.Scopes = "[]";
         Assert.Equal(403, Status(await CloudKnowledgeEmbeddingPrivacyEndpoints.EvaluateAsync(Context("safe"), trust, true, CancellationToken.None)));
@@ -85,16 +99,24 @@ public sealed class CloudKnowledgeEmbeddingPrivacyEndpointTests
         Assert.Equal(id, quota.Last.RequestId);
         var claimContext = Context("unused");
         claimContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
-        { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
-            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), endpointReference = "embedding", region = "region-a",
-            contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
+        {
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]),
+            endpointReference = "embedding",
+            region = "region-a",
+            contractVersion = "openconnect.v1",
+            modelRevision = "revision",
+            modelDigest = "sha256:" + new string('a', 64)
+        })));
         Assert.Equal(200, Status(await CloudKnowledgeEmbeddingClaimEndpoints.ClaimAsync(id, claimContext, trust, true, CancellationToken.None)));
         Assert.Equal((tenant, application, id, "knowledge.embed"), claims.Last);
         var deploymentContext = Context("unused");
         deploymentContext.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(new
         { endpointReference = "embedding", region = "region-a", contractVersion = "openconnect.v1", modelRevision = "revision", modelDigest = "sha256:" + new string('a', 64) })));
         Assert.Equal(200, Status(await CloudKnowledgeEmbeddingDeploymentEndpoints.MatchAsync(deploymentContext, trust, true, CancellationToken.None)));
-        var completionContext = Context("unused"); completionContext.Request.Body = Stream.Null;
+        var completionContext = Context("unused");
+        completionContext.Request.Body = Stream.Null;
         Assert.Equal(200, Status(await CloudKnowledgeEmbeddingCompletionEndpoints.CompleteAsync(id, id, completionContext, trust, true, CancellationToken.None)));
         Assert.Equal((tenant, application, id, id), completion.Last);
         Assert.Equal(400, Status(await CloudKnowledgeEmbeddingCompletionEndpoints.CompleteAsync(id, id, Context("body"), trust, true, CancellationToken.None)));

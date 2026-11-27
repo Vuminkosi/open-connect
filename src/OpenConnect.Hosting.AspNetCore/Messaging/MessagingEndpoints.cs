@@ -549,7 +549,8 @@ internal static class MessagingEndpoints
             return BadRequest(context, ErrorCodes.InvalidRequest, "Valid attachmentId and encryptedPayloadBase64 are required.");
 
         byte[] bytes;
-        try { bytes = Convert.FromBase64String(request.EncryptedPayloadBase64); }
+        try
+        { bytes = Convert.FromBase64String(request.EncryptedPayloadBase64); }
         catch (FormatException) { return BadRequest(context, ErrorCodes.InvalidRequest, "Invalid base64 payload."); }
 
         if (bytes.Length == 0 || bytes.Length > options!.MaxAttachmentBytes)
@@ -898,7 +899,8 @@ internal static class MessagingEndpoints
             return BadRequest(context, ErrorCodes.InvalidRequest, "Enrollment token, deviceId, public key, display name, and proof signature are required.");
 
         byte[] signature;
-        try { signature = Convert.FromBase64String(request.ChallengeProofSignatureBase64); }
+        try
+        { signature = Convert.FromBase64String(request.ChallengeProofSignatureBase64); }
         catch (FormatException) { return BadRequest(context, ErrorCodes.InvalidRequest, "Invalid proof signature encoding."); }
 
         var coordinator = context.RequestServices.GetService<IDeviceEnrollmentCoordinator>();
@@ -964,7 +966,8 @@ internal static class MessagingEndpoints
             return BadRequest(context, ErrorCodes.InvalidRequest, "Valid enrollmentId, tenantId, deviceId, and completionProofSignatureBase64 are required.");
 
         byte[] signature;
-        try { signature = Convert.FromBase64String(request.CompletionProofSignatureBase64); }
+        try
+        { signature = Convert.FromBase64String(request.CompletionProofSignatureBase64); }
         catch (FormatException) { return BadRequest(context, ErrorCodes.InvalidRequest, "Invalid proof signature encoding."); }
 
         var coordinator = context.RequestServices.GetService<IDeviceEnrollmentCoordinator>();

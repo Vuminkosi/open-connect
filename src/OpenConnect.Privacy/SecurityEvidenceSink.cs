@@ -58,8 +58,10 @@ public sealed class InMemorySecurityEvidenceSink : ISecurityEvidenceSink
         int take = 100)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
-        if (skip < 0) throw new ArgumentOutOfRangeException(nameof(skip));
-        if (take is <= 0 or > 500) throw new ArgumentOutOfRangeException(nameof(take), "Take must be between 1 and 500.");
+        if (skip < 0)
+            throw new ArgumentOutOfRangeException(nameof(skip));
+        if (take is <= 0 or > 500)
+            throw new ArgumentOutOfRangeException(nameof(take), "Take must be between 1 and 500.");
 
         lock (_gate)
         {

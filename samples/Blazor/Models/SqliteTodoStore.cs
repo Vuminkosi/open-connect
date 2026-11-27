@@ -490,7 +490,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
     {
         if (string.IsNullOrWhiteSpace(raw))
             return null;
-        try { return new TenantId(Ulid.Parse(raw)); }
+        try
+        { return new TenantId(Ulid.Parse(raw)); }
         catch (FormatException) { return null; }
     }
 
@@ -506,7 +507,8 @@ public sealed class SqliteTodoStore(IServiceScopeFactory scopes, bool acceptance
         }
         else
         {
-            try { items = JsonSerializer.Deserialize<List<T>>(existingJson, JsonOptions) ?? []; }
+            try
+            { items = JsonSerializer.Deserialize<List<T>>(existingJson, JsonOptions) ?? []; }
             catch (JsonException) { items = []; }
         }
         items.Add(entry);

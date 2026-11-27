@@ -18,7 +18,8 @@ public sealed class CloudLiveUIPrivacyScreenTests
         var gate = new Gate((content, _) =>
         {
             checkedFields.Add(content);
-            if (checkedFields.Count == 1) { actions[0] = "delete"; capabilities.Clear(); }
+            if (checkedFields.Count == 1)
+            { actions[0] = "delete"; capabilities.Clear(); }
             return Allow(content == "private intent" ? "safe intent" : content);
         });
 

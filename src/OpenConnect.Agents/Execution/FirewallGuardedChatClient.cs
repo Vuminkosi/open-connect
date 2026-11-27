@@ -149,13 +149,15 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
         if (response is null)
             throw FailClosed();
         EgressContext context;
-        try { context = _contextProvider.GetContext() with { Destination = EgressDestination.Output }; }
+        try
+        { context = _contextProvider.GetContext() with { Destination = EgressDestination.Output }; }
         catch { throw FailClosed(); }
         await DemandSafeIdentifierAsync(response.ResponseId, context, cancellationToken).ConfigureAwait(false);
         await DemandSafeIdentifierAsync(response.ConversationId, context, cancellationToken).ConfigureAwait(false);
         await DemandSafeIdentifierAsync(response.ModelId, context, cancellationToken).ConfigureAwait(false);
         await DemandSafeIdentifierAsync(response.FinishReason?.Value, context, cancellationToken).ConfigureAwait(false);
-        if (response.ContinuationToken is not null) throw FailClosed();
+        if (response.ContinuationToken is not null)
+            throw FailClosed();
         await GuardMessageBoundariesAsync(response.Messages, EgressDestination.Output, cancellationToken).ConfigureAwait(false);
         response.Messages = (await GuardAsync(response.Messages, cancellationToken, EgressDestination.Output).ConfigureAwait(false)).ToList();
         await GuardContentBoundariesAsync(response.Messages, EgressDestination.Output, cancellationToken).ConfigureAwait(false);
@@ -181,7 +183,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
         try
         {
             context = _contextProvider.GetContext();
-            if (destination is not null) context = context with { Destination = destination.Value };
+            if (destination is not null)
+                context = context with { Destination = destination.Value };
             decision = await _gate.EvaluateAsync(combined, context, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
@@ -191,7 +194,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
         var entities = decision!.DetectedEntities;
         var scalarLength = RulesSecurityDetector.CountUnicodeCodePoints(combined, 0, combined.Length);
         if (entities.Any(span => span is null || span.Start < 0 || span.Length <= 0 ||
-            (long)span.Start + span.Length > scalarLength)) throw FailClosed();
+            (long)span.Start + span.Length > scalarLength))
+            throw FailClosed();
 
         var offset = 0;
         var boundary = 0;
@@ -231,17 +235,22 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
                         FunctionResultContent result => result.Result,
                         _ => null,
                     };
-                    if (value is null) continue;
-                    if (values.Count >= MaxBufferedUpdates) throw FailClosed();
+                    if (value is null)
+                        continue;
+                    if (values.Count >= MaxBufferedUpdates)
+                        throw FailClosed();
                     var element = JsonSerializer.SerializeToElement(value, EgressJsonOptions);
                     size += element.GetRawText().Length;
-                    if (size > MaxBufferedCharacters) throw FailClosed();
+                    if (size > MaxBufferedCharacters)
+                        throw FailClosed();
                     values.Add(element);
                 }
             }
-            if (values.Count < 2) return;
+            if (values.Count < 2)
+                return;
             var context = _contextProvider.GetContext();
-            if (destination is not null) context = context with { Destination = destination.Value };
+            if (destination is not null)
+                context = context with { Destination = destination.Value };
             await PrivacyJsonInspection.DemandGateUnchangedAsync(_gate, JsonSerializer.SerializeToElement(values), context, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -405,9 +414,11 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
 
     private async Task DemandSafeIdentifierAsync(string? value, EgressContext context, CancellationToken cancellationToken)
     {
-        if (value is null) return;
+        if (value is null)
+            return;
         EgressDecision decision;
-        try { decision = await _gate.EvaluateAsync(value, context, cancellationToken).ConfigureAwait(false); }
+        try
+        { decision = await _gate.EvaluateAsync(value, context, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw FailClosed(); }
         if (!IsSafeDecision(value, decision) ||
@@ -426,36 +437,44 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
             decision.DetectedEntities is null || decision.DetectedEntities.Count > 20000)
             return false;
         var entities = decision.DetectedEntities;
-        if (entities.Count == 0) return true;
+        if (entities.Count == 0)
+            return true;
         if ((long)entities.Count * decision.SanitizedContent.Length > 100_000_000 ||
-            string.Equals(source, decision.SanitizedContent, StringComparison.Ordinal)) return false;
+            string.Equals(source, decision.SanitizedContent, StringComparison.Ordinal))
+            return false;
         var offsets = new List<int>();
         var offset = 0;
-        foreach (var rune in source.EnumerateRunes()) { offsets.Add(offset); offset += rune.Utf16SequenceLength; }
+        foreach (var rune in source.EnumerateRunes())
+        { offsets.Add(offset); offset += rune.Utf16SequenceLength; }
         offsets.Add(offset);
         foreach (var entity in entities)
         {
             if (entity is null || entity.Start < 0 || entity.Length <= 0 ||
-                (long)entity.Start + entity.Length >= offsets.Count) return false;
+                (long)entity.Start + entity.Length >= offsets.Count)
+                return false;
             var start = offsets[entity.Start];
             if (decision.SanitizedContent.AsSpan().Contains(source.AsSpan(start, offsets[entity.Start + entity.Length] - start),
-                    StringComparison.Ordinal)) return false;
+                    StringComparison.Ordinal))
+                return false;
         }
         return true;
     }
 
     private async Task<ChatOptions?> GuardOptionsAsync(ChatOptions? options, CancellationToken cancellationToken)
     {
-        try { return await GuardOptionsCoreAsync(options, cancellationToken).ConfigureAwait(false); }
+        try
+        { return await GuardOptionsCoreAsync(options, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { throw FailClosed(); }
     }
 
     private async Task<ChatOptions?> GuardOptionsCoreAsync(ChatOptions? options, CancellationToken cancellationToken)
     {
-        if (options is null) return null;
+        if (options is null)
+            return null;
         EgressContext context;
-        try { context = _contextProvider.GetContext(); }
+        try
+        { context = _contextProvider.GetContext(); }
         catch { throw FailClosed(); }
         if (context is null || options.RawRepresentationFactory is not null || options.AdditionalProperties is { Count: > 0 })
             throw FailClosed();
@@ -464,7 +483,8 @@ public sealed class FirewallGuardedChatClient : DelegatingChatClient
             safe.Instructions = await SanitizeAsync(safe.Instructions, context, cancellationToken).ConfigureAwait(false);
         await DemandSafeIdentifierAsync(safe.ConversationId, context, cancellationToken).ConfigureAwait(false);
         await DemandSafeIdentifierAsync(safe.ModelId, context, cancellationToken).ConfigureAwait(false);
-        if (safe.ContinuationToken is not null) throw FailClosed();
+        if (safe.ContinuationToken is not null)
+            throw FailClosed();
         if (safe.StopSequences is not null)
             foreach (var sequence in safe.StopSequences)
                 await DemandSafeIdentifierAsync(sequence, context, cancellationToken).ConfigureAwait(false);

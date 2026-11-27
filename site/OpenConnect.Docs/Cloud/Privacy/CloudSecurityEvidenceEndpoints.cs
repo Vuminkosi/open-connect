@@ -159,7 +159,8 @@ public static class CloudSecurityEvidenceEndpoints
             while (length < buffer.Length)
             {
                 var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), deadline.Token);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
             if (length > maximum)
@@ -204,7 +205,8 @@ public static class CloudSecurityEvidenceEndpoints
     private static bool TryParseOptionalDecision(string? value, out SecurityEvidenceDecision? result)
     {
         result = null;
-        if (string.IsNullOrWhiteSpace(value)) return true;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
         result = value.Trim().ToLowerInvariant() switch
         {
             "allow" => SecurityEvidenceDecision.Allow,
@@ -222,7 +224,8 @@ public static class CloudSecurityEvidenceEndpoints
     private static bool TryParseOptionalOutcome(string? value, out SecurityEnforcementOutcome? result)
     {
         result = null;
-        if (string.IsNullOrWhiteSpace(value)) return true;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
         result = value.Trim().ToLowerInvariant() switch
         {
             "not_executed" => SecurityEnforcementOutcome.NotExecuted,
@@ -237,7 +240,8 @@ public static class CloudSecurityEvidenceEndpoints
     private static bool TryParseOptionalTimestamp(string? value, out DateTimeOffset? result)
     {
         result = null;
-        if (string.IsNullOrWhiteSpace(value)) return true;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
         if (!DateTimeOffset.TryParse(value.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
             return false;
         result = parsed.ToUniversalTime();

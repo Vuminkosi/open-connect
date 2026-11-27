@@ -35,7 +35,8 @@ public sealed class CloudExecutionGuardUpgradeTests
         var application = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow;
         var capability = "guard." + Guid.NewGuid().ToString("N");
-        var bucket = Guid.NewGuid(); var reservation = Guid.NewGuid();
+        var bucket = Guid.NewGuid();
+        var reservation = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test", ContractVersion = "1", BillingUnit = "request", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });

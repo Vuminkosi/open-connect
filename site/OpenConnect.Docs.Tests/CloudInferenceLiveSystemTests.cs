@@ -39,7 +39,8 @@ public sealed class CloudInferenceLiveSystemTests
         var digest = Required("OPENCONNECT_TEST_MODEL_DIGEST");
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Required("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Cloud inference acceptance", default);
@@ -50,16 +51,39 @@ public sealed class CloudInferenceLiveSystemTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "inference.chat");
-            capability.PlatformAvailability = "available"; capability.AllowedRegions = "[\"region-a\"]"; capability.AllowedRegionsVerified = true;
+            capability.PlatformAvailability = "available";
+            capability.AllowedRegions = "[\"region-a\"]";
+            capability.AllowedRegionsVerified = true;
             db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "inference.chat", EndpointReference = deploymentRef,
-                Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ModelId = modelId,
-                ModelRevision = revision, ModelDigest = digest, ImageDigest = "sha256:" + new string('b', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deploymentId,
+                CapabilityId = "inference.chat",
+                EndpointReference = deploymentRef,
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "openconnect.v1",
+                ModelId = modelId,
+                ModelRevision = revision,
+                ModelDigest = digest,
+                ImageDigest = "sha256:" + new string('b', 64),
+                Enabled = true,
+                ConcurrencyLimit = 1
+            });
             db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "inference.chat", PlanGranted = true, Revision = 1 });
             db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "inference.chat", Enabled = true, Revision = 1 });
             db.ApplicationCapabilitySelections.Add(new CloudApplicationCapabilitySelection { TenantId = tenant.Id, ApplicationId = application.Id, CapabilityId = "inference.chat", Enabled = true, Revision = 1 });
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = application.Id,
-                CapabilityId = "inference.chat", Unit = "token", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddMinutes(15), Limit = 10000 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenant.Id,
+                ApplicationId = application.Id,
+                CapabilityId = "inference.chat",
+                Unit = "token",
+                PeriodStart = now.AddMinutes(-1),
+                PeriodEnd = now.AddMinutes(15),
+                Limit = 10000
+            });
             await db.SaveChangesAsync();
         }
         var policy = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
@@ -80,39 +104,59 @@ public sealed class CloudInferenceLiveSystemTests
             https.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
             https.ClientCertificateValidation = (_, _, _) => true;
         })));
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddScoped<ICloudCredentialStore, EfCloudCredentialStore>(); builder.Services.AddScoped<CloudCredentialService>();
-        builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>(); builder.Services.AddScoped<CloudMachineAuthorizationService>();
-        builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>(); builder.Services.AddScoped<CloudQuotaService>();
-        builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>(); builder.Services.AddScoped<CloudExecutionClaimService>();
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<ICloudCredentialStore, EfCloudCredentialStore>();
+        builder.Services.AddScoped<CloudCredentialService>();
+        builder.Services.AddScoped<ICloudMachineCapabilityReader, EfCloudMachineCapabilityReader>();
+        builder.Services.AddScoped<CloudMachineAuthorizationService>();
+        builder.Services.AddScoped<ICloudQuotaStore, EfCloudQuotaStore>();
+        builder.Services.AddScoped<CloudQuotaService>();
+        builder.Services.AddScoped<ICloudExecutionClaimStore, EfCloudExecutionClaimStore>();
+        builder.Services.AddScoped<CloudExecutionClaimService>();
         builder.Services.AddScoped<ICloudInferencePrivacyEvidenceStore, EfCloudInferencePrivacyEvidenceStore>();
         builder.Services.AddSingleton(new CloudInferencePrivacyService(new RulesSecurityDetector()));
         builder.Services.AddScoped<ICloudInferenceAccessStore, EfCloudInferenceAccessStore>();
         builder.Services.AddScoped<ICloudInferenceOutputEvidenceStore, EfCloudInferenceOutputEvidenceStore>();
         builder.Services.AddSingleton(new CloudInferenceOutputPrivacyService(new RulesSecurityDetector()));
-        builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>(); builder.Services.AddScoped<CloudInferenceConsumptionService>();
-        builder.Services.AddScoped<ICloudInferenceTokenSettlementStore, EfCloudInferenceTokenSettlementStore>(); builder.Services.AddScoped<CloudInferenceTokenSettlement>();
-        builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>(); builder.Services.AddScoped<CloudWorkerReadiness>();
+        builder.Services.AddScoped<ICloudInferenceConsumptionStore, EfCloudInferenceConsumptionStore>();
+        builder.Services.AddScoped<CloudInferenceConsumptionService>();
+        builder.Services.AddScoped<ICloudInferenceTokenSettlementStore, EfCloudInferenceTokenSettlementStore>();
+        builder.Services.AddScoped<CloudInferenceTokenSettlement>();
+        builder.Services.AddScoped<ICloudWorkerReadinessStore, EfCloudWorkerReadinessStore>();
+        builder.Services.AddScoped<CloudWorkerReadiness>();
         builder.Services.AddScoped<CloudReadinessService>();
         await using var host = builder.Build();
-        host.MapCloudGatewayReadiness(gatewayTrust, true); host.MapCloudGatewayAuthorization(gatewayTrust, true);
-        host.MapCloudInferencePrivacy(gatewayTrust, true); host.MapCloudInferenceFingerprintKeyLookup(gatewayTrust, true);
-        host.MapCloudInferenceQuota(gatewayTrust, true); host.MapCloudInferenceClaim(gatewayTrust, true);
-        host.MapCloudInferenceAccess(gatewayTrust, true); host.MapCloudInferenceOutputPrivacy(gatewayTrust, true);
-        host.MapCloudWorkerReadiness(workerTrust, true); host.MapCloudInferenceConsumption(workerTrust, true); host.MapCloudInferenceTokenSettlement(workerTrust, true);
+        host.MapCloudGatewayReadiness(gatewayTrust, true);
+        host.MapCloudGatewayAuthorization(gatewayTrust, true);
+        host.MapCloudInferencePrivacy(gatewayTrust, true);
+        host.MapCloudInferenceFingerprintKeyLookup(gatewayTrust, true);
+        host.MapCloudInferenceQuota(gatewayTrust, true);
+        host.MapCloudInferenceClaim(gatewayTrust, true);
+        host.MapCloudInferenceAccess(gatewayTrust, true);
+        host.MapCloudInferenceOutputPrivacy(gatewayTrust, true);
+        host.MapCloudWorkerReadiness(workerTrust, true);
+        host.MapCloudInferenceConsumption(workerTrust, true);
+        host.MapCloudInferenceTokenSettlement(workerTrust, true);
         await host.StartAsync();
         var authorityPort = new Uri(host.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
         var suffix = Guid.NewGuid().ToString("N")[..10];
-        var network = "oc-inference-live-" + suffix; var worker = "oc-inference-worker-" + suffix; var gateway = "oc-inference-gateway-" + suffix;
+        var network = "oc-inference-live-" + suffix;
+        var worker = "oc-inference-worker-" + suffix;
+        var gateway = "oc-inference-gateway-" + suffix;
         var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
         var directory = Path.GetFullPath(Path.Combine(temporaryRoot, "oc-inference-live-" + suffix));
-        if (!directory.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Invalid test directory.");
+        if (!directory.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Invalid test directory.");
         Directory.CreateDirectory(directory);
         try
         {
-            var workerSecrets = Path.Combine(directory, "worker"); var gatewaySecrets = Path.Combine(directory, "gateway");
-            Directory.CreateDirectory(workerSecrets); Directory.CreateDirectory(gatewaySecrets);
-            WriteCertificate(workerSecrets, "server", workerServerCert); WriteCertificate(workerSecrets, "authority-client", workerCert);
+            var workerSecrets = Path.Combine(directory, "worker");
+            var gatewaySecrets = Path.Combine(directory, "gateway");
+            Directory.CreateDirectory(workerSecrets);
+            Directory.CreateDirectory(gatewaySecrets);
+            WriteCertificate(workerSecrets, "server", workerServerCert);
+            WriteCertificate(workerSecrets, "authority-client", workerCert);
             File.WriteAllText(Path.Combine(workerSecrets, "authority-ca.crt"), authorityCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "gateway-client-ca.crt"), gatewayCert.ExportCertificatePem());
             File.WriteAllText(Path.Combine(workerSecrets, "worker-token"), "fixture-worker-token\n");
@@ -133,7 +177,8 @@ public sealed class CloudInferenceLiveSystemTests
                 "OPENCONNECT_CLOUD_AUTHORITY_ORIGIN=" + authority, "OPENCONNECT_CLOUD_AUTHORITY_CA_FILE=/run/openconnect-cloud/authority-ca.crt",
                 "OPENCONNECT_CLOUD_WORKER_CERT_FILE=/run/openconnect-cloud/authority-client.crt", "OPENCONNECT_CLOUD_WORKER_KEY_FILE=/run/openconnect-cloud/authority-client.key" }))
                 workerArgs.AddRange(["-e", value]);
-            workerArgs.Add(Required("OPENCONNECT_TEST_WORKER_IMAGE")); await Docker(workerArgs.ToArray());
+            workerArgs.Add(Required("OPENCONNECT_TEST_WORKER_IMAGE"));
+            await Docker(workerArgs.ToArray());
             var gatewayArgs = new List<string> { "run", "-d", "--name", gateway, "--network", network, "-p", "127.0.0.1::8091",
                 "-v", gatewaySecrets + ":/run/openconnect-cloud:ro", "-v", Required("OPENCONNECT_TEST_MODEL_VOLUME") + ":/models:ro" };
             var gatewayEnv = new[] { "CLOUD_AUTHORITY_ORIGIN=" + authority, "CLOUD_AUTHORITY_CA_FILE=/run/openconnect-cloud/authority-ca.crt",
@@ -146,7 +191,8 @@ public sealed class CloudInferenceLiveSystemTests
                 "CLOUD_FINGERPRINT_KEYS_FILE=/run/openconnect-cloud/fingerprints" };
             foreach (var value in gatewayEnv.Concat(modelEnv.Select(x => x.Replace("OPENCONNECT_CLOUD_MODEL_", "CLOUD_INFERENCE_MODEL_", StringComparison.Ordinal))))
                 gatewayArgs.AddRange(["-e", value]);
-            gatewayArgs.Add(Required("OPENCONNECT_TEST_GATEWAY_IMAGE")); await Docker(gatewayArgs.ToArray());
+            gatewayArgs.Add(Required("OPENCONNECT_TEST_GATEWAY_IMAGE"));
+            await Docker(gatewayArgs.ToArray());
             var portText = await Docker("port", gateway, "8091/tcp");
             var port = int.Parse(portText.Trim().Split(':')[^1], System.Globalization.CultureInfo.InvariantCulture);
             using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}"), Timeout = TimeSpan.FromSeconds(90) };
@@ -155,25 +201,35 @@ public sealed class CloudInferenceLiveSystemTests
             {
                 using var check = await http.GetAsync("/health/ready");
                 ready = check.IsSuccessStatusCode;
-                if (!ready) await Task.Delay(1000);
+                if (!ready)
+                    await Task.Delay(1000);
             }
             Assert.True(ready, "Cloud gateway and worker did not become ready.");
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credential.Secret);
             var requestId = Guid.NewGuid();
-            var request = new { schemaVersion = "openconnect.cloud.inference/v1", requestId, capability = "inference.chat",
-                expiresAt = DateTimeOffset.UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture), modelId,
-                input = new { messages = new[] { new { role = "user", content = "Say hello." } }, maxTokens = 8, stream = false } };
+            var request = new
+            {
+                schemaVersion = "openconnect.cloud.inference/v1",
+                requestId,
+                capability = "inference.chat",
+                expiresAt = DateTimeOffset.UtcNow.AddMinutes(2).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture),
+                modelId,
+                input = new { messages = new[] { new { role = "user", content = "Say hello." } }, maxTokens = 8, stream = false }
+            };
             using var response = await http.PostAsJsonAsync("/cloud/v1/inference/chat", request);
             Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
             using var result = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             Assert.Equal(requestId.ToString(), result.RootElement.GetProperty("requestId").GetString());
             Assert.Equal(System.Text.Json.JsonValueKind.String, result.RootElement.GetProperty("output").ValueKind);
             var usage = result.RootElement.GetProperty("usage");
-            var inputTokens = usage.GetProperty("inputTokens").GetInt64(); var outputTokens = usage.GetProperty("outputTokens").GetInt64();
-            Assert.True(inputTokens > 0); Assert.InRange(outputTokens, 0, 8);
+            var inputTokens = usage.GetProperty("inputTokens").GetInt64();
+            var outputTokens = usage.GetProperty("outputTokens").GetInt64();
+            Assert.True(inputTokens > 0);
+            Assert.InRange(outputTokens, 0, 8);
             await using var verify = await factory.CreateDbContextAsync();
             var reservation = await verify.QuotaReservations.SingleAsync(x => x.RequestId == requestId && x.TenantId == tenant.Id && x.ApplicationId == application.Id);
-            Assert.NotNull(reservation.FinalizedAt); Assert.Equal(inputTokens + outputTokens, reservation.Actual);
+            Assert.NotNull(reservation.FinalizedAt);
+            Assert.Equal(inputTokens + outputTokens, reservation.Actual);
             Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.inference_privacy_evidence WHERE \"TenantId\" = {tenant.Id} AND \"ApplicationId\" = {application.Id} AND \"RequestId\" = {requestId} AND \"Outcome\" = 'allowed'").SingleAsync());
             Assert.Equal(1, await verify.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM cloud.inference_output_privacy_evidence WHERE \"ReservationId\" = {reservation.Id} AND \"Outcome\" = 'allowed'").SingleAsync());
             using var replay = await http.PostAsJsonAsync("/cloud/v1/inference/chat", request);
@@ -182,8 +238,10 @@ public sealed class CloudInferenceLiveSystemTests
         }
         finally
         {
-            await DockerIgnoreFailure("rm", "-f", gateway); await DockerIgnoreFailure("rm", "-f", worker);
-            await DockerIgnoreFailure("network", "rm", network); Directory.Delete(directory, recursive: true);
+            await DockerIgnoreFailure("rm", "-f", gateway);
+            await DockerIgnoreFailure("rm", "-f", worker);
+            await DockerIgnoreFailure("network", "rm", network);
+            Directory.Delete(directory, recursive: true);
         }
     }
 
@@ -191,18 +249,22 @@ public sealed class CloudInferenceLiveSystemTests
     private static async Task<string> Docker(params string[] args)
     {
         var start = new ProcessStartInfo("docker") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var argument in args) start.ArgumentList.Add(argument);
+        foreach (var argument in args)
+            start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("Docker unavailable.");
-        var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
+        var output = process.StandardOutput.ReadToEndAsync();
+        var errors = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
-        if (process.ExitCode != 0) throw new InvalidOperationException("Docker command failed: " + await errors);
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException("Docker command failed: " + await errors);
         return await output;
     }
     private static async Task DockerIgnoreFailure(params string[] args) { try { await Docker(args); } catch { } }
     private static void WriteCertificate(string directory, string name, X509Certificate2 certificate)
     {
         File.WriteAllText(Path.Combine(directory, name + ".crt"), certificate.ExportCertificatePem());
-        using var key = certificate.GetRSAPrivateKey()!; File.WriteAllText(Path.Combine(directory, name + ".key"), key.ExportPkcs8PrivateKeyPem());
+        using var key = certificate.GetRSAPrivateKey()!;
+        File.WriteAllText(Path.Combine(directory, name + ".key"), key.ExportPkcs8PrivateKeyPem());
     }
     private static X509Certificate2 Certificate(string name, bool client)
     {
@@ -211,7 +273,8 @@ public sealed class CloudInferenceLiveSystemTests
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.KeyCertSign, true));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new(client ? "1.3.6.1.5.5.7.3.2" : "1.3.6.1.5.5.7.3.1") }, true));
-        if (!client) { var names = new SubjectAlternativeNameBuilder(); names.AddDnsName(name); request.CertificateExtensions.Add(names.Build()); }
+        if (!client)
+        { var names = new SubjectAlternativeNameBuilder(); names.AddDnsName(name); request.CertificateExtensions.Add(names.Build()); }
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
         return X509CertificateLoader.LoadPkcs12(generated.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.UserKeySet | X509KeyStorageFlags.Exportable);
     }

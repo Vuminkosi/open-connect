@@ -18,14 +18,18 @@ public sealed class CloudInferenceModelPolicyComponentTests : BunitContext
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", "owner-" + Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Inference UI", default);
         var policies = new CloudInferenceModelPolicyService(new EfCloudInferenceModelPolicyStore(factory, TimeProvider.System));
-        Services.AddSingleton(factory); Services.AddSingleton(TimeProvider.System);
-        Services.AddSingleton<ICloudTenantStore>(tenants); Services.AddSingleton<CloudControlPlaneService>();
-        Services.AddSingleton<ICloudInferenceModelPolicyStore, EfCloudInferenceModelPolicyStore>(); Services.AddSingleton<CloudInferenceModelPolicyService>();
+        Services.AddSingleton(factory);
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddSingleton<ICloudTenantStore>(tenants);
+        Services.AddSingleton<CloudControlPlaneService>();
+        Services.AddSingleton<ICloudInferenceModelPolicyStore, EfCloudInferenceModelPolicyStore>();
+        Services.AddSingleton<CloudInferenceModelPolicyService>();
         Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication(owner.SubjectId));
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = owner.Issuer }).Build());

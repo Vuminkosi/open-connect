@@ -70,7 +70,8 @@ public sealed class RulesSecurityDetector : ISecurityDetector
         void AddMatch(RawEntityMatch match)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (matches.Count >= 20000) throw new InvalidOperationException("detector_limit_exceeded");
+            if (matches.Count >= 20000)
+                throw new InvalidOperationException("detector_limit_exceeded");
             matches.Add(match);
         }
 
@@ -151,7 +152,8 @@ public sealed class RulesSecurityDetector : ISecurityDetector
             var positions = new List<int>(content.Length);
             for (var i = 0; i < content.Length; i++)
             {
-                if (content[i] is '\u200b' or '\u200c' or '\u200d' or '\u2060' or '\ufeff') continue;
+                if (content[i] is '\u200b' or '\u200c' or '\u200d' or '\u2060' or '\ufeff')
+                    continue;
                 normalized.Append(content[i]);
                 positions.Add(i);
             }
@@ -160,7 +162,8 @@ public sealed class RulesSecurityDetector : ISecurityDetector
             {
                 foreach (Match match in pattern.Matches(view))
                 {
-                    if (validate is not null && !validate(match.Value)) continue;
+                    if (validate is not null && !validate(match.Value))
+                        continue;
                     var start = positions[match.Index];
                     var end = positions[match.Index + match.Length - 1] + 1;
                     AddMatch(new RawEntityMatch(start, end - start, category, content.Substring(start, end - start)));
@@ -263,7 +266,8 @@ public sealed class RulesSecurityDetector : ISecurityDetector
             while (offsetCursor < entity.Start)
             {
                 if (!char.IsLowSurrogate(content[offsetCursor]) || offsetCursor == 0 ||
-                    !char.IsHighSurrogate(content[offsetCursor - 1])) scalarOffset++;
+                    !char.IsHighSurrogate(content[offsetCursor - 1]))
+                    scalarOffset++;
                 offsetCursor++;
             }
             var startOffset = scalarOffset;

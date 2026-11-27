@@ -22,20 +22,38 @@ public sealed class CloudAvailabilityComponentTests : BunitContext
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
-            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Availability UI", Description = "Test", ContractVersion = "v1",
-                BillingUnit = "request", PlatformAvailability = "not_configured", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.Capabilities.Add(new CloudCapabilityDefinition
+            {
+                Id = capability,
+                Name = "Availability UI",
+                Description = "Test",
+                ContractVersion = "v1",
+                BillingUnit = "request",
+                PlatformAvailability = "not_configured",
+                Dependencies = "[]",
+                Modalities = "[]",
+                AllowedRegions = "[]"
+            });
             await db.SaveChangesAsync();
         }
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example", ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = "https://issuer.example",
+            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
         }).Build();
-        Services.AddSingleton<IConfiguration>(config); Services.AddSingleton(factory); Services.AddSingleton(TimeProvider.System);
-        Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication()); Services.AddSingleton<CloudOperatorAccess>();
-        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>(); Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>();
-        Services.AddSingleton<CloudCapabilityService>(); Services.AddSingleton<ICloudCapabilityAvailabilityStore, EfCloudCapabilityAvailabilityStore>();
-        Services.AddSingleton<CloudCapabilityAvailabilityService>(); Services.AddSingleton<CloudOperatorCapabilityAvailabilityService>();
+        Services.AddSingleton<IConfiguration>(config);
+        Services.AddSingleton(factory);
+        Services.AddSingleton(TimeProvider.System);
+        Services.AddSingleton<AuthenticationStateProvider>(new TestAuthentication());
+        Services.AddSingleton<CloudOperatorAccess>();
+        Services.AddSingleton<ICloudCapabilityReader, EfCloudCapabilityReader>();
+        Services.AddSingleton<ICloudCapabilitySelectionStore, EfCloudCapabilitySelectionStore>();
+        Services.AddSingleton<CloudCapabilityService>();
+        Services.AddSingleton<ICloudCapabilityAvailabilityStore, EfCloudCapabilityAvailabilityStore>();
+        Services.AddSingleton<CloudCapabilityAvailabilityService>();
+        Services.AddSingleton<CloudOperatorCapabilityAvailabilityService>();
         var component = Render<OperatorAvailability>();
         component.WaitForAssertion(() => Assert.Contains(capability, component.Markup));
         component.Find("#availability-service").Change(capability);
@@ -45,8 +63,18 @@ public sealed class CloudAvailabilityComponentTests : BunitContext
         component.WaitForAssertion(() => Assert.Contains("Enable a deployment", component.Markup));
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = capability, EndpointReference = "test-" + Guid.NewGuid().ToString("N"),
-                Transport = "https-mtls", Region = "test", ContractVersion = "v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = Guid.NewGuid(),
+                CapabilityId = capability,
+                EndpointReference = "test-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "test",
+                ContractVersion = "v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 1
+            });
             await db.SaveChangesAsync();
         }
         component.FindAll("button").Single(x => x.TextContent == "Save availability").Click();

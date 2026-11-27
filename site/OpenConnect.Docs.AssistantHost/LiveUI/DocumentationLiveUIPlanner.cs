@@ -59,7 +59,8 @@ internal sealed class DocumentationLiveUIPlanner(
         var session = sessions.Get(sessionId);
         if (session is null || session.TenantId.Value != tenant || session.PrincipalId.Value != subject)
             return new(StatusCodes.Status404NotFound);
-        if (!firewall.Enabled) return new(StatusCodes.Status403Forbidden);
+        if (!firewall.Enabled)
+            return new(StatusCodes.Status403Forbidden);
 
         try
         {

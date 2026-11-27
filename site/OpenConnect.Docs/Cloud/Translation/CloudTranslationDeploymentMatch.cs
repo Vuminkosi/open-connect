@@ -15,7 +15,8 @@ public sealed partial class CloudTranslationDeploymentMatch(ICloudTranslationDep
 {
     public Task<bool> MatchesAsync(Guid tenantId, CloudTranslationDeploymentMatchRequest? request, CancellationToken cancellationToken)
     {
-        if (tenantId == Guid.Empty || !IsValid(request)) return Task.FromResult(false);
+        if (tenantId == Guid.Empty || !IsValid(request))
+            return Task.FromResult(false);
         return reader.MatchesAsync(tenantId, request!, cancellationToken);
     }
 

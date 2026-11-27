@@ -34,7 +34,8 @@ public sealed class MinioDocumentDeleter
         if (tenantId is null || !TenantPattern.IsMatch(tenantId) || objectId is null || !ObjectPattern.IsMatch(objectId) ||
             string.IsNullOrEmpty(versionId) || versionId == "null" || versionId.Length > 1024 || versionId.Any(c => c < 32 || c == 127))
             throw new ArgumentException("Invalid document version reference.");
-        try { _ = new UTF8Encoding(false, true).GetByteCount(versionId); }
+        try
+        { _ = new UTF8Encoding(false, true).GetByteCount(versionId); }
         catch (EncoderFallbackException) { throw new ArgumentException("Invalid document version reference."); }
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(2));
@@ -42,10 +43,12 @@ public sealed class MinioDocumentDeleter
         token.ThrowIfCancellationRequested();
         var allowed = await _authorize(tenantId, objectId, versionId, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!allowed) throw new UnauthorizedAccessException("Document deletion is not authorized.");
+        if (!allowed)
+            throw new UnauthorizedAccessException("Document deletion is not authorized.");
         var tenantHash = Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(tenantId))).ToLowerInvariant();
         var key = $"v1/tenants/{tenantHash}/documents/{objectId}";
-        try { await _remove(key, versionId, token).ConfigureAwait(false); }
+        try
+        { await _remove(key, versionId, token).ConfigureAwait(false); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch { throw new InvalidOperationException("Document storage is unavailable."); }
         token.ThrowIfCancellationRequested();

@@ -32,12 +32,14 @@ public sealed class DocumentationKnowledgeDemoTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.Environment.EnvironmentName = Environments.Development;
-        Configure(builder); AddVisitor(builder);
+        Configure(builder);
+        AddVisitor(builder);
         builder.Services.AddDocumentationKnowledgeDemo(builder.Configuration, builder.Environment);
         using var provider = builder.Services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var capacity = provider.GetRequiredService<DocumentationKnowledgeCapacity>();
-        await capacity.Slots.WaitAsync(); await capacity.Slots.WaitAsync();
+        await capacity.Slots.WaitAsync();
+        await capacity.Slots.WaitAsync();
         try
         {
             await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<IDocumentationKnowledgeDemo>()
@@ -53,7 +55,8 @@ public sealed class DocumentationKnowledgeDemoTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.Environment.EnvironmentName = Environments.Development;
-        Configure(builder); AddVisitor(builder);
+        Configure(builder);
+        AddVisitor(builder);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["OpenConnect:KnowledgeDemo:IndexOrigin"] = origin,
@@ -67,7 +70,8 @@ public sealed class DocumentationKnowledgeDemoTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.Environment.EnvironmentName = Environments.Development;
-        Configure(builder); AddVisitor(builder);
+        Configure(builder);
+        AddVisitor(builder);
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:KnowledgeDemo:UseCloudEmbedding"] = "true" });
         Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationKnowledgeDemo(builder.Configuration, builder.Environment));
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:KnowledgeDemo:CloudBearerToken"] = "fixture-cloud-token" });

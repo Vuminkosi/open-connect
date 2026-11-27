@@ -49,13 +49,20 @@ internal sealed class CloudHostPrivacyStatisticsAccumulator
 
     public void Add(string destination, bool allowed, string action, string reason, string categoryCounts, long count)
     {
-        if (count <= 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (count <= 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
         using var categories = JsonDocument.Parse(categoryCounts);
         var parsed = CloudHostPrivacyReportParser.Categories(categories.RootElement);
         checked
         {
-            if (destination == "Output") _outputDecisions += count; else _otherDestinations += count;
-            if (allowed) _allowed += count; else _blocked += count;
+            if (destination == "Output")
+                _outputDecisions += count;
+            else
+                _otherDestinations += count;
+            if (allowed)
+                _allowed += count;
+            else
+                _blocked += count;
             _actions[action] = _actions.GetValueOrDefault(action) + count;
             _reasons[reason] = _reasons.GetValueOrDefault(reason) + count;
             foreach (var item in parsed)
@@ -97,7 +104,8 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
 {
     public async Task<CloudHostPrivacyObservation?> GetAsync(CloudSubject subject, Guid tenantId, Guid caseId, CancellationToken cancellationToken)
     {
-        if (tenantId == Guid.Empty || caseId == Guid.Empty) throw new ArgumentException("Invalid host privacy case query.");
+        if (tenantId == Guid.Empty || caseId == Guid.Empty)
+            throw new ArgumentException("Invalid host privacy case query.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var actor = db.Memberships.AsNoTracking().Where(item => item.TenantId == tenantId &&
             item.SubjectIssuer == subject.Issuer && item.SubjectId == subject.SubjectId);
@@ -116,8 +124,10 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
                   AND EXISTS (SELECT 1 FROM cloud.memberships m WHERE m."TenantId"=e."TenantId"
                     AND m."SubjectIssuer"=@issuer AND m."SubjectId"=@subject AND m."Role" IN ('Owner', 'Administrator', 'SecurityAnalyst'))
                 """;
-            Add(command, "tenant", tenantId); Add(command, "id", caseId);
-            Add(command, "issuer", subject.Issuer); Add(command, "subject", subject.SubjectId);
+            Add(command, "tenant", tenantId);
+            Add(command, "id", caseId);
+            Add(command, "issuer", subject.Issuer);
+            Add(command, "subject", subject.SubjectId);
             await using (var result = await command.ExecuteReaderAsync(cancellationToken))
             {
                 if (await result.ReadAsync(cancellationToken))
@@ -140,12 +150,22 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
             }
             role = await actor.Select(item => item.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "SecurityAnalyst";
-            if (!authorized) observation = null;
+            if (!authorized)
+                observation = null;
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "privacy.host_case.read", ResourceId = caseId.ToString("D"),
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "privacy.host_case.read",
+            ResourceId = caseId.ToString("D"),
             Outcome = !authorized ? "forbidden" : observation is null ? "not_found" : "succeeded",
-            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"), OccurredAt = clock.GetUtcNow() });
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         return observation;
     }
@@ -175,9 +195,12 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
                     AND m."SubjectIssuer"=@issuer AND m."SubjectId"=@subject AND m."Role" IN ('Owner', 'Administrator', 'SecurityAnalyst'))
                 """ + (before is null ? "" : " AND (e.\"ReceivedAt\", e.\"EventId\") < (@before, @id)") +
                 " ORDER BY e.\"ReceivedAt\" DESC, e.\"EventId\" DESC LIMIT @limit";
-            Add(command, "tenant", tenantId); Add(command, "issuer", subject.Issuer); Add(command, "subject", subject.SubjectId);
+            Add(command, "tenant", tenantId);
+            Add(command, "issuer", subject.Issuer);
+            Add(command, "subject", subject.SubjectId);
             Add(command, "limit", limit + 1);
-            if (before is not null) { Add(command, "before", before.OccurredAt.ToUniversalTime()); Add(command, "id", before.Id); }
+            if (before is not null)
+            { Add(command, "before", before.OccurredAt.ToUniversalTime()); Add(command, "id", before.Id); }
             await using (var result = await command.ExecuteReaderAsync(cancellationToken))
             {
                 while (await result.ReadAsync(cancellationToken))
@@ -207,7 +230,9 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
                         AND m."SubjectIssuer"=@issuer AND m."SubjectId"=@subject AND m."Role" IN ('Owner', 'Administrator', 'SecurityAnalyst'))
                     GROUP BY e."Destination", e."Allowed", e."CategoryCounts", e."Action", e."ReasonCode"
                     """;
-                Add(totals, "tenant", tenantId); Add(totals, "issuer", subject.Issuer); Add(totals, "subject", subject.SubjectId);
+                Add(totals, "tenant", tenantId);
+                Add(totals, "issuer", subject.Issuer);
+                Add(totals, "subject", subject.SubjectId);
                 var accumulator = new CloudHostPrivacyStatisticsAccumulator();
                 await using (var result = await totals.ExecuteReaderAsync(cancellationToken))
                 {
@@ -219,14 +244,24 @@ public sealed class CloudHostPrivacyObservationReader(IDbContextFactory<CloudCon
             role = await actor.Select(item => item.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "SecurityAnalyst";
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "privacy.host_observations.read",
-            Outcome = authorized ? "succeeded" : "forbidden", TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
-            OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "privacy.host_observations.read",
+            Outcome = authorized ? "succeeded" : "forbidden",
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
-        if (!authorized) return null;
+        if (!authorized)
+            return null;
         var hasMore = rows.Count > limit;
-        if (hasMore) rows.RemoveAt(rows.Count - 1);
+        if (hasMore)
+            rows.RemoveAt(rows.Count - 1);
         var last = rows.LastOrDefault();
         return new(rows, hasMore && last is not null ? new(last.ReceivedAt, last.EventId) : null) { Statistics = statistics };
     }

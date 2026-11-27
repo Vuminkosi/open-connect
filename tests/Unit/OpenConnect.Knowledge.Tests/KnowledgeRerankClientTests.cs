@@ -40,16 +40,30 @@ public sealed class KnowledgeRerankClientTests
             using var command = JsonDocument.Parse(body);
             Assert.Equal("a", command.RootElement.GetProperty("payload").GetProperty("candidates")[0].GetProperty("id").GetString());
             var taskId = command.RootElement.GetProperty("taskId").GetString();
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                schemaVersion = "openconnect.v1", taskId, kind = "knowledge.rerank", result = new {
-                    model_id = "model", fingerprint = new string('a', 64), score_type = "raw_logit",
-                    candidates = new[] { new { id = "a", score = 1.0 }, new { id = forged ? "other" : "b", score = 0.5 } } } })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "openconnect.v1",
+                    taskId,
+                    kind = "knowledge.rerank",
+                    result = new
+                    {
+                        model_id = "model",
+                        fingerprint = new string('a', 64),
+                        score_type = "raw_logit",
+                        candidates = new[] { new { id = "a", score = 1.0 }, new { id = forged ? "other" : "b", score = 0.5 } }
+                    }
+                }))
+            };
         });
         using var http = new HttpClient(handler);
         using var client = new KnowledgeRerankClient(http, new Gate(), new Uri("https://worker.test"), "token", Key,
             (_, authorized, _) => { Assert.Equal("a", authorized[0].Id); candidates[0] = new("other", "changed"); return ValueTask.FromResult(true); });
-        if (forged) await Assert.ThrowsAsync<InvalidOperationException>(() => client.RerankAsync(Context(), "query", candidates));
-        else { using var result = await client.RerankAsync(Context(), "query", candidates); Assert.Equal(2, result.RootElement.GetProperty("result").GetProperty("candidates").GetArrayLength()); }
+        if (forged)
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.RerankAsync(Context(), "query", candidates));
+        else
+        { using var result = await client.RerankAsync(Context(), "query", candidates); Assert.Equal(2, result.RootElement.GetProperty("result").GetProperty("candidates").GetArrayLength()); }
     }
 
     [Fact]
@@ -75,10 +89,22 @@ public sealed class KnowledgeRerankClientTests
         var handler = new Handler(async request =>
         {
             using var command = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                schemaVersion = "openconnect.v1", taskId = command.RootElement.GetProperty("taskId").GetString(),
-                kind = "knowledge.rerank", result = new { model_id = "model", fingerprint = new string('a', 64),
-                    score_type = "raw_logit", candidates = new[] { new { id = "b", score = 0.5 }, new { id = "a", score = 0.5 } } } })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "openconnect.v1",
+                    taskId = command.RootElement.GetProperty("taskId").GetString(),
+                    kind = "knowledge.rerank",
+                    result = new
+                    {
+                        model_id = "model",
+                        fingerprint = new string('a', 64),
+                        score_type = "raw_logit",
+                        candidates = new[] { new { id = "b", score = 0.5 }, new { id = "a", score = 0.5 } }
+                    }
+                }))
+            };
         });
         using var http = new HttpClient(handler);
         using var client = new KnowledgeRerankClient(http, new Gate(), new Uri("https://worker.test"), "token", Key,
@@ -104,7 +130,8 @@ public sealed class KnowledgeRerankClientTests
     public async Task SharedResponseFixturesMatchClient(string folder, bool valid)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenConnect.slnx"))) directory = directory.Parent;
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "OpenConnect.slnx")))
+            directory = directory.Parent;
         Assert.NotNull(directory);
         var fixture = await File.ReadAllTextAsync(Path.Combine(directory.FullName, "contracts", "fixtures", folder,
             "knowledge-rerank-response.json"));
@@ -118,8 +145,10 @@ public sealed class KnowledgeRerankClientTests
         using var http = new HttpClient(handler);
         using var client = new KnowledgeRerankClient(http, new Gate(), new Uri("https://worker.test"), "token", Key,
             (_, _, _) => ValueTask.FromResult(true));
-        if (valid) { using var result = await client.RerankAsync(Context(), "query", [new("one", "text")]); Assert.Equal("knowledge.rerank", result.RootElement.GetProperty("kind").GetString()); }
-        else await Assert.ThrowsAsync<InvalidOperationException>(() => client.RerankAsync(Context(), "query", [new("one", "text")]));
+        if (valid)
+        { using var result = await client.RerankAsync(Context(), "query", [new("one", "text")]); Assert.Equal("knowledge.rerank", result.RootElement.GetProperty("kind").GetString()); }
+        else
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.RerankAsync(Context(), "query", [new("one", "text")]));
     }
 
     [Fact]
@@ -128,10 +157,22 @@ public sealed class KnowledgeRerankClientTests
         var handler = new Handler(async request =>
         {
             using var command = JsonDocument.Parse(await request.Content!.ReadAsByteArrayAsync());
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new {
-                schemaVersion = "openconnect.v1", taskId = command.RootElement.GetProperty("taskId").GetString(),
-                kind = "knowledge.rerank", result = new { model_id = "person@example.test", fingerprint = new string('a', 64),
-                    score_type = "raw_logit", candidates = new[] { new { id = "one", score = 0.5 } } } })) };
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new
+                {
+                    schemaVersion = "openconnect.v1",
+                    taskId = command.RootElement.GetProperty("taskId").GetString(),
+                    kind = "knowledge.rerank",
+                    result = new
+                    {
+                        model_id = "person@example.test",
+                        fingerprint = new string('a', 64),
+                        score_type = "raw_logit",
+                        candidates = new[] { new { id = "one", score = 0.5 } }
+                    }
+                }))
+            };
         });
         using var http = new HttpClient(handler);
         using var client = new KnowledgeRerankClient(http, new OutputGate(), new Uri("https://worker.test"), "token", Key,

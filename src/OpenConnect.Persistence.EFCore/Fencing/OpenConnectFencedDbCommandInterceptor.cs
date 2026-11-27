@@ -150,12 +150,14 @@ public sealed class OpenConnectFencedDbCommandInterceptor : DbCommandInterceptor
         }
 
         var maxTimeout = Math.Min(policy.MaxCommandTimeoutSeconds, _options.DefaultMaxCommandTimeoutSeconds);
-        if (maxTimeout <= 0) maxTimeout = 15;
+        if (maxTimeout <= 0)
+            maxTimeout = 15;
         if (command.CommandTimeout <= 0 || command.CommandTimeout > maxTimeout)
             command.CommandTimeout = maxTimeout;
 
         var maxRows = Math.Min(policy.MaxRows, _options.DefaultMaxRows);
-        if (maxRows <= 0) maxRows = 500;
+        if (maxRows <= 0)
+            maxRows = 500;
 
         await RecordAsync(context, operationId, commandKind, policyRevision,
             appliedTimeoutSeconds: command.CommandTimeout, maxRows: maxRows,

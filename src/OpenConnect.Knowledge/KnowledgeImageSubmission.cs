@@ -13,8 +13,13 @@ public sealed class KnowledgeImageSubmission
             (expectedImageRevision is not null && !KnowledgeIndexSubmission.Identifier(expectedImageRevision)) ||
             expectedGeneration < 1 || expectedGeneration == long.MaxValue)
             throw new ArgumentException("The image indexing submission is invalid.");
-        ApplicationId = applicationId; CollectionId = collectionId; DocumentId = documentId; SourceRevision = sourceRevision;
-        ExpectedGeneration = expectedGeneration; ImageId = imageId; ImageRevision = imageRevision;
+        ApplicationId = applicationId;
+        CollectionId = collectionId;
+        DocumentId = documentId;
+        SourceRevision = sourceRevision;
+        ExpectedGeneration = expectedGeneration;
+        ImageId = imageId;
+        ImageRevision = imageRevision;
         ExpectedImageRevision = expectedImageRevision;
     }
 

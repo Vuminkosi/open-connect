@@ -22,7 +22,8 @@ internal sealed class LocalNativeTurnGate : INativeSessionTurnGate
         {
             if (!_gates.TryGetValue(binding, out var gate))
             {
-                if (_gates.Count >= Capacity) return Task.FromResult<INativeSessionTurnOwnership?>(null);
+                if (_gates.Count >= Capacity)
+                    return Task.FromResult<INativeSessionTurnOwnership?>(null);
                 _gates.Add(binding, gate = new SemaphoreSlim(1, 1));
             }
             return Task.FromResult<INativeSessionTurnOwnership?>(gate.Wait(0) ? new Ownership(gate) : null);
@@ -41,7 +42,8 @@ internal sealed class LocalNativeTurnGate : INativeSessionTurnGate
         }
         public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 0) gate.Release();
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+                gate.Release();
             return ValueTask.CompletedTask;
         }
     }

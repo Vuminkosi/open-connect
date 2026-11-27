@@ -13,17 +13,28 @@ public sealed class CloudTranslationQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Translation quota", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "Translation app", "Development", default)).Application!;
         var identity = new CloudCredentialIdentity(Guid.NewGuid(), tenant.Id, app.Id, "Development", new HashSet<string> { "translation.translate" });
-        var now = DateTimeOffset.UtcNow; var bucketId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var bucketId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id,
-                CapabilityId = "translation.translate", Unit = "character", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 20 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucketId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = "translation.translate",
+                Unit = "character",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 20
+            });
             await db.SaveChangesAsync();
         }
         var quota = new CloudTranslationQuota(new EfCloudTranslationQuotaStore(factory, TimeProvider.System), TimeProvider.System);

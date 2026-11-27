@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using Bunit;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.Components.Authorization;
 using OpenConnect.Abstractions;
 using OpenConnect.Privacy;
 using OpenConnect.Samples.Blazor;

@@ -34,23 +34,65 @@ public sealed class CloudClaimRecoveryUpgradePostgresTests
         var tenant = await tenants.CreateTenantAsync(owner, "Upgrade test", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow;
-        var bucket = Guid.NewGuid(); var deployment = Guid.NewGuid();
-        var pending = Guid.NewGuid(); var consumed = Guid.NewGuid(); var racing = Guid.NewGuid();
-        var pendingClaim = Guid.NewGuid(); var consumedClaim = Guid.NewGuid(); var racingClaim = Guid.NewGuid();
+        var bucket = Guid.NewGuid();
+        var deployment = Guid.NewGuid();
+        var pending = Guid.NewGuid();
+        var consumed = Guid.NewGuid();
+        var racing = Guid.NewGuid();
+        var pendingClaim = Guid.NewGuid();
+        var consumedClaim = Guid.NewGuid();
+        var racingClaim = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucket, TenantId = tenant.Id, ApplicationId = app.Id,
-                CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 10, Reserved = 3 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deployment, CapabilityId = "classification.classify", EndpointReference = "upgrade-" + Guid.NewGuid().ToString("N"),
-                Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 10 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucket,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = "classification.classify",
+                Unit = "request",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 10,
+                Reserved = 3
+            });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deployment,
+                CapabilityId = "classification.classify",
+                EndpointReference = "upgrade-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "openconnect.v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 10
+            });
             await db.SaveChangesAsync();
             foreach (var id in new[] { pending, consumed, racing })
-                db.QuotaReservations.Add(new CloudQuotaReservation { Id = id, BucketId = bucket, TenantId = tenant.Id, ApplicationId = app.Id,
-                    RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = now.AddMinutes(-10) });
+                db.QuotaReservations.Add(new CloudQuotaReservation
+                {
+                    Id = id,
+                    BucketId = bucket,
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    RequestId = Guid.NewGuid(),
+                    Amount = 1,
+                    ExpiresAt = now.AddMinutes(-10)
+                });
             await db.SaveChangesAsync();
             foreach (var pair in new[] { (pending, pendingClaim), (consumed, consumedClaim), (racing, racingClaim) })
-                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = pair.Item1, ClaimId = pair.Item2, TenantId = tenant.Id, ApplicationId = app.Id,
-                    DeploymentId = deployment, Region = "region-a", WorkerPayloadFingerprint = new byte[32], ClaimedAt = now.AddMinutes(-20) });
+                db.ExecutionClaims.Add(new CloudExecutionClaim
+                {
+                    ReservationId = pair.Item1,
+                    ClaimId = pair.Item2,
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    DeploymentId = deployment,
+                    Region = "region-a",
+                    WorkerPayloadFingerprint = new byte[32],
+                    ClaimedAt = now.AddMinutes(-20)
+                });
             await db.SaveChangesAsync();
             db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = consumed, ClaimId = consumedClaim, DeploymentId = deployment, ConsumedAt = now.AddMinutes(-9) });
             await db.SaveChangesAsync();
@@ -68,7 +110,8 @@ public sealed class CloudClaimRecoveryUpgradePostgresTests
             for (var attempt = 0; attempt < 100 && !waiting; attempt++)
             {
                 waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%LOCK TABLE cloud.quota_reservations%') AS \"Value\"").SingleAsync();
-                if (!waiting) await Task.Delay(20);
+                if (!waiting)
+                    await Task.Delay(20);
             }
             Assert.True(waiting);
             await transaction.CommitAsync();

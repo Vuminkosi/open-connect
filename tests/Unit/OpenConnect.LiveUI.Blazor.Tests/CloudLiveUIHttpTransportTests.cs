@@ -53,7 +53,7 @@ public sealed class CloudLiveUIHttpTransportTests
         using var redirect = WithHandler(new Handler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.TemporaryRedirect))));
         Assert.Equal(307, (await redirect.SendAsync(Encoding.UTF8.GetBytes("{}"))).StatusCode);
         using var large = WithHandler(new Handler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            { Content = new ByteArrayContent(new byte[262145]) })));
+        { Content = new ByteArrayContent(new byte[262145]) })));
         Assert.Equal(503, (await large.SendAsync(Encoding.UTF8.GetBytes("{}"))).StatusCode);
         using var encoded = WithHandler(new Handler(_ =>
         {
@@ -73,7 +73,8 @@ public sealed class CloudLiveUIHttpTransportTests
             throw new InvalidOperationException("unreachable");
         }));
         using var cancellation = new CancellationTokenSource();
-        var pending = transport.IsReadyAsync(cancellation.Token); cancellation.Cancel();
+        var pending = transport.IsReadyAsync(cancellation.Token);
+        cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
     }
 

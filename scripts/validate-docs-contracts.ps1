@@ -1,3 +1,5 @@
+param([switch]$UseParsedReferences)
+
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $openApiDir = Join-Path $root 'contracts/openapi'
@@ -71,6 +73,15 @@ $refCount = 0
 
 foreach ($openApiFile in $openApiFiles) {
     $yaml = Get-Content $openApiFile.FullName -Raw
+    if ($UseParsedReferences) {
+        $validator = Join-Path $PSScriptRoot 'validate-openapi-references.cjs'
+        & node $validator $openApiFile.FullName (Join-Path $root 'contracts')
+        if ($LASTEXITCODE -ne 0) {
+            throw "OpenAPI reference validation failed in ${openApiFile}."
+        }
+        $refCount += [regex]::Matches($yaml, '\$ref:\s*([^\s},]+)').Count
+        continue
+    }
     $lines = $yaml -split "`r?`n"
 
     foreach ($match in [regex]::Matches($yaml, '\$ref:\s*([^\s},]+)')) {

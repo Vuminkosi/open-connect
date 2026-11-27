@@ -67,7 +67,8 @@ public sealed class MessagingGatewayEndpointsTests
     public void CursorCodec_EnforcesScopeTenantPrincipalDeviceAndIntegrity()
     {
         var key = new byte[32];
-        for (var i = 0; i < key.Length; i++) key[i] = (byte)(i + 1);
+        for (var i = 0; i < key.Length; i++)
+            key[i] = (byte)(i + 1);
 
         var codec = new MessagingCursorCodec(Options.Create(new MessagingHostingOptions { CursorSigningKey = key }));
         var tenantA = new TenantId(Ulid.NewUlid());

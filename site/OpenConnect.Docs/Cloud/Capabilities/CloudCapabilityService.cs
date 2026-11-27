@@ -63,13 +63,17 @@ public sealed class CloudCapabilityService(ICloudCapabilityReader reader, ICloud
         CloudCapabilitySnapshot snapshot, bool applicationSelection, string capabilityId, bool enabled, int expectedRevision, DateTimeOffset now)
     {
         var capability = snapshot.Capabilities.FirstOrDefault(x => x.Id == capabilityId);
-        if (capability is null) return new("not_found");
+        if (capability is null)
+            return new("not_found");
         if (enabled)
         {
-            if (!IsEntitled(snapshot.Entitlements.GetValueOrDefault(capabilityId), now)) return new("capability_not_entitled");
-            if (!string.Equals(capability.PlatformAvailability, "available", StringComparison.Ordinal)) return new("capability_unavailable");
+            if (!IsEntitled(snapshot.Entitlements.GetValueOrDefault(capabilityId), now))
+                return new("capability_not_entitled");
+            if (!string.Equals(capability.PlatformAvailability, "available", StringComparison.Ordinal))
+                return new("capability_unavailable");
             if (!DependenciesEnabled(capability, snapshot.Capabilities, snapshot.Entitlements, snapshot.TenantSelections, now,
-                    applicationSelection ? snapshot.ApplicationSelections : null)) return new("dependency_not_enabled");
+                    applicationSelection ? snapshot.ApplicationSelections : null))
+                return new("dependency_not_enabled");
             if (applicationSelection && (!snapshot.TenantSelections.TryGetValue(capabilityId, out var tenantSelection) || !tenantSelection.Enabled))
                 return new("capability_disabled");
         }

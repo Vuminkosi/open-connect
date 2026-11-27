@@ -14,7 +14,8 @@ public sealed class EfCloudMachineCapabilityReader(IDbContextFactory<CloudContro
             x.TenantId == identity.TenantId && x.ApplicationId == identity.ApplicationId && x.Environment == identity.Environment &&
             x.RevokedAt == null && x.ExpiresAt != null && x.ExpiresAt > now &&
             db.Applications.Any(app => app.TenantId == x.TenantId && app.Id == x.ApplicationId && app.Environment == x.Environment), cancellationToken);
-        if (!active) return null;
+        if (!active)
+            return null;
         var snapshot = await EfCloudCapabilityReader.LoadDataAsync(db, identity.TenantId, identity.ApplicationId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return snapshot;

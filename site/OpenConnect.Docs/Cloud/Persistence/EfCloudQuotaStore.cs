@@ -11,18 +11,32 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var existing = await FindExistingAsync(db, request, cancellationToken);
-        if (existing is not null) return existing;
+        if (existing is not null)
+            return existing;
         var buckets = await db.QuotaBuckets.AsNoTracking().Where(x => x.TenantId == request.TenantId && x.ApplicationId == request.ApplicationId &&
             x.CapabilityId == request.CapabilityId && x.Unit == request.Unit && x.PeriodStart <= now && x.PeriodEnd > now)
             .Select(x => new { x.Id, x.PeriodEnd }).Take(2).ToArrayAsync(cancellationToken);
-        if (buckets.Length != 1) return new("quota_unavailable");
-        if (request.ExpiresAt > buckets[0].PeriodEnd) return new("invalid_request");
+        if (buckets.Length != 1)
+            return new("quota_unavailable");
+        if (request.ExpiresAt > buckets[0].PeriodEnd)
+            return new("invalid_request");
         var updated = await db.QuotaBuckets.Where(x => x.Id == buckets[0].Id && x.TenantId == request.TenantId && x.ApplicationId == request.ApplicationId &&
                 x.PeriodStart <= now && x.PeriodEnd > now && x.PeriodEnd >= request.ExpiresAt && x.Limit - x.Consumed - x.Reserved >= request.Amount)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved + request.Amount), cancellationToken);
-        if (updated != 1) return await FindExistingAsync(db, request, cancellationToken) ?? new("quota_exceeded");
-        var reservation = new CloudQuotaReservation { Id = Guid.NewGuid(), BucketId = buckets[0].Id, TenantId = request.TenantId,
-            ApplicationId = request.ApplicationId, RequestId = request.RequestId, RequestFingerprint = request.RequestFingerprint, FingerprintKeyId = request.FingerprintKeyId, Amount = request.Amount, ExpiresAt = request.ExpiresAt };
+        if (updated != 1)
+            return await FindExistingAsync(db, request, cancellationToken) ?? new("quota_exceeded");
+        var reservation = new CloudQuotaReservation
+        {
+            Id = Guid.NewGuid(),
+            BucketId = buckets[0].Id,
+            TenantId = request.TenantId,
+            ApplicationId = request.ApplicationId,
+            RequestId = request.RequestId,
+            RequestFingerprint = request.RequestFingerprint,
+            FingerprintKeyId = request.FingerprintKeyId,
+            Amount = request.Amount,
+            ExpiresAt = request.ExpiresAt
+        };
         db.QuotaReservations.Add(reservation);
         try
         {
@@ -41,11 +55,12 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var item = await (from reservation in db.QuotaReservations.AsNoTracking()
-            join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
-            where reservation.TenantId == tenantId && reservation.ApplicationId == applicationId && reservation.RequestId == requestId &&
-                bucket.TenantId == tenantId && bucket.ApplicationId == applicationId && bucket.CapabilityId == capabilityId
-            select new { reservation.FingerprintKeyId, reservation.RequestFingerprint, reservation.ExpiresAt }).SingleOrDefaultAsync(cancellationToken);
-        if (item is null) return new("not_found");
+                          join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
+                          where reservation.TenantId == tenantId && reservation.ApplicationId == applicationId && reservation.RequestId == requestId &&
+                              bucket.TenantId == tenantId && bucket.ApplicationId == applicationId && bucket.CapabilityId == capabilityId
+                          select new { reservation.FingerprintKeyId, reservation.RequestFingerprint, reservation.ExpiresAt }).SingleOrDefaultAsync(cancellationToken);
+        if (item is null)
+            return new("not_found");
         return CloudRequestFingerprint.IsValidKeyId(item.FingerprintKeyId) && item.RequestFingerprint is { Length: 32 }
             ? new("found", item.FingerprintKeyId, item.ExpiresAt) : new("legacy_unverifiable");
     }
@@ -56,10 +71,14 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var reservation = await db.QuotaReservations.FromSqlInterpolated($"SELECT * FROM cloud.quota_reservations WHERE \"Id\" = {reservationId} AND \"TenantId\" = {tenantId} AND \"ApplicationId\" = {applicationId} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        if (reservation is null) return new("not_found");
-        if (reservation.FinalizedAt is not null) return new(reservation.Actual == actual ? "already_finalized" : "idempotency_conflict", reservation.Id);
-        if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken)) return new("execution_requires_reconciliation", reservationId);
-        if (actual > reservation.Amount) return new("overage_requires_reconciliation", reservation.Id);
+        if (reservation is null)
+            return new("not_found");
+        if (reservation.FinalizedAt is not null)
+            return new(reservation.Actual == actual ? "already_finalized" : "idempotency_conflict", reservation.Id);
+        if (await db.ExecutionClaims.AnyAsync(x => x.ReservationId == reservationId, cancellationToken))
+            return new("execution_requires_reconciliation", reservationId);
+        if (actual > reservation.Amount)
+            return new("overage_requires_reconciliation", reservation.Id);
         var finalized = await db.QuotaReservations.Where(x => x.Id == reservation.Id && x.TenantId == tenantId && x.ApplicationId == applicationId && x.FinalizedAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, actual).SetProperty(y => y.FinalizedAt, now), cancellationToken);
         if (finalized == 0)
@@ -70,7 +89,8 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
         }
         var updated = await db.QuotaBuckets.Where(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.Reserved >= reservation.Amount)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved - reservation.Amount).SetProperty(y => y.Consumed, y => y.Consumed + actual), cancellationToken);
-        if (updated != 1) return new("quota_unavailable");
+        if (updated != 1)
+            return new("quota_unavailable");
         await transaction.CommitAsync(cancellationToken);
         return new("finalized", reservationId);
     }
@@ -78,10 +98,11 @@ public sealed class EfCloudQuotaStore(IDbContextFactory<CloudControlPlaneDbConte
     private static async Task<CloudQuotaResult?> FindExistingAsync(CloudControlPlaneDbContext db, CloudQuotaRequest request, CancellationToken cancellationToken)
     {
         var existing = await (from reservation in db.QuotaReservations.AsNoTracking()
-            join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
-            where reservation.TenantId == request.TenantId && reservation.ApplicationId == request.ApplicationId && reservation.RequestId == request.RequestId
-            select new { reservation.Id, reservation.Amount, reservation.ExpiresAt, reservation.RequestFingerprint, reservation.FingerprintKeyId, bucket.CapabilityId, bucket.Unit }).SingleOrDefaultAsync(cancellationToken);
-        if (existing is null) return null;
+                              join bucket in db.QuotaBuckets.AsNoTracking() on reservation.BucketId equals bucket.Id
+                              where reservation.TenantId == request.TenantId && reservation.ApplicationId == request.ApplicationId && reservation.RequestId == request.RequestId
+                              select new { reservation.Id, reservation.Amount, reservation.ExpiresAt, reservation.RequestFingerprint, reservation.FingerprintKeyId, bucket.CapabilityId, bucket.Unit }).SingleOrDefaultAsync(cancellationToken);
+        if (existing is null)
+            return null;
         return new(string.Equals(existing.FingerprintKeyId, request.FingerprintKeyId, StringComparison.Ordinal) && existing.RequestFingerprint is { Length: 32 } && CryptographicOperations.FixedTimeEquals(existing.RequestFingerprint, request.RequestFingerprint) &&
             existing.Amount == request.Amount && existing.ExpiresAt == request.ExpiresAt && existing.CapabilityId == request.CapabilityId && existing.Unit == request.Unit
             ? "duplicate" : "idempotency_conflict", existing.Id);

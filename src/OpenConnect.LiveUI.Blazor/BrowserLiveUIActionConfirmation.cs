@@ -1,5 +1,5 @@
-using Microsoft.JSInterop;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using MudBlazor;
 using OpenConnect.LiveUI;
 
@@ -53,7 +53,8 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime, ISer
         {
             if (mudPrompt && prompt is not null)
             {
-                try { await prompt.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false); }
+                try
+                { await prompt.WaitAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(false); }
                 catch (Exception) { }
             }
             else if (module is not null)
@@ -98,7 +99,8 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime, ISer
         try
         {
             active = await module.InvokeAsync<bool>("beginMudConfirmation", timeout.Token, confirmationId);
-            if (!active) return false;
+            if (!active)
+                return false;
             var label = context.Target!.Label;
             var description = context.Action.Type switch
             {
@@ -132,7 +134,8 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime, ISer
                 BackdropClick = false,
                 CloseOnEscapeKey = true
             });
-            try { reference = await showing.WaitAsync(timeout.Token); }
+            try
+            { reference = await showing.WaitAsync(timeout.Token); }
             catch
             {
                 _ = CloseLateDialogAsync(showing);
@@ -147,14 +150,16 @@ internal sealed class BrowserLiveUIActionConfirmation(IJSRuntime jsRuntime, ISer
         finally
         {
             reference?.Close(DialogResult.Cancel());
-            try { await module.InvokeVoidAsync("endMudConfirmation", confirmationId); }
+            try
+            { await module.InvokeVoidAsync("endMudConfirmation", confirmationId); }
             catch (Exception) { }
         }
     }
 
     private static async Task CloseLateDialogAsync(Task<IDialogReference> showing)
     {
-        try { (await showing).Close(DialogResult.Cancel()); }
+        try
+        { (await showing).Close(DialogResult.Cancel()); }
         catch (Exception) { }
     }
 

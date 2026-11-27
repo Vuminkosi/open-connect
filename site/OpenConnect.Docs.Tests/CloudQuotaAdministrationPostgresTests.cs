@@ -26,7 +26,9 @@ public sealed class CloudQuotaAdministrationPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        var tenant = Guid.NewGuid(); var application = Guid.NewGuid(); var bucket = Guid.NewGuid();
+        var tenant = Guid.NewGuid();
+        var application = Guid.NewGuid();
+        var bucket = Guid.NewGuid();
         var capability = "quota." + Guid.NewGuid().ToString("N");
         var now = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
         await using (var db = await factory.CreateDbContextAsync())
@@ -61,7 +63,9 @@ public sealed class CloudQuotaAdministrationPostgresTests
         Assert.Single(competing, x => x.Status == "succeeded");
         Assert.Single(competing, x => x.Status == "conflict");
         var current = await service.GetAsync(tenant, application, bucket, default);
-        Assert.Equal(2, current!.Revision); Assert.Equal(3, current.Consumed); Assert.Equal(4, current.Reserved);
+        Assert.Equal(2, current!.Revision);
+        Assert.Equal(3, current.Consumed);
+        Assert.Equal(4, current.Reserved);
         var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);
         var admission = new CloudQuotaRequest(tenant, application, capability, "request", Guid.NewGuid(), "test-key", new byte[32], 5, now.AddHours(1));
         var race = await Task.WhenAll(
@@ -85,8 +89,11 @@ public sealed class CloudQuotaAdministrationPostgresTests
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = issuer, ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer, ["OpenConnect:Cloud:Operators:0:Subject"] = "operator" });
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton<CloudOperatorAccess>();
-        builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>(); builder.Services.AddScoped<CloudQuotaAdministration>();
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<CloudOperatorAccess>();
+        builder.Services.AddScoped<ICloudQuotaAdministrationStore, EfCloudQuotaAdministrationStore>();
+        builder.Services.AddScoped<CloudQuotaAdministration>();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
         {
@@ -94,14 +101,17 @@ public sealed class CloudQuotaAdministrationPostgresTests
             options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });
         builder.Services.AddAuthorization(options => options.AddPolicy("CloudApi", policy => policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme).RequireAuthenticatedUser()));
-        await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization();
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapGet("/test-sign-in/{subject}", async (string subject, HttpContext context) => await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject, ClaimValueTypes.String, issuer)], CookieAuthenticationDefaults.AuthenticationScheme))));
         app.MapGet("/test-antiforgery", (HttpContext context, IAntiforgery antiforgery) => Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
         app.MapGroup("/cloud/api/v1").RequireAuthorization("CloudApi").MapCloudQuotaAdministrationEndpoints();
         await app.StartAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
-        var bucket = Guid.NewGuid(); var path = $"/cloud/api/v1/operator/tenants/{tenant}/applications/{application}/quotas/{bucket}";
+        var bucket = Guid.NewGuid();
+        var path = $"/cloud/api/v1/operator/tenants/{tenant}/applications/{application}/quotas/{bucket}";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         await client.GetAsync("/test-sign-in/ordinary-user");
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsync(path, null)).StatusCode);
@@ -112,18 +122,25 @@ public sealed class CloudQuotaAdministrationPostgresTests
         HttpRequestMessage Write(string revision, object body)
         {
             var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
-            request.Headers.Add("If-Match", $"\"{revision}\""); request.Headers.Add("X-CSRF-TOKEN", token); return request;
+            request.Headers.Add("If-Match", $"\"{revision}\"");
+            request.Headers.Add("X-CSRF-TOKEN", token);
+            return request;
         }
         var payload = new { capabilityId = capability, unit = "request", periodStart = now.AddDays(2), periodEnd = now.AddDays(3), limit = 20 };
-        using (var request = Write("0", payload)) { var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.Equal("\"1\"", response.Headers.ETag?.ToString()); }
-        using (var request = Write("0", payload)) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
-        using (var request = Write("1", new { capabilityId = capability })) Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("0", payload))
+        { var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.Equal("\"1\"", response.Headers.ETag?.ToString()); }
+        using (var request = Write("0", payload))
+            Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write("1", new { capabilityId = capability }))
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         using (var request = Write("1", payload))
         {
             request.Content = new StringContent("{\"limit\":1,\"Limit\":2}", System.Text.Encoding.UTF8, "application/json");
             Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         }
-        var read = await client.GetAsync(path); Assert.Equal(HttpStatusCode.OK, read.StatusCode); Assert.Equal("\"1\"", read.Headers.ETag?.ToString());
+        var read = await client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        Assert.Equal("\"1\"", read.Headers.ETag?.ToString());
         await using var db = await factory.CreateDbContextAsync();
         var audit = await db.AuditEvents.Where(x => x.ResourceId == $"{tenant:D}/{bucket:D}").ToListAsync();
         Assert.Contains(audit, x => x.Outcome == "forbidden" && x.ActorRole == "AuthenticatedUser");

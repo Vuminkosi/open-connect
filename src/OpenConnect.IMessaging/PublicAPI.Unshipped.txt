@@ -1,11 +1,4 @@
 #nullable enable
-const OpenConnect.IMessaging.MessagingWorkerClient.KeyIdHeaderName = "X-OpenConnect-Key-Id" -> string!
-const OpenConnect.IMessaging.MessagingWorkerClient.SignatureHeaderName = "X-OpenConnect-Signature" -> string!
-const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxRequestBytes = 262144 -> int
-const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxResponseBytes = 524288 -> int
-const OpenConnect.IMessaging.MessagingWorkerOptions.HardMaxFrameBytes = 4194304 -> int
-const OpenConnect.IMessaging.MessagingWorkerOptions.MinSigningKeyBytes = 32 -> int
-const OpenConnect.IMessaging.WorkerEventConsumer.DefaultMaxDedupEntries = 10000 -> int
 OpenConnect.IMessaging.AgentDiscoveryOptions
 OpenConnect.IMessaging.AgentDiscoveryOptions.AgentDiscoveryOptions() -> void
 OpenConnect.IMessaging.AgentDiscoveryOptions.Enabled.get -> bool
@@ -65,6 +58,13 @@ OpenConnect.IMessaging.WorkerEventConsumer
 OpenConnect.IMessaging.WorkerEventConsumer.DispatchAsync(OpenConnect.Abstractions.Messaging.MessagingEventEnvelope! envelope, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 OpenConnect.IMessaging.WorkerEventConsumer.WorkerEventConsumer(System.Func<OpenConnect.Abstractions.Messaging.MessagingEventEnvelope!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>? handler = null, int maxDedupEntries = 10000, System.TimeProvider? timeProvider = null) -> void
 OpenConnect.IMessaging.WorkerResponseValidator
+const OpenConnect.IMessaging.MessagingWorkerClient.KeyIdHeaderName = "X-OpenConnect-Key-Id" -> string!
+const OpenConnect.IMessaging.MessagingWorkerClient.SignatureHeaderName = "X-OpenConnect-Signature" -> string!
+const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxRequestBytes = 262144 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.DefaultMaxResponseBytes = 524288 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.HardMaxFrameBytes = 4194304 -> int
+const OpenConnect.IMessaging.MessagingWorkerOptions.MinSigningKeyBytes = 32 -> int
+const OpenConnect.IMessaging.WorkerEventConsumer.DefaultMaxDedupEntries = 10000 -> int
 static OpenConnect.IMessaging.MessagingWorkerClient.ComputeSignatureHex(byte[]! signingKey, System.ReadOnlySpan<byte> payloadBytes) -> string!
 static OpenConnect.IMessaging.ServiceCollectionExtensions.AddOpenConnectAgentDiscovery(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.IMessaging.AgentDiscoveryOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static OpenConnect.IMessaging.ServiceCollectionExtensions.AddOpenConnectDeviceEnrollment(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<OpenConnect.IMessaging.DeviceEnrollmentOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

@@ -20,9 +20,18 @@ public sealed class CloudAvailabilityUpgradePostgresTests
         {
             Assert.Empty(await db.Database.GetAppliedMigrationsAsync());
             await db.GetService<IMigrator>().MigrateAsync("20261123000500_IndexVoicePrivacyObservations");
-            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Upgrade test", Description = "Test",
-                ContractVersion = "v1", BillingUnit = "request", PlatformAvailability = "not_configured",
-                Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.Capabilities.Add(new CloudCapabilityDefinition
+            {
+                Id = capability,
+                Name = "Upgrade test",
+                Description = "Test",
+                ContractVersion = "v1",
+                BillingUnit = "request",
+                PlatformAvailability = "not_configured",
+                Dependencies = "[]",
+                Modalities = "[]",
+                AllowedRegions = "[]"
+            });
             await db.SaveChangesAsync();
         }
 
@@ -42,7 +51,8 @@ public sealed class CloudAvailabilityUpgradePostgresTests
                 for (var attempt = 0; attempt < 150 && !waiting; attempt++)
                 {
                     waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%LOCK TABLE cloud.capabilities%') AS \"Value\"").SingleAsync();
-                    if (!waiting) await Task.Delay(20);
+                    if (!waiting)
+                        await Task.Delay(20);
                 }
             }
             Assert.True(waiting, "The migration did not wait for the older writer's capability update.");

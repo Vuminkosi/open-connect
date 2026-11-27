@@ -315,7 +315,8 @@ public sealed class HttpSecurityWorkerClient : ISecurityWorkerClient, IDisposabl
             while (true)
             {
                 var read = await stream.ReadAsync(chunk, timeoutCts.Token).ConfigureAwait(false);
-                if (read == 0) break;
+                if (read == 0)
+                    break;
                 totalRead += read;
                 if (totalRead > _options.MaxResponseBytes)
                     return (false, null, "response_limit_exceeded");

@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
 using OpenConnect.Agents.Execution;
-using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.Hosting.AspNetCore;
+using OpenConnect.Hosting.AspNetCore.Execution;
 using OpenConnect.LiveUI.Agents;
 using OpenConnect.LiveUI.Hosting;
 using OpenConnect.Privacy;
@@ -335,7 +335,11 @@ public sealed class MafHostTaskExecutorTests
         public ChatClientMetadata Metadata { get; } = new("host-executor-test");
         public Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested(); Calls++; LastOptions = options; OnCall?.Invoke(cancellationToken); cancellationToken.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
+            Calls++;
+            LastOptions = options;
+            OnCall?.Invoke(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (UseLiveUI && Calls == 1)
             {
                 var function = Assert.IsAssignableFrom<AIFunction>(options!.Tools!.Single(tool => tool.Name == "liveui_get_current_page"));

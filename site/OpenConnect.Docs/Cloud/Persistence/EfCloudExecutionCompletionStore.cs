@@ -23,10 +23,12 @@ public sealed class EfCloudExecutionCompletionStore(IDbContextFactory<CloudContr
         await db.SaveChangesAsync(cancellationToken);
         var finalized = await db.QuotaReservations.Where(x => x.Id == reservationId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.FinalizedAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, 1L).SetProperty(y => y.FinalizedAt, now), cancellationToken);
-        if (finalized != 1) return new("unavailable");
+        if (finalized != 1)
+            return new("unavailable");
         var updated = await db.QuotaBuckets.Where(x => x.Id == reservation.BucketId && x.TenantId == tenantId && x.ApplicationId == applicationId && x.Reserved >= 1)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved - 1).SetProperty(y => y.Consumed, y => y.Consumed + 1), cancellationToken);
-        if (updated != 1) return new("unavailable");
+        if (updated != 1)
+            return new("unavailable");
         await transaction.CommitAsync(cancellationToken);
         return new("completed");
     }

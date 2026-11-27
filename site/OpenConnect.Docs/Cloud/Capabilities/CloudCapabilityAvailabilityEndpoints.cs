@@ -18,9 +18,11 @@ public static class CloudCapabilityAvailabilityEndpoints
         group.MapGet(path, async (string capabilityId, ClaimsPrincipal principal, HttpContext context, CloudOperatorAccess operators, CloudCapabilityAvailabilityService service, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!operators.IsAllowed(principal)) return Results.Forbid();
+            if (!operators.IsAllowed(principal))
+                return Results.Forbid();
             var result = await service.GetAsync(capabilityId, cancellationToken);
-            if (result is null) return Results.NotFound();
+            if (result is null)
+                return Results.NotFound();
             context.Response.Headers.ETag = $"\"{result.Revision}\"";
             return Results.Ok(result);
         });
@@ -30,7 +32,8 @@ public static class CloudCapabilityAvailabilityEndpoints
             context.Response.Headers.CacheControl = "no-store";
             var traceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
             var actor = CloudSubjectResolver.FromPrincipal(principal, configuration["OpenConnect:Cloud:Identity:Authority"]);
-            if (actor is null) return Results.Unauthorized();
+            if (actor is null)
+                return Results.Unauthorized();
             try
             {
                 if (!operators.IsAllowed(principal))
@@ -69,7 +72,8 @@ public static class CloudCapabilityAvailabilityEndpoints
     {
         revision = 0;
         var headers = context.Request.Headers.IfMatch;
-        if (headers.Count != 1) return false;
+        if (headers.Count != 1)
+            return false;
         var value = headers.ToString();
         return value.Length > 2 && value[0] == '"' && value[^1] == '"' &&
             long.TryParse(value.AsSpan(1, value.Length - 2), NumberStyles.None, CultureInfo.InvariantCulture, out revision) && revision > 0 && revision < long.MaxValue;
@@ -77,7 +81,8 @@ public static class CloudCapabilityAvailabilityEndpoints
 
     private static async Task<AvailabilityWriteRequest?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 4096) return null;
+        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 4096)
+            return null;
         var buffer = new byte[4097];
         try
         {
@@ -85,14 +90,19 @@ public static class CloudCapabilityAvailabilityEndpoints
             while (length < buffer.Length)
             {
                 var count = await request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 4096) return null;
+            if (length > 4096)
+                return null;
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var property in document.RootElement.EnumerateObject()) if (!names.Add(property.Name)) return null;
+            foreach (var property in document.RootElement.EnumerateObject())
+                if (!names.Add(property.Name))
+                    return null;
             return document.RootElement.Deserialize<AvailabilityWriteRequest>(Options);
         }
         catch (JsonException) { return null; }

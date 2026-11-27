@@ -264,7 +264,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         get
         {
-            if (Session is null) return "Not connected";
+            if (Session is null)
+                return "Not connected";
             if (Session.PendingClientInteraction is { } interaction)
             {
                 return interaction.Operation switch
@@ -310,14 +311,17 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         {
             if (_planningAckCts is not null)
             {
-                try { _planningAckCts.Cancel(); } catch (ObjectDisposedException) { }
+                try
+                { _planningAckCts.Cancel(); }
+                catch (ObjectDisposedException) { }
                 _planningAckCts.Dispose();
                 _planningAckCts = null;
             }
             _planningAckStage = 0;
             return;
         }
-        if (_planningAckCts is not null) return;
+        if (_planningAckCts is not null)
+            return;
         var cts = new CancellationTokenSource();
         _planningAckCts = cts;
         _planningAckStage = 0;
@@ -331,7 +335,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             while (!cts.IsCancellationRequested && _planningAckStage < 3)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(3500), cts.Token).ConfigureAwait(false);
-                if (cts.IsCancellationRequested || _disposed) break;
+                if (cts.IsCancellationRequested || _disposed)
+                    break;
                 _planningAckStage++;
                 await InvokeAsync(StateHasChanged).ConfigureAwait(false);
             }
@@ -475,7 +480,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        if (!VoiceInputBlocked) return;
+        if (!VoiceInputBlocked)
+            return;
 
         if (_duplexVoiceActive)
         {
@@ -483,18 +489,21 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             _duplexMuted = false;
             _duplexStatus = "unavailable";
             _micOn = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false); }
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.stopSession", false, "availability_lost").ConfigureAwait(false); }
             catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
             Session.FailContinuousVoiceSession("Live voice is unavailable. Text input remains available.");
             return;
         }
 
-        if (!_micOn) return;
+        if (!_micOn)
+            return;
         _micOn = false;
         if (_voiceActive)
         {
             _voiceActive = false;
-            try { await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false); }
+            try
+            { await JS.InvokeVoidAsync("ocComposerVoice.abort").ConfigureAwait(false); }
             catch (Exception exception) when (exception is JSException or InvalidOperationException or JSDisconnectedException) { }
         }
         if (Session.MicrophoneState == ComposerMicrophoneState.ListeningLive)
@@ -804,7 +813,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     private async Task ToggleMicrophoneAsync()
     {
-        if (VoiceInputBlocked) return;
+        if (VoiceInputBlocked)
+            return;
         _micOn = !_micOn;
         if (!_micOn && _voiceActive)
         {
@@ -920,7 +930,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
     {
         get
         {
-            if (Suggestions is { Count: > 0 }) return Suggestions;
+            if (Suggestions is { Count: > 0 })
+                return Suggestions;
             var latestAssistant = Session?.Messages.LastOrDefault(m => m.Role == "assistant")?.Text;
             return ExtractNextStepSuggestions(latestAssistant);
         }
@@ -928,7 +939,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
     internal static IReadOnlyList<string> ExtractNextStepSuggestions(string? assistantText)
     {
-        if (string.IsNullOrWhiteSpace(assistantText)) return [];
+        if (string.IsNullOrWhiteSpace(assistantText))
+            return [];
         var trimmed = assistantText.Trim();
         var results = new List<string>(4);
 
@@ -951,12 +963,14 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             for (var i = questionIndex + 1; i < lines.Length && results.Count < 4; i++)
             {
                 var m = System.Text.RegularExpressions.Regex.Match(lines[i].Trim(), @"^(?:\d+[.)]|[-*])\s+(.+)$");
-                if (!m.Success) continue;
+                if (!m.Success)
+                    continue;
                 var candidate = CleanChipText(m.Groups[1].Value);
                 if (candidate.Length is >= 3 and <= 80 && !results.Contains(candidate, StringComparer.OrdinalIgnoreCase))
                     results.Add(candidate);
             }
-            if (results.Count >= 2) return results;
+            if (results.Count >= 2)
+                return results;
             results.Clear();
         }
 
@@ -968,20 +982,24 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
         if (offerMatch.Success)
         {
             var verb = char.ToUpperInvariant(offerMatch.Groups[1].Value[0]) + offerMatch.Groups[1].Value[1..].ToLowerInvariant();
-            if (verb.StartsWith("Walk", StringComparison.OrdinalIgnoreCase)) verb = "Walk through";
+            if (verb.StartsWith("Walk", StringComparison.OrdinalIgnoreCase))
+                verb = "Walk through";
             var rawChoices = offerMatch.Groups[2].Value;
             var parts = System.Text.RegularExpressions.Regex.Split(rawChoices, @"(?i)(?:,\s*or\s+|\s+next,\s*or\s+|\s+or\s+|,\s+)");
             foreach (var part in parts)
             {
                 var cleaned = CleanChipText(part);
                 cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"(?i)\s+(?:next|first)$", "").Trim();
-                if (cleaned.Length is < 2 or > 65) continue;
+                if (cleaned.Length is < 2 or > 65)
+                    continue;
                 var label = cleaned.StartsWith(verb, StringComparison.OrdinalIgnoreCase) ? cleaned : $"{verb} {cleaned}";
                 if (label.Length <= 80 && !results.Contains(label, StringComparer.OrdinalIgnoreCase))
                     results.Add(label);
-                if (results.Count >= 4) break;
+                if (results.Count >= 4)
+                    break;
             }
-            if (results.Count >= 2) return results;
+            if (results.Count >= 2)
+                return results;
         }
 
         return [];
@@ -1451,7 +1469,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
             return;
         }
 
-        if (VoiceInputBlocked) return;
+        if (VoiceInputBlocked)
+            return;
         if (!_voiceActive && !_micOn)
         {
             _micOn = true;
@@ -1556,7 +1575,8 @@ public partial class MiniComposer : ComponentBase, IAsyncDisposable
 
         _sessionCreationFailed = false;
         _sessionCreationTask = null;
-        try { await EnsureSessionAsync(); }
+        try
+        { await EnsureSessionAsync(); }
         catch (Exception ex) { Session.MarkError(FriendlyError(ex)); }
     }
 

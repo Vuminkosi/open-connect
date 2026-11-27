@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using System.Globalization;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace OpenConnect.Docs.Cloud;
@@ -87,7 +87,8 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, ClaimsPrincipal principal, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var members = await service.GetMembersAsync(subject, tenantId, cancellationToken);
             return members is null ? Results.NotFound() : Results.Ok(new { members });
         });
@@ -96,11 +97,14 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, CreateCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery))
+                return InvalidAntiforgeryResponse(context);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.CreateAsync(subject, tenantId, request, cancellationToken);
-            if (result.Status != "succeeded") return InvitationResponse(context, result.Status);
+            if (result.Status != "succeeded")
+                return InvitationResponse(context, result.Status);
             context.Response.Headers.CacheControl = "no-store";
             return Results.Ok(new { code = result.Code, expiresAt = result.ExpiresAt });
         });
@@ -109,7 +113,8 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, ClaimsPrincipal principal, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var invitations = await service.ListAsync(subject, tenantId, cancellationToken);
             return invitations is null ? Results.NotFound() : Results.Ok(new { invitations });
         });
@@ -118,13 +123,16 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, Guid invitationId, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery))
+                return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
                 return Problem(context, StatusCodes.Status428PreconditionRequired, "An invitation revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.RevokeAsync(subject, tenantId, invitationId, revision, cancellationToken);
-            if (result.Status != "succeeded") return InvitationResponse(context, result.Status);
+            if (result.Status != "succeeded")
+                return InvitationResponse(context, result.Status);
             context.Response.Headers.ETag = $"\"{result.Revision}\"";
             return Results.NoContent();
         });
@@ -133,9 +141,11 @@ public static class CloudControlPlaneEndpoints
             AcceptCloudInvitationRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudInvitationService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery))
+                return InvalidAntiforgeryResponse(context);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.AcceptAsync(subject, request.Code, cancellationToken);
             return result == "succeeded" ? Results.NoContent() : InvitationResponse(context, result);
         });
@@ -144,11 +154,13 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery))
+                return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
                 return Problem(context, StatusCodes.Status428PreconditionRequired, "A membership revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, false, cancellationToken));
         });
 
@@ -156,11 +168,13 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, CloudMemberChangeRequest request, ClaimsPrincipal principal, HttpContext context,
             IAntiforgery antiforgery, CloudControlPlaneService service, CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery)) return InvalidAntiforgeryResponse(context);
+            if (!await HasValidAntiforgeryTokenAsync(context, antiforgery))
+                return InvalidAntiforgeryResponse(context);
             if (!TryGetExpectedRevision(context, out var revision) || revision < 1)
                 return Problem(context, StatusCodes.Status428PreconditionRequired, "A membership revision is required.", "precondition_required");
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             return MemberChangeResponse(context, await service.ChangeMemberAsync(subject, tenantId, request, revision, true, cancellationToken));
         });
 
@@ -171,7 +185,8 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, ClaimsPrincipal principal, CloudCapabilityService service, CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var capabilities = await service.GetTenantCapabilitiesAsync(subject, tenantId, cancellationToken);
             return capabilities is null ? Results.NotFound() : Results.Ok(new { capabilities });
         });
@@ -180,7 +195,8 @@ public static class CloudControlPlaneEndpoints
             Guid tenantId, Guid applicationId, ClaimsPrincipal principal, CloudCapabilityService service, CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var capabilities = await service.GetApplicationCapabilitiesAsync(subject, tenantId, applicationId, cancellationToken);
             return capabilities is null ? Results.NotFound() : Results.Ok(new { capabilities });
         });
@@ -195,13 +211,15 @@ public static class CloudControlPlaneEndpoints
             CloudCapabilityService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
+                return InvalidAntiforgeryResponse(httpContext);
             if (!TryGetExpectedRevision(httpContext, out var expectedRevision))
             {
                 return Problem(httpContext, StatusCodes.Status428PreconditionRequired, "If-Match is required.", "precondition_required");
             }
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.SetTenantSelectionAsync(subject, tenantId, capabilityId, request.Enabled, expectedRevision, cancellationToken);
             return CapabilitySelectionResponse(httpContext, result);
         });
@@ -217,13 +235,15 @@ public static class CloudControlPlaneEndpoints
             CloudCapabilityService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
+                return InvalidAntiforgeryResponse(httpContext);
             if (!TryGetExpectedRevision(httpContext, out var expectedRevision))
             {
                 return Problem(httpContext, StatusCodes.Status428PreconditionRequired, "If-Match is required.", "precondition_required");
             }
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.SetApplicationSelectionAsync(
                 subject, tenantId, applicationId, capabilityId, request.Enabled, expectedRevision, cancellationToken);
             return CapabilitySelectionResponse(httpContext, result);
@@ -321,9 +341,11 @@ public static class CloudControlPlaneEndpoints
             CancellationToken cancellationToken) =>
         {
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var (credentials, _) = await service.ListAsync(subject, tenantId, applicationId, cancellationToken);
-            if (credentials is null) return Results.NotFound();
+            if (credentials is null)
+                return Results.NotFound();
             httpContext.Response.Headers["Cache-Control"] = "no-store";
             return Results.Ok(new { credentials });
         });
@@ -338,9 +360,11 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
+                return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.CreateAsync(subject, tenantId, applicationId, request.Scopes, request.ExpiresAt, cancellationToken);
             return CredentialIssueResponse(httpContext, tenantId, applicationId, result);
         });
@@ -356,9 +380,11 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
+                return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.RotateAsync(subject, tenantId, applicationId, credentialId, request.ExpiresAt, cancellationToken);
             return CredentialIssueResponse(httpContext, tenantId, applicationId, result);
         });
@@ -373,9 +399,11 @@ public static class CloudControlPlaneEndpoints
             CloudCredentialService service,
             CancellationToken cancellationToken) =>
         {
-            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery)) return InvalidAntiforgeryResponse(httpContext);
+            if (!await HasValidAntiforgeryTokenAsync(httpContext, antiforgery))
+                return InvalidAntiforgeryResponse(httpContext);
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
+            if (subject is null)
+                return Results.Unauthorized();
             var result = await service.RevokeAsync(subject, tenantId, applicationId, credentialId, cancellationToken);
             return result switch
             {
@@ -475,7 +503,8 @@ public static class CloudControlPlaneEndpoints
     {
         if (result.Status == "succeeded")
         {
-            if (result.Revision is not null) context.Response.Headers.ETag = $"\"{result.Revision}\"";
+            if (result.Revision is not null)
+                context.Response.Headers.ETag = $"\"{result.Revision}\"";
             return Results.NoContent();
         }
         var (status, title) = result.Status switch

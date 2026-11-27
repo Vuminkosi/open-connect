@@ -76,7 +76,8 @@ public sealed class KnowledgeSearchClient : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(roleIds);
-        if (roleIds.Count > 64) throw new ArgumentException("The search request is invalid.");
+        if (roleIds.Count > 64)
+            throw new ArgumentException("The search request is invalid.");
         var roles = Array.AsReadOnly(roleIds.ToArray());
         if (context.Tenant.Value == default || context.Principal.Value == default || context.Session.Value == default ||
             context.Destination != EgressDestination.Worker)
@@ -111,24 +112,40 @@ public sealed class KnowledgeSearchClient : IDisposable
             if (vector.Any(value => !float.IsFinite(value)) || !double.IsFinite(norm) || Math.Abs(norm - 1) > 0.001 ||
                 !double.IsFinite(embedding.Items[0].Norm) || Math.Abs(embedding.Items[0].Norm - norm) > 0.001)
                 throw new InvalidOperationException("The query embedding is invalid.");
-            hybrid = new { vector, embeddingSpaceId = embedding.SpaceId, modelId = embedding.ModelId,
-                           fingerprint = embedding.Fingerprint };
+            hybrid = new
+            {
+                vector,
+                embeddingSpaceId = embedding.SpaceId,
+                modelId = embedding.ModelId,
+                fingerprint = embedding.Fingerprint
+            };
         }
 
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString("N");
         var body = JsonSerializer.SerializeToUtf8Bytes(new
         {
-            schemaVersion = "openconnect.v1", taskId, kind = "knowledge.search", tenantId = context.Tenant.Value.ToString(),
-            issuedAt = now.AddSeconds(-5), expiresAt = now.AddMinutes(2), payload = new
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "knowledge.search",
+            tenantId = context.Tenant.Value.ToString(),
+            issuedAt = now.AddSeconds(-5),
+            expiresAt = now.AddMinutes(2),
+            payload = new
             {
-                applicationId, collectionId, principalId = context.Principal.Value.ToString(), roleIds = roles,
-                query = decision.SanitizedContent, limit, hybrid
+                applicationId,
+                collectionId,
+                principalId = context.Principal.Value.ToString(),
+                roleIds = roles,
+                query = decision.SanitizedContent,
+                limit,
+                hybrid
             }
         });
         try
         {
-            if (body.Length > 128 * 1024) throw new ArgumentException("The search request is too large.");
+            if (body.Length > 128 * 1024)
+                throw new ArgumentException("The search request is too large.");
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
             request.Headers.Add("X-OpenConnect-Signature", Convert.ToHexString(HMACSHA256.HashData(_key, body)).ToLowerInvariant());
@@ -140,7 +157,8 @@ public sealed class KnowledgeSearchClient : IDisposable
             if (!response.IsSuccessStatusCode)
                 throw new HttpRequestException("The knowledge worker rejected the request.", null, response.StatusCode);
             const int maximumResponseBytes = 1024 * 1024;
-            if (response.Content.Headers.ContentLength > maximumResponseBytes) throw new InvalidOperationException("Invalid worker response.");
+            if (response.Content.Headers.ContentLength > maximumResponseBytes)
+                throw new InvalidOperationException("Invalid worker response.");
             await using var input = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
             using var buffer = new MemoryStream();
             var chunk = new byte[8192];
@@ -149,7 +167,8 @@ public sealed class KnowledgeSearchClient : IDisposable
                 int count;
                 while ((count = await input.ReadAsync(chunk, deadline.Token).ConfigureAwait(false)) > 0)
                 {
-                    if (buffer.Length + count > maximumResponseBytes) throw new InvalidOperationException("Invalid worker response.");
+                    if (buffer.Length + count > maximumResponseBytes)
+                        throw new InvalidOperationException("Invalid worker response.");
                     buffer.Write(chunk, 0, count);
                 }
                 buffer.Position = 0;
@@ -166,7 +185,8 @@ public sealed class KnowledgeSearchClient : IDisposable
             finally
             {
                 CryptographicOperations.ZeroMemory(chunk);
-                if (buffer.TryGetBuffer(out var bytes)) CryptographicOperations.ZeroMemory(bytes.AsSpan());
+                if (buffer.TryGetBuffer(out var bytes))
+                    CryptographicOperations.ZeroMemory(bytes.AsSpan());
             }
         }
         finally { CryptographicOperations.ZeroMemory(body); }
@@ -176,22 +196,29 @@ public sealed class KnowledgeSearchClient : IDisposable
     {
         Properties(root, "schemaVersion", "taskId", "kind", "result");
         if (root.GetProperty("schemaVersion").GetString() != "openconnect.v1" ||
-            root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.search") Invalid();
+            root.GetProperty("taskId").GetString() != taskId || root.GetProperty("kind").GetString() != "knowledge.search")
+            Invalid();
         var result = root.GetProperty("result");
         Properties(result, "hits", "model_id", "fingerprint", "score_type", "warnings");
-        if (result.GetProperty("score_type").GetString() != "raw_logit") Invalid();
+        if (result.GetProperty("score_type").GetString() != "raw_logit")
+            Invalid();
         var hits = result.GetProperty("hits");
-        if (hits.ValueKind != JsonValueKind.Array || hits.GetArrayLength() > limit) Invalid();
+        if (hits.ValueKind != JsonValueKind.Array || hits.GetArrayLength() > limit)
+            Invalid();
         var model = result.GetProperty("model_id");
         var fingerprint = result.GetProperty("fingerprint");
-        if (hits.GetArrayLength() > 0 && (!ValidIdentifier(model.GetString()) || !Digest(fingerprint.GetString()))) Invalid();
-        if ((model.ValueKind == JsonValueKind.Null) != (fingerprint.ValueKind == JsonValueKind.Null)) Invalid();
-        if (model.ValueKind != JsonValueKind.Null && (!ValidIdentifier(model.GetString()) || !Digest(fingerprint.GetString()))) Invalid();
+        if (hits.GetArrayLength() > 0 && (!ValidIdentifier(model.GetString()) || !Digest(fingerprint.GetString())))
+            Invalid();
+        if ((model.ValueKind == JsonValueKind.Null) != (fingerprint.ValueKind == JsonValueKind.Null))
+            Invalid();
+        if (model.ValueKind != JsonValueKind.Null && (!ValidIdentifier(model.GetString()) || !Digest(fingerprint.GetString())))
+            Invalid();
         var seen = new HashSet<(string, string)>();
         foreach (var ranked in hits.EnumerateArray())
         {
             Properties(ranked, "hit", "rerank_score");
-            if (!Finite(ranked.GetProperty("rerank_score"))) Invalid();
+            if (!Finite(ranked.GetProperty("rerank_score")))
+                Invalid();
             var hit = ranked.GetProperty("hit");
             Properties(hit, "document_id", "source_revision", "chunk_id", "page_id", "page_index", "start", "end", "text", "score");
             var document = hit.GetProperty("document_id").GetString();
@@ -202,17 +229,21 @@ public sealed class KnowledgeSearchClient : IDisposable
                 !hit.GetProperty("page_index").TryGetInt32(out var page) || page is < 0 or > 29 ||
                 !hit.GetProperty("start").TryGetInt32(out var start) || !hit.GetProperty("end").TryGetInt32(out var end) ||
                 start < 0 || end <= start || end - start != text.EnumerateRunes().Count() || !Finite(hit.GetProperty("score")) ||
-                !seen.Add((document!, chunk!))) Invalid();
+                !seen.Add((document!, chunk!)))
+                Invalid();
         }
         var warnings = result.GetProperty("warnings");
         if (warnings.ValueKind != JsonValueKind.Array || warnings.GetArrayLength() > 1 ||
-            warnings.EnumerateArray().Any(item => item.GetString() != "access_or_source_changed")) Invalid();
+            warnings.EnumerateArray().Any(item => item.GetString() != "access_or_source_changed"))
+            Invalid();
     }
 
     private static bool ValidIdentifier(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        try { _ = new UTF8Encoding(false, true).GetByteCount(value); }
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+        try
+        { _ = new UTF8Encoding(false, true).GetByteCount(value); }
         catch (EncoderFallbackException) { return false; }
         return value.EnumerateRunes().Count() <= 256 && value.EnumerateRunes().All(rune => rune.Value >= 32 && rune.Value != 127);
     }
@@ -220,20 +251,25 @@ public sealed class KnowledgeSearchClient : IDisposable
     private static bool Finite(JsonElement value) => value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) && double.IsFinite(number);
     private static void Properties(JsonElement value, params string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
-            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
-        if (seen.Count != expected.Length) Invalid();
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
+        if (seen.Count != expected.Length)
+            Invalid();
     }
     private static void Invalid() => throw new InvalidOperationException("Invalid worker response.");
 
     /// <summary>Clears the signing key and disposes an owned transport.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         CryptographicOperations.ZeroMemory(_key);
-        if (_ownsHttp) _http.Dispose();
+        if (_ownsHttp)
+            _http.Dispose();
     }
 }

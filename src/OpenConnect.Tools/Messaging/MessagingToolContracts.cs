@@ -220,7 +220,8 @@ public sealed class MessagingApprovalDescriptorSigner
 
         var expected = HMACSHA256.HashData(_key, Encoding.UTF8.GetBytes(canonical));
         byte[] provided;
-        try { provided = Convert.FromHexString(descriptor.SignatureHex); }
+        try
+        { provided = Convert.FromHexString(descriptor.SignatureHex); }
         catch (FormatException) { return false; }
 
         return provided.Length == expected.Length && CryptographicOperations.FixedTimeEquals(provided, expected);

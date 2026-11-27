@@ -25,7 +25,8 @@ public sealed class EfCloudTranslationDeploymentProfileStore(IDbContextFactory<C
         var profile = await db.Database.SqlQuery<ProfileRow>($"""
             SELECT "DeploymentRevision", "Revision", "TokenizerHash" FROM cloud.translation_deployment_profiles WHERE "DeploymentId" = {deploymentId}
             """).SingleOrDefaultAsync(cancellationToken);
-        if (profile is null) return null;
+        if (profile is null)
+            return null;
         var pairs = await db.Database.SqlQuery<PairRow>($"""
             SELECT "SourceLang", "TargetLang" FROM cloud.translation_deployment_pairs WHERE "DeploymentId" = {deploymentId}
             ORDER BY "SourceLang", "TargetLang"
@@ -45,7 +46,8 @@ public sealed class EfCloudTranslationDeploymentProfileStore(IDbContextFactory<C
             return "conflict";
         var current = await db.Database.SqlQuery<long>($"SELECT \"Revision\" AS \"Value\" FROM cloud.translation_deployment_profiles WHERE \"DeploymentId\" = {profile.DeploymentId}")
             .SingleOrDefaultAsync(cancellationToken);
-        if (current != expectedRevision) return "conflict";
+        if (current != expectedRevision)
+            return "conflict";
         var next = expectedRevision + 1;
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO cloud.translation_deployment_profiles ("DeploymentId", "DeploymentRevision", "Revision", "TokenizerHash")
@@ -59,9 +61,18 @@ public sealed class EfCloudTranslationDeploymentProfileStore(IDbContextFactory<C
                 INSERT INTO cloud.translation_deployment_pairs ("DeploymentId", "SourceLang", "TargetLang")
                 VALUES ({profile.DeploymentId}, {pair.SourceLang}, {pair.TargetLang})
                 """, cancellationToken);
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-            ActorRole = "PlatformOperator", Action = "translation.deployment.profile.write", ResourceId = profile.DeploymentId.ToString("D"),
-            Outcome = "succeeded", TraceId = traceId, OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            SubjectIssuer = actor.Issuer,
+            SubjectId = actor.SubjectId,
+            ActorRole = "PlatformOperator",
+            Action = "translation.deployment.profile.write",
+            ResourceId = profile.DeploymentId.ToString("D"),
+            Outcome = "succeeded",
+            TraceId = traceId,
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return "succeeded";
@@ -70,9 +81,18 @@ public sealed class EfCloudTranslationDeploymentProfileStore(IDbContextFactory<C
     public async Task RecordAsync(CloudSubject actor, string traceId, Guid deploymentId, string outcome, bool denied, CancellationToken cancellationToken)
     {
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), SubjectIssuer = actor.Issuer, SubjectId = actor.SubjectId,
-            ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator", Action = "translation.deployment.profile.write",
-            ResourceId = deploymentId.ToString("D"), Outcome = outcome, TraceId = traceId, OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            SubjectIssuer = actor.Issuer,
+            SubjectId = actor.SubjectId,
+            ActorRole = denied ? "AuthenticatedUser" : "PlatformOperator",
+            Action = "translation.deployment.profile.write",
+            ResourceId = deploymentId.ToString("D"),
+            Outcome = outcome,
+            TraceId = traceId,
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
     }
 }

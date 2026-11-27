@@ -195,7 +195,7 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
         Assert.Contains("Loading case evidence", component.Markup);
         authentication.SignedIn = false;
         reader.Completion.SetResult(new CloudPrivacyObservation(caseId, Guid.NewGuid(), Guid.NewGuid(), "privacy_blocked", "trace", DateTimeOffset.UnixEpoch)
-            { Categories = [new CloudPrivacyCategoryCount("EMAIL", 2)] });
+        { Categories = [new CloudPrivacyCategoryCount("EMAIL", 2)] });
         component.WaitForAssertion(() => Assert.Contains("does not allow security access", component.Markup));
         Assert.DoesNotContain("EMAIL: 2", component.Markup);
     }
@@ -235,7 +235,8 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
         public Task<CloudHostPrivacyObservation?> GetAsync(CloudSubject subject, Guid tenantId, Guid id, CancellationToken cancellationToken) =>
             Task.FromResult<CloudHostPrivacyObservation?>(tenantId == tenant && id == caseId
                 ? new CloudHostPrivacyObservation(caseId, Guid.NewGuid(), "Output", false, "Block", DateTimeOffset.UnixEpoch,
-                    [new CloudPrivacyCategoryCount("PHONE", 3)]) { ReasonCode = "inspection_failed" } : null);
+                    [new CloudPrivacyCategoryCount("PHONE", 3)])
+                { ReasonCode = "inspection_failed" } : null);
     }
 
     private sealed class DelayedCaseReader : ICloudPrivacyCaseReader
@@ -260,10 +261,12 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
         public Task<CloudPrivacyObservationPage?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset? from, DateTimeOffset? to,
             CloudPrivacyObservationCursor? before, int limit, CancellationToken cancellationToken)
         {
-            From = from; To = to;
-            if (tenantId != tenant) return Task.FromResult<CloudPrivacyObservationPage?>(null);
+            From = from;
+            To = to;
+            if (tenantId != tenant)
+                return Task.FromResult<CloudPrivacyObservationPage?>(null);
             var observation = new CloudPrivacyObservation(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "privacy_blocked", Guid.NewGuid().ToString("N"), DateTimeOffset.UnixEpoch)
-                { Categories = [new CloudPrivacyCategoryCount("EMAIL", 2)] };
+            { Categories = [new CloudPrivacyCategoryCount("EMAIL", 2)] };
             return Task.FromResult<CloudPrivacyObservationPage?>(new([observation], null));
         }
     }
@@ -275,10 +278,14 @@ public sealed class CloudPrivacyObservationComponentTests : BunitContext
             Task.FromResult<CloudHostPrivacyObservationPage?>(tenantId == tenant ? new([new CloudHostPrivacyObservation(
                 Guid.NewGuid(), Guid.NewGuid(), "Output", false, "Block", DateTimeOffset.UnixEpoch,
                 [new CloudPrivacyCategoryCount("PHONE", 3)])], null)
-                { Statistics = new CloudHostPrivacyStatistics(2, 3, 4, 1, [new CloudPrivacyCategoryTotal("EMAIL", 9)])
-                    { Actions = [new CloudPrivacyActionTotal("Mask", 4)],
-                      Reasons = [new CloudPrivacyReasonTotal("inspection_failed", 1)],
-                      OutputCategories = [new CloudPrivacyCategoryTotal("PHONE", 8)] } } : null);
+            {
+                Statistics = new CloudHostPrivacyStatistics(2, 3, 4, 1, [new CloudPrivacyCategoryTotal("EMAIL", 9)])
+                {
+                    Actions = [new CloudPrivacyActionTotal("Mask", 4)],
+                    Reasons = [new CloudPrivacyReasonTotal("inspection_failed", 1)],
+                    OutputCategories = [new CloudPrivacyCategoryTotal("PHONE", 8)]
+                }
+            } : null);
     }
 
     private sealed class StatisticsReader(Guid tenant) : ICloudPrivacyStatisticsReader

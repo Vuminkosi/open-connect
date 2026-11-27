@@ -32,11 +32,15 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
             SELECT "TokenBucketId", "Amount", "Actual", "FinalizedAt" FROM cloud.liveui_token_reservations
             WHERE "PlanReservationId" = {reservationId} AND "TenantId" = {reservation.TenantId} AND "ApplicationId" = {reservation.ApplicationId} FOR UPDATE
             """).SingleOrDefaultAsync(cancellationToken);
-        if (token is null) return "unavailable";
+        if (token is null)
+            return "unavailable";
         var observed = await FindUsageAsync(db, reservationId, cancellationToken);
-        if (observed is not null) return Matches(observed, claimId, deploymentId, usage) ? "already_observed" : "conflict";
-        if (reservation.FinalizedAt is not null || token.FinalizedAt is not null) return "conflict";
-        if (usage.InputTokens + usage.OutputTokens > token.Amount) return "overage_requires_reconciliation";
+        if (observed is not null)
+            return Matches(observed, claimId, deploymentId, usage) ? "already_observed" : "conflict";
+        if (reservation.FinalizedAt is not null || token.FinalizedAt is not null)
+            return "conflict";
+        if (usage.InputTokens + usage.OutputTokens > token.Amount)
+            return "overage_requires_reconciliation";
         await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO cloud.liveui_token_observations ("PlanReservationId", "ClaimId", "DeploymentId", "InputTokens", "OutputTokens", "ObservedAt")
             VALUES ({reservationId}, {claimId}, {deploymentId}, {usage.InputTokens}, {usage.OutputTokens}, {timeProvider.GetUtcNow()})
@@ -61,7 +65,8 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
             SELECT "TokenBucketId", "Amount", "Actual", "FinalizedAt" FROM cloud.liveui_token_reservations
             WHERE "PlanReservationId" = {reservationId} AND "TenantId" = {reservation.TenantId} AND "ApplicationId" = {reservation.ApplicationId} FOR UPDATE
             """).SingleOrDefaultAsync(cancellationToken);
-        if (token is null) return "unavailable";
+        if (token is null)
+            return "unavailable";
         if (reservation.FinalizedAt is not null || token.FinalizedAt is not null)
         {
             var observed = await FindUsageAsync(db, reservationId, cancellationToken);
@@ -74,19 +79,23 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
                 observed is not null && Matches(observed, claimId, deploymentId, usage) &&
                 (failed ? failure == 1 && !completed : completed && failure == 0) ? (failed ? "already_failed" : "already_completed") : "conflict";
         }
-        if (actual > token.Amount) return "overage_requires_reconciliation";
+        if (actual > token.Amount)
+            return "overage_requires_reconciliation";
         var priorUsage = await FindUsageAsync(db, reservationId, cancellationToken);
-        if (priorUsage is not null && !Matches(priorUsage, claimId, deploymentId, usage)) return "conflict";
+        if (priorUsage is not null && !Matches(priorUsage, claimId, deploymentId, usage))
+            return "conflict";
         if (recovery && (priorUsage is null || !await db.Database.SqlQuery<bool>($"""
             SELECT "ExpiresAt" <= clock_timestamp() - interval '5 minutes' AS "Value"
             FROM cloud.quota_reservations WHERE "Id" = {reservationId}
-            """).SingleAsync(cancellationToken))) return "unavailable";
+            """).SingleAsync(cancellationToken)))
+            return "unavailable";
         var buckets = await db.QuotaBuckets.FromSqlInterpolated($"""
             SELECT * FROM cloud.quota_buckets WHERE "TenantId" = {reservation.TenantId} AND "ApplicationId" = {reservation.ApplicationId}
               AND "Id" IN ({reservation.BucketId}, {token.TokenBucketId}) ORDER BY "Id" FOR UPDATE
             """).AsNoTracking().ToArrayAsync(cancellationToken);
         if (buckets.Length != 2 || !buckets.Any(item => item.Id == reservation.BucketId && item.CapabilityId == "inference.liveui" && item.Unit == "plan" && item.Reserved >= 1) ||
-            !buckets.Any(item => item.Id == token.TokenBucketId && item.CapabilityId == "inference.liveui" && item.Unit == "token" && item.Reserved >= token.Amount)) return "unavailable";
+            !buckets.Any(item => item.Id == token.TokenBucketId && item.CapabilityId == "inference.liveui" && item.Unit == "token" && item.Reserved >= token.Amount))
+            return "unavailable";
         var now = timeProvider.GetUtcNow();
         if (failed)
             await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -113,7 +122,8 @@ public sealed class EfCloudLiveUIDualSettlementStore(IDbContextFactory<CloudCont
             .ExecuteUpdateAsync(update => update.SetProperty(item => item.Reserved, item => item.Reserved - token.Amount).SetProperty(item => item.Consumed, item => item.Consumed + actual), cancellationToken);
         var planUpdated = await db.QuotaBuckets.Where(item => item.Id == reservation.BucketId && item.TenantId == reservation.TenantId && item.ApplicationId == reservation.ApplicationId && item.Reserved >= 1)
             .ExecuteUpdateAsync(update => update.SetProperty(item => item.Reserved, item => item.Reserved - 1).SetProperty(item => item.Consumed, item => item.Consumed + 1), cancellationToken);
-        if (tokenFinalized != 1 || planFinalized != 1 || tokenUpdated != 1 || planUpdated != 1) return "unavailable";
+        if (tokenFinalized != 1 || planFinalized != 1 || tokenUpdated != 1 || planUpdated != 1)
+            return "unavailable";
         await transaction.CommitAsync(cancellationToken);
         return failed ? "failed" : "completed";
     }

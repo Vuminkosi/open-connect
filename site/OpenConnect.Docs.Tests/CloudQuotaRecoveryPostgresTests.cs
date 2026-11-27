@@ -51,7 +51,8 @@ public sealed class CloudQuotaRecoveryPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Recovery test", default);
@@ -138,29 +139,78 @@ public sealed class CloudQuotaRecoveryPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Claim recovery", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
         var now = DateTimeOffset.UtcNow;
-        var bucket = Guid.NewGuid(); var deployment = Guid.NewGuid();
-        var expired = Guid.NewGuid(); var consumed = Guid.NewGuid(); var legacy = Guid.NewGuid(); var recent = Guid.NewGuid(); var racing = Guid.NewGuid(); var completing = Guid.NewGuid();
-        var expiredClaim = Guid.NewGuid(); var consumedClaim = Guid.NewGuid(); var legacyClaim = Guid.NewGuid(); var recentClaim = Guid.NewGuid(); var racingClaim = Guid.NewGuid(); var completingClaim = Guid.NewGuid();
+        var bucket = Guid.NewGuid();
+        var deployment = Guid.NewGuid();
+        var expired = Guid.NewGuid();
+        var consumed = Guid.NewGuid();
+        var legacy = Guid.NewGuid();
+        var recent = Guid.NewGuid();
+        var racing = Guid.NewGuid();
+        var completing = Guid.NewGuid();
+        var expiredClaim = Guid.NewGuid();
+        var consumedClaim = Guid.NewGuid();
+        var legacyClaim = Guid.NewGuid();
+        var recentClaim = Guid.NewGuid();
+        var racingClaim = Guid.NewGuid();
+        var completingClaim = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucket, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "classification.classify",
-                Unit = "request", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 20, Reserved = 6 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deployment, CapabilityId = "classification.classify", EndpointReference = "recovery-" + Guid.NewGuid().ToString("N"),
-                Transport = "https-mtls", Region = "region-a", ContractVersion = "openconnect.v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 20 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucket,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = "classification.classify",
+                Unit = "request",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 20,
+                Reserved = 6
+            });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deployment,
+                CapabilityId = "classification.classify",
+                EndpointReference = "recovery-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "openconnect.v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 20
+            });
             await db.SaveChangesAsync();
             foreach (var id in new[] { expired, consumed, legacy, recent, racing, completing })
-                db.QuotaReservations.Add(new CloudQuotaReservation { Id = id, BucketId = bucket, TenantId = tenant.Id, ApplicationId = app.Id, RequestId = Guid.NewGuid(),
-                    Amount = 1, ExpiresAt = id == recent ? now.AddMinutes(-2) : now.AddMinutes(-10) });
+                db.QuotaReservations.Add(new CloudQuotaReservation
+                {
+                    Id = id,
+                    BucketId = bucket,
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    RequestId = Guid.NewGuid(),
+                    Amount = 1,
+                    ExpiresAt = id == recent ? now.AddMinutes(-2) : now.AddMinutes(-10)
+                });
             await db.SaveChangesAsync();
             foreach (var pair in new[] { (expired, expiredClaim), (consumed, consumedClaim), (legacy, legacyClaim), (recent, recentClaim), (racing, racingClaim), (completing, completingClaim) })
-                db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = pair.Item1, ClaimId = pair.Item2, TenantId = tenant.Id, ApplicationId = app.Id,
-                    DeploymentId = deployment, Region = "region-a", WorkerPayloadFingerprint = pair.Item1 == legacy ? null : new byte[32], ClaimedAt = now.AddMinutes(-20) });
+                db.ExecutionClaims.Add(new CloudExecutionClaim
+                {
+                    ReservationId = pair.Item1,
+                    ClaimId = pair.Item2,
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    DeploymentId = deployment,
+                    Region = "region-a",
+                    WorkerPayloadFingerprint = pair.Item1 == legacy ? null : new byte[32],
+                    ClaimedAt = now.AddMinutes(-20)
+                });
             await db.SaveChangesAsync();
             db.ExecutionConsumptions.Add(new CloudExecutionConsumption { ReservationId = consumed, ClaimId = consumedClaim, DeploymentId = deployment, ConsumedAt = now.AddMinutes(-9) });
             await db.SaveChangesAsync();
@@ -185,7 +235,8 @@ public sealed class CloudQuotaRecoveryPostgresTests
         await using (var verify = await factory.CreateDbContextAsync())
         {
             Assert.Equal(0, (await verify.QuotaReservations.SingleAsync(x => x.Id == expired)).Actual);
-            foreach (var id in new[] { consumed, legacy, recent, racing, completing }) Assert.Null((await verify.QuotaReservations.SingleAsync(x => x.Id == id)).FinalizedAt);
+            foreach (var id in new[] { consumed, legacy, recent, racing, completing })
+                Assert.Null((await verify.QuotaReservations.SingleAsync(x => x.Id == id)).FinalizedAt);
             Assert.Equal(5, (await verify.QuotaBuckets.SingleAsync(x => x.Id == bucket)).Reserved);
             Assert.Equal(0, (await verify.UsageRecords.SingleAsync(x => x.ReservationId == expired)).Quantity);
             Assert.True(await verify.Database.SqlQuery<bool>($"SELECT EXISTS (SELECT 1 FROM cloud.execution_abandonments WHERE \"ReservationId\" = {expired}) AS \"Value\"").SingleAsync());
@@ -207,15 +258,33 @@ public sealed class CloudQuotaRecoveryPostgresTests
             await Assert.ThrowsAnyAsync<Exception>(() => mutation.Database.ExecuteSqlRawAsync("TRUNCATE TABLE cloud.execution_abandonments"));
         }
 
-        var waitingReservation = Guid.NewGuid(); var waitingClaim = Guid.NewGuid();
+        var waitingReservation = Guid.NewGuid();
+        var waitingClaim = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.QuotaBuckets.Where(x => x.Id == bucket).ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved + 1));
-            db.QuotaReservations.Add(new CloudQuotaReservation { Id = waitingReservation, BucketId = bucket, TenantId = tenant.Id, ApplicationId = app.Id,
-                RequestId = Guid.NewGuid(), Amount = 1, ExpiresAt = now.AddMinutes(-10) });
+            db.QuotaReservations.Add(new CloudQuotaReservation
+            {
+                Id = waitingReservation,
+                BucketId = bucket,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                RequestId = Guid.NewGuid(),
+                Amount = 1,
+                ExpiresAt = now.AddMinutes(-10)
+            });
             await db.SaveChangesAsync();
-            db.ExecutionClaims.Add(new CloudExecutionClaim { ReservationId = waitingReservation, ClaimId = waitingClaim, TenantId = tenant.Id,
-                ApplicationId = app.Id, DeploymentId = deployment, Region = "region-a", WorkerPayloadFingerprint = new byte[32], ClaimedAt = now.AddMinutes(-20) });
+            db.ExecutionClaims.Add(new CloudExecutionClaim
+            {
+                ReservationId = waitingReservation,
+                ClaimId = waitingClaim,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                DeploymentId = deployment,
+                Region = "region-a",
+                WorkerPayloadFingerprint = new byte[32],
+                ClaimedAt = now.AddMinutes(-20)
+            });
             await db.SaveChangesAsync();
         }
         await using (var recovering = await factory.CreateDbContextAsync())

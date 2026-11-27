@@ -13,7 +13,8 @@ public sealed class CloudVoiceQuotaPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenantStore.CreateTenantAsync(owner, "Voice quota", CancellationToken.None);
@@ -22,8 +23,17 @@ public sealed class CloudVoiceQuotaPostgresTests
         var bucketId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id,
-                CapabilityId = "voice.synthesize", Unit = "character", PeriodStart = now.AddHours(-1), PeriodEnd = now.AddHours(1), Limit = 20 });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = bucketId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                CapabilityId = "voice.synthesize",
+                Unit = "character",
+                PeriodStart = now.AddHours(-1),
+                PeriodEnd = now.AddHours(1),
+                Limit = 20
+            });
             await db.SaveChangesAsync();
         }
         var quota = new CloudQuotaService(new EfCloudQuotaStore(factory), TimeProvider.System);

@@ -12,17 +12,23 @@ public sealed class CloudMachineAuthorizationService(
 {
     public async Task<CloudMachineAuthorizationResult> AuthorizeAsync(string? secret, string? capabilityId, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(capabilityId) || capabilityId.Length > 80) return new(false, "invalid_request");
+        if (string.IsNullOrWhiteSpace(capabilityId) || capabilityId.Length > 80)
+            return new(false, "invalid_request");
         try
         {
             var identity = await credentials.ValidateAsync(secret, cancellationToken);
-            if (identity is null) return new(false, "unauthorized");
-            if (!identity.Scopes.Contains(capabilityId)) return new(false, "forbidden");
+            if (identity is null)
+                return new(false, "unauthorized");
+            if (!identity.Scopes.Contains(capabilityId))
+                return new(false, "forbidden");
             var snapshot = await capabilities.GetCurrentAsync(identity, cancellationToken);
-            if (snapshot is null) return new(false, "unauthorized");
+            if (snapshot is null)
+                return new(false, "unauthorized");
             var capability = CloudCapabilityProjection.Application(snapshot, timeProvider.GetUtcNow()).FirstOrDefault(x => x.Id == capabilityId);
-            if (capability is null) return new(false, "capability_unavailable");
-            if (capability.ReasonCode is not null) return new(false, capability.ReasonCode);
+            if (capability is null)
+                return new(false, "capability_unavailable");
+            if (capability.ReasonCode is not null)
+                return new(false, capability.ReasonCode);
             return new(true, "authorized", identity);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

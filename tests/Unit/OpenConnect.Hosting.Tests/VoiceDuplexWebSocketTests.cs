@@ -1057,7 +1057,8 @@ public sealed class VoiceDuplexWebSocketTests
                 Assert.Contains(socket.SentText, t => t.Contains(turnText, StringComparison.Ordinal));
                 for (var other = 0; other < tenantCount; other++)
                 {
-                    if (other == tenantIdx) continue;
+                    if (other == tenantIdx)
+                        continue;
                     var otherTag = $"tenant-{other}-secret";
                     Assert.DoesNotContain(socket.SentText, t => t.Contains(otherTag, StringComparison.Ordinal));
                 }
@@ -1067,7 +1068,8 @@ public sealed class VoiceDuplexWebSocketTests
             var sessionEvents = sharedSessions.GetEvents(session.Id.Value, 0);
             for (var other = 0; other < tenantCount; other++)
             {
-                if (other == tenantIdx) continue;
+                if (other == tenantIdx)
+                    continue;
                 var otherTag = $"tenant-{other}-secret";
                 Assert.DoesNotContain(sessionEvents, e => e.Data.Contains(otherTag, StringComparison.Ordinal));
             }
@@ -1102,8 +1104,10 @@ public sealed class VoiceDuplexWebSocketTests
         services.AddSingleton(dispatcher);
         services.AddSingleton<IHostTaskExecutor, NoOpExecutor>();
         services.AddSingleton<IHostTaskExecutionAuthorizer, NoOpAuthorizer>();
-        if (stt is not null) services.AddSingleton(stt);
-        if (tts is not null) services.AddSingleton(tts);
+        if (stt is not null)
+            services.AddSingleton(stt);
+        if (tts is not null)
+            services.AddSingleton(tts);
         configureServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
@@ -1227,7 +1231,8 @@ public sealed class VoiceDuplexWebSocketTests
             var list = _incoming.ToList();
             list.Insert(0, (type, remaining));
             _incoming.Clear();
-            foreach (var item in list) _incoming.Enqueue(item);
+            foreach (var item in list)
+                _incoming.Enqueue(item);
             return new WebSocketReceiveResult(count, type, false);
         }
 
@@ -1260,7 +1265,8 @@ public sealed class VoiceDuplexWebSocketTests
             Func<RealtimeTranscriptTurn, CancellationToken, ValueTask>? onFinalTranscript = null)
         {
             var buf = new byte[1024];
-            while (await pcm24kMono16Bit.ReadAsync(buf, cancellationToken).ConfigureAwait(false) > 0) { }
+            while (await pcm24kMono16Bit.ReadAsync(buf, cancellationToken).ConfigureAwait(false) > 0)
+            { }
 
             var idx = Math.Min(Interlocked.Increment(ref _index) - 1, transcripts.Length - 1);
             var text = transcripts[idx];
@@ -1289,7 +1295,8 @@ public sealed class VoiceDuplexWebSocketTests
             Func<RealtimeTranscriptTurn, CancellationToken, ValueTask>? onFinalTranscript = null)
         {
             var buf = new byte[1024];
-            while (await pcm24kMono16Bit.ReadAsync(buf, cancellationToken).ConfigureAwait(false) > 0) { }
+            while (await pcm24kMono16Bit.ReadAsync(buf, cancellationToken).ConfigureAwait(false) > 0)
+            { }
 
             if (onPartialTranscript is not null)
             {

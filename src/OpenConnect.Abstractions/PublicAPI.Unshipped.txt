@@ -1,139 +1,4 @@
 #nullable enable
-~override OpenConnect.Abstractions.AgentId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.AgentId.ToString() -> string
-~override OpenConnect.Abstractions.CapabilityId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.CapabilityId.ToString() -> string
-~override OpenConnect.Abstractions.ExecutionId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.ExecutionId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.AttachmentId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.AttachmentId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.CallId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.CallId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.ContinuationId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.ContinuationId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.ConversationId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.ConversationId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.DeviceId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.DeviceId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.EnrollmentId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.EnrollmentId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.FollowUpId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.FollowUpId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.KeyPackageId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.KeyPackageId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.MessageId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.MessageId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.PushRegistrationId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.PushRegistrationId.ToString() -> string
-~override OpenConnect.Abstractions.Messaging.RefreshGrantId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Messaging.RefreshGrantId.ToString() -> string
-~override OpenConnect.Abstractions.PrincipalId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
-~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.SessionId.ToString() -> string
-~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.ToString() -> string
-~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.TaskId.ToString() -> string
-~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.TenantId.ToString() -> string
-~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
-~override OpenConnect.Abstractions.ToolId.ToString() -> string
-~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool
-const OpenConnect.Abstractions.CanonicalAgentEvent.CurrentSchemaVersion = "openconnect.v1" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
-const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CallInvalidState = "call_invalid_state" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CallNotFound = "call_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ConversationClosed = "conversation_closed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ConversationNotFound = "conversation_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CryptoEpochMismatch = "crypto_epoch_mismatch" -> string!
-const OpenConnect.Abstractions.ErrorCodes.CryptoVerificationFailed = "crypto_verification_failed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.DatabaseFencingDenied = "database_fencing_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.DeviceRevoked = "device_revoked" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfConcurrencyConflict = "ef_concurrency_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfContextMissing = "ef_context_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfInmemoryNotDurable = "ef_inmemory_not_durable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfLeaseExpired = "ef_lease_expired" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfMigrationNotAllowed = "ef_migration_not_allowed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfModelMissing = "ef_model_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfOutboxClaimConflict = "ef_outbox_claim_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfPersistenceUnavailable = "ef_persistence_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfProviderUnsupported = "ef_provider_unsupported" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfSchemaMismatch = "ef_schema_mismatch" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfSchemaMissing = "ef_schema_missing" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EfTransactionUnavailable = "ef_transaction_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EnrollmentExpired = "enrollment_expired" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EnrollmentInvalidState = "enrollment_invalid_state" -> string!
-const OpenConnect.Abstractions.ErrorCodes.EnrollmentNotFound = "enrollment_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.FollowUpMaxAttemptsReached = "followup_max_attempts_reached" -> string!
-const OpenConnect.Abstractions.ErrorCodes.FollowUpNotFound = "followup_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.FollowUpQuietHours = "followup_quiet_hours" -> string!
-const OpenConnect.Abstractions.ErrorCodes.HumanParticipantRequired = "human_participant_required" -> string!
-const OpenConnect.Abstractions.ErrorCodes.InvalidRequest = "invalid_request" -> string!
-const OpenConnect.Abstractions.ErrorCodes.MalwareDetected = "malware_detected" -> string!
-const OpenConnect.Abstractions.ErrorCodes.MediaEncryptionRequired = "media_encryption_required" -> string!
-const OpenConnect.Abstractions.ErrorCodes.MessagingDisabled = "messaging_disabled" -> string!
-const OpenConnect.Abstractions.ErrorCodes.PrivacyBlocked = "privacy_blocked" -> string!
-const OpenConnect.Abstractions.ErrorCodes.PrivateE2EEAgentForbidden = "private_e2ee_agent_forbidden" -> string!
-const OpenConnect.Abstractions.ErrorCodes.PromptInjectionDetected = "prompt_injection_detected" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.RateLimited = "rate_limited" -> string!
-const OpenConnect.Abstractions.ErrorCodes.SecurityProfileImmutable = "security_profile_immutable" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ServiceFencingDenied = "service_fencing_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.SessionNotFound = "session_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.TaskNotFound = "task_not_found" -> string!
-const OpenConnect.Abstractions.ErrorCodes.TokenReuseDetected = "token_reuse_detected" -> string!
-const OpenConnect.Abstractions.ErrorCodes.ToolNotAllowed = "tool_not_allowed" -> string!
-const OpenConnect.Abstractions.ErrorCodes.Unauthorized = "unauthorized" -> string!
-const OpenConnect.Abstractions.ErrorCodes.VoiceEgressDenied = "voice_egress_denied" -> string!
-const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hosting_conflict" -> string!
-const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.DeviceEnrollment = "messaging.device.enrollment" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.E2EE = "messaging.e2ee" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppCall = "messaging.inapp.call" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppReceive = "messaging.inapp.receive" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppSend = "messaging.inapp.send" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushFcm = "messaging.push.fcm" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushWeb = "messaging.push.web" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalRequested = "messaging.approval.requested" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalResolved = "messaging.approval.resolved" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallAccepted = "messaging.call.accepted" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallDeclined = "messaging.call.declined" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallEnded = "messaging.call.ended" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallInvited = "messaging.call.invited" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallMissed = "messaging.call.missed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CapabilitiesChanged = "messaging.capabilities.changed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.DeviceRevoked = "messaging.device.revoked" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.FollowUpDue = "messaging.followup.due" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.KeyCommit = "messaging.key.commit" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MembershipChanged = "messaging.membership.changed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageCommitted = "messaging.message.committed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageDelivered = "messaging.message.delivered" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageRead = "messaging.message.read" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.PresenceChanged = "messaging.presence.changed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingEventTypes.TypingChanged = "messaging.typing.changed" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Presence = "messaging.presence" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.PushDispatch = "messaging.push.dispatch" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Route = "messaging.route" -> string!
-const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Signal = "messaging.signal" -> string!
-const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
-const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.EvidenceV1 = "openconnect.security-evidence.v1" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.InspectionV1 = "openconnect.security-inspection.v1" -> string!
-const OpenConnect.Abstractions.SecurityContractVersions.OffsetUnitUnicodeScalar = "unicode-scalar" -> string!
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxFrameBytes = 98304 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxPayloadBytes = 98272 -> int
-const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.ProtocolVersion = 2 -> byte
 OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.Continuous = 3 -> OpenConnect.Abstractions.AgentActivationMode
 OpenConnect.Abstractions.AgentActivationMode.EventTriggered = 2 -> OpenConnect.Abstractions.AgentActivationMode
@@ -284,8 +149,8 @@ OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Accepted = 0 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.AwaitingApproval = 4 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.AwaitingUser = 3 -> OpenConnect.Abstractions.AgentRunState
-OpenConnect.Abstractions.AgentRunState.Cancelled = 9 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.CancelRequested = 8 -> OpenConnect.Abstractions.AgentRunState
+OpenConnect.Abstractions.AgentRunState.Cancelled = 9 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Completed = 6 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.Failed = 7 -> OpenConnect.Abstractions.AgentRunState
 OpenConnect.Abstractions.AgentRunState.OutcomeUnknown = 10 -> OpenConnect.Abstractions.AgentRunState
@@ -757,10 +622,10 @@ OpenConnect.Abstractions.Messaging.ConversationParticipant.ConversationId.init -
 OpenConnect.Abstractions.Messaging.ConversationParticipant.ConversationParticipant(OpenConnect.Abstractions.Messaging.ConversationId ConversationId, OpenConnect.Abstractions.Messaging.ParticipantKind Kind, OpenConnect.Abstractions.PrincipalId? PrincipalId, OpenConnect.Abstractions.AgentId? AgentId, OpenConnect.Abstractions.Messaging.ParticipantRole Role, OpenConnect.Abstractions.Messaging.ParticipantStatus Status, long JoinVersion, long? LeaveVersion = null, System.DateTimeOffset JoinedAt = default(System.DateTimeOffset)) -> void
 OpenConnect.Abstractions.Messaging.ConversationParticipant.Deconstruct(out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.ParticipantKind Kind, out OpenConnect.Abstractions.PrincipalId? PrincipalId, out OpenConnect.Abstractions.AgentId? AgentId, out OpenConnect.Abstractions.Messaging.ParticipantRole Role, out OpenConnect.Abstractions.Messaging.ParticipantStatus Status, out long JoinVersion, out long? LeaveVersion, out System.DateTimeOffset JoinedAt) -> void
 OpenConnect.Abstractions.Messaging.ConversationParticipant.Equals(OpenConnect.Abstractions.Messaging.ConversationParticipant? other) -> bool
-OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.get -> System.DateTimeOffset
-OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.init -> void
 OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinVersion.get -> long
 OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinVersion.init -> void
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.get -> System.DateTimeOffset
+OpenConnect.Abstractions.Messaging.ConversationParticipant.JoinedAt.init -> void
 OpenConnect.Abstractions.Messaging.ConversationParticipant.Kind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
 OpenConnect.Abstractions.Messaging.ConversationParticipant.Kind.init -> void
 OpenConnect.Abstractions.Messaging.ConversationParticipant.LeaveVersion.get -> long?
@@ -1283,23 +1148,23 @@ OpenConnect.Abstractions.Messaging.MessagingCallRecord.AllowedHumanRecipients.ge
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.AllowedHumanRecipients.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ApplicationId.get -> string!
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ApplicationId.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.get -> OpenConnect.Abstractions.Messaging.CallId
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerAgentId.get -> OpenConnect.Abstractions.AgentId?
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerAgentId.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerKind.get -> OpenConnect.Abstractions.Messaging.ParticipantKind
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerKind.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerPrincipalId.get -> OpenConnect.Abstractions.PrincipalId?
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallerPrincipalId.init -> void
-OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.get -> OpenConnect.Abstractions.Messaging.CallId
-OpenConnect.Abstractions.Messaging.MessagingCallRecord.CallId.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ConversationId.get -> OpenConnect.Abstractions.Messaging.ConversationId
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ConversationId.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CreatedAt.get -> System.DateTimeOffset
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.CreatedAt.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.Deconstruct(out OpenConnect.Abstractions.TenantId TenantId, out string! ApplicationId, out OpenConnect.Abstractions.Messaging.CallId CallId, out OpenConnect.Abstractions.Messaging.ConversationId ConversationId, out OpenConnect.Abstractions.Messaging.ParticipantKind CallerKind, out OpenConnect.Abstractions.PrincipalId? CallerPrincipalId, out OpenConnect.Abstractions.AgentId? CallerAgentId, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.PrincipalId>! AllowedHumanRecipients, out OpenConnect.Abstractions.Messaging.CallState State, out OpenConnect.Abstractions.Messaging.CallMediaSecurityMode MediaSecurityMode, out System.DateTimeOffset CreatedAt, out System.DateTimeOffset ExpiresAt, out OpenConnect.Abstractions.Messaging.DeviceId? AcceptedDeviceId, out OpenConnect.Abstractions.PrincipalId? AcceptedPrincipalId, out OpenConnect.Abstractions.SessionId? VoiceSessionId, out string? AdmissionTokenHash, out System.DateTimeOffset? EndedAt, out string? EndReason) -> void
-OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.get -> System.DateTimeOffset?
-OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndReason.get -> string?
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndReason.init -> void
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.get -> System.DateTimeOffset?
+OpenConnect.Abstractions.Messaging.MessagingCallRecord.EndedAt.init -> void
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.Equals(OpenConnect.Abstractions.Messaging.MessagingCallRecord? other) -> bool
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ExpiresAt.get -> System.DateTimeOffset
 OpenConnect.Abstractions.Messaging.MessagingCallRecord.ExpiresAt.init -> void
@@ -2249,6 +2114,15 @@ OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.get -> string!
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Text.init -> void
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.get -> long?
 OpenConnect.Abstractions.Speech.RealtimePartialTranscript.TurnId.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Deconstruct(out long? TurnId, out string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? other) -> bool
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.RealtimeTranscriptTurn(long? TurnId, string! Text) -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.get -> string!
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.init -> void
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.get -> long?
+OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.init -> void
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult!
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Deconstruct(out string! SessionId, out System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>! Turns) -> void
@@ -2259,15 +2133,6 @@ OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.get -> str
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.SessionId.init -> void
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.get -> System.Collections.Generic.IReadOnlyList<OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!>!
 OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Turns.init -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn!
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Deconstruct(out long? TurnId, out string! Text) -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? other) -> bool
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.RealtimeTranscriptTurn(long? TurnId, string! Text) -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.get -> string!
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Text.init -> void
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.get -> long?
-OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.TurnId.init -> void
 OpenConnect.Abstractions.Speech.SpeechToTextTurn
 OpenConnect.Abstractions.Speech.SpeechToTextTurn.<Clone>$() -> OpenConnect.Abstractions.Speech.SpeechToTextTurn!
 OpenConnect.Abstractions.Speech.SpeechToTextTurn.Deconstruct(out int TurnId, out long StartMs, out long EndMs, out string! Transcript, out string! Speaker) -> void
@@ -2571,8 +2436,8 @@ OpenConnect.Abstractions.ToolExecutionMode.Inline = 0 -> OpenConnect.Abstraction
 OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Accepted = 2 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.AwaitingApproval = 1 -> OpenConnect.Abstractions.ToolExecutionState
-OpenConnect.Abstractions.ToolExecutionState.Cancelled = 10 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.CancelRequested = 9 -> OpenConnect.Abstractions.ToolExecutionState
+OpenConnect.Abstractions.ToolExecutionState.Cancelled = 10 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Completed = 7 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Failed = 8 -> OpenConnect.Abstractions.ToolExecutionState
 OpenConnect.Abstractions.ToolExecutionState.Finalizing = 6 -> OpenConnect.Abstractions.ToolExecutionState
@@ -2671,6 +2536,98 @@ OpenConnect.Abstractions.WorkerReadiness.Loading = 2 -> OpenConnect.Abstractions
 OpenConnect.Abstractions.WorkerReadiness.Provisioning = 1 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Ready = 3 -> OpenConnect.Abstractions.WorkerReadiness
 OpenConnect.Abstractions.WorkerReadiness.Unavailable = 5 -> OpenConnect.Abstractions.WorkerReadiness
+const OpenConnect.Abstractions.CanonicalAgentEvent.CurrentSchemaVersion = "openconnect.v1" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Cancellation = "liveui.cancel" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Request = "liveui.request" -> string!
+const OpenConnect.Abstractions.ClientInteractionEventTypes.Response = "liveui.response" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ApprovalRequired = "approval_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CallInvalidState = "call_invalid_state" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CallNotFound = "call_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CapabilityUnavailable = "capability_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.Conflict = "conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ConversationClosed = "conversation_closed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ConversationNotFound = "conversation_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CryptoEpochMismatch = "crypto_epoch_mismatch" -> string!
+const OpenConnect.Abstractions.ErrorCodes.CryptoVerificationFailed = "crypto_verification_failed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.DatabaseFencingDenied = "database_fencing_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.DeviceRevoked = "device_revoked" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfConcurrencyConflict = "ef_concurrency_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfContextMissing = "ef_context_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfInmemoryNotDurable = "ef_inmemory_not_durable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfLeaseExpired = "ef_lease_expired" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfMigrationNotAllowed = "ef_migration_not_allowed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfModelMissing = "ef_model_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfOutboxClaimConflict = "ef_outbox_claim_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfPersistenceUnavailable = "ef_persistence_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfProviderUnsupported = "ef_provider_unsupported" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfSchemaMismatch = "ef_schema_mismatch" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfSchemaMissing = "ef_schema_missing" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EfTransactionUnavailable = "ef_transaction_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentExpired = "enrollment_expired" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentInvalidState = "enrollment_invalid_state" -> string!
+const OpenConnect.Abstractions.ErrorCodes.EnrollmentNotFound = "enrollment_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpMaxAttemptsReached = "followup_max_attempts_reached" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpNotFound = "followup_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.FollowUpQuietHours = "followup_quiet_hours" -> string!
+const OpenConnect.Abstractions.ErrorCodes.HumanParticipantRequired = "human_participant_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.InvalidRequest = "invalid_request" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MalwareDetected = "malware_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MediaEncryptionRequired = "media_encryption_required" -> string!
+const OpenConnect.Abstractions.ErrorCodes.MessagingDisabled = "messaging_disabled" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PrivacyBlocked = "privacy_blocked" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PrivateE2EEAgentForbidden = "private_e2ee_agent_forbidden" -> string!
+const OpenConnect.Abstractions.ErrorCodes.PromptInjectionDetected = "prompt_injection_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ProviderUnavailable = "provider_unavailable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.RateLimited = "rate_limited" -> string!
+const OpenConnect.Abstractions.ErrorCodes.SecurityProfileImmutable = "security_profile_immutable" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ServiceFencingDenied = "service_fencing_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.SessionNotFound = "session_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.TaskNotFound = "task_not_found" -> string!
+const OpenConnect.Abstractions.ErrorCodes.TokenReuseDetected = "token_reuse_detected" -> string!
+const OpenConnect.Abstractions.ErrorCodes.ToolNotAllowed = "tool_not_allowed" -> string!
+const OpenConnect.Abstractions.ErrorCodes.Unauthorized = "unauthorized" -> string!
+const OpenConnect.Abstractions.ErrorCodes.VoiceEgressDenied = "voice_egress_denied" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerHostingConflict = "worker_hosting_conflict" -> string!
+const OpenConnect.Abstractions.ErrorCodes.WorkerUnavailable = "worker_unavailable" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.DeviceEnrollment = "messaging.device.enrollment" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.E2EE = "messaging.e2ee" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppCall = "messaging.inapp.call" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppReceive = "messaging.inapp.receive" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.InAppSend = "messaging.inapp.send" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushFcm = "messaging.push.fcm" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingCapabilityIds.PushWeb = "messaging.push.web" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalRequested = "messaging.approval.requested" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.ApprovalResolved = "messaging.approval.resolved" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallAccepted = "messaging.call.accepted" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallDeclined = "messaging.call.declined" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallEnded = "messaging.call.ended" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallInvited = "messaging.call.invited" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CallMissed = "messaging.call.missed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.CapabilitiesChanged = "messaging.capabilities.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.DeviceRevoked = "messaging.device.revoked" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.FollowUpDue = "messaging.followup.due" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.KeyCommit = "messaging.key.commit" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MembershipChanged = "messaging.membership.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageCommitted = "messaging.message.committed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageDelivered = "messaging.message.delivered" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.MessageRead = "messaging.message.read" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.PresenceChanged = "messaging.presence.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingEventTypes.TypingChanged = "messaging.typing.changed" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Presence = "messaging.presence" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.PushDispatch = "messaging.push.dispatch" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Route = "messaging.route" -> string!
+const OpenConnect.Abstractions.Messaging.MessagingWorkerCommandKinds.Signal = "messaging.signal" -> string!
+const OpenConnect.Abstractions.RateLimitModes.Interactive = "Interactive" -> string!
+const OpenConnect.Abstractions.RateLimitModes.Operational = "Operational" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.EvidenceV1 = "openconnect.security-evidence.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.InspectionV1 = "openconnect.security-inspection.v1" -> string!
+const OpenConnect.Abstractions.SecurityContractVersions.OffsetUnitUnicodeScalar = "unicode-scalar" -> string!
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.HeaderSize = 32 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte0 = 79 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MagicByte1 = 67 -> byte
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxFrameBytes = 98304 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.MaxPayloadBytes = 98272 -> int
+const OpenConnect.Abstractions.Speech.VoiceBinaryFrameCodec.ProtocolVersion = 2 -> byte
 override OpenConnect.Abstractions.AgentBudget.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.AgentBudget.GetHashCode() -> int
 override OpenConnect.Abstractions.AgentBudget.ToString() -> string!
@@ -2917,12 +2874,12 @@ override OpenConnect.Abstractions.SessionId.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimePartialTranscript.ToString() -> string!
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Equals(object? obj) -> bool
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.GetHashCode() -> int
-override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.ToString() -> string!
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.ToString() -> string!
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.Equals(object? obj) -> bool
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.GetHashCode() -> int
+override OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.ToString() -> string!
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.Equals(object? obj) -> bool
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.GetHashCode() -> int
 override OpenConnect.Abstractions.Speech.SpeechToTextTurn.ToString() -> string!
@@ -2993,8 +2950,8 @@ static OpenConnect.Abstractions.CanonicalAgentEvent.operator !=(OpenConnect.Abst
 static OpenConnect.Abstractions.CanonicalAgentEvent.operator ==(OpenConnect.Abstractions.CanonicalAgentEvent? left, OpenConnect.Abstractions.CanonicalAgentEvent? right) -> bool
 static OpenConnect.Abstractions.CanonicalEventMapper.FromEventRecord(OpenConnect.Abstractions.EventRecord! record, System.Guid sessionId, System.Guid eventId, System.DateTimeOffset occurredAt, string? correlationId = null) -> OpenConnect.Abstractions.CanonicalAgentEvent!
 static OpenConnect.Abstractions.CanonicalEventMapper.TryFromEventRecord(OpenConnect.Abstractions.EventRecord? record, System.Guid sessionId, System.Guid eventId, System.DateTimeOffset occurredAt, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical, string? correlationId = null) -> bool
-static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(string? json, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(System.Text.Json.JsonElement element, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
+static OpenConnect.Abstractions.CanonicalEventMapper.TryParse(string? json, out OpenConnect.Abstractions.CanonicalAgentEvent? canonical) -> bool
 static OpenConnect.Abstractions.CapabilityDescriptor.operator !=(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.CapabilityDescriptor.operator ==(OpenConnect.Abstractions.CapabilityDescriptor? left, OpenConnect.Abstractions.CapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.CapabilityId.operator !=(OpenConnect.Abstractions.CapabilityId left, OpenConnect.Abstractions.CapabilityId right) -> bool
@@ -3167,10 +3124,10 @@ static OpenConnect.Abstractions.SessionId.operator !=(OpenConnect.Abstractions.S
 static OpenConnect.Abstractions.SessionId.operator ==(OpenConnect.Abstractions.SessionId left, OpenConnect.Abstractions.SessionId right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator !=(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimePartialTranscript.operator ==(OpenConnect.Abstractions.Speech.RealtimePartialTranscript? left, OpenConnect.Abstractions.Speech.RealtimePartialTranscript? right) -> bool
-static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
-static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptTurn? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator !=(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
+static OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult.operator ==(OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? left, OpenConnect.Abstractions.Speech.RealtimeTranscriptionResult? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextTurn.operator ==(OpenConnect.Abstractions.Speech.SpeechToTextTurn? left, OpenConnect.Abstractions.Speech.SpeechToTextTurn? right) -> bool
 static OpenConnect.Abstractions.Speech.SpeechToTextUploadResult.operator !=(OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? left, OpenConnect.Abstractions.Speech.SpeechToTextUploadResult? right) -> bool
@@ -3210,8 +3167,51 @@ static OpenConnect.Abstractions.ToolId.operator ==(OpenConnect.Abstractions.Tool
 static OpenConnect.Abstractions.ToolPolicy.operator !=(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
 static OpenConnect.Abstractions.ToolPolicy.operator ==(OpenConnect.Abstractions.ToolPolicy? left, OpenConnect.Abstractions.ToolPolicy? right) -> bool
 static OpenConnect.Abstractions.Ulid.NewUlid() -> OpenConnect.Abstractions.Ulid
+static OpenConnect.Abstractions.Ulid.Parse(string! value) -> OpenConnect.Abstractions.Ulid
 static OpenConnect.Abstractions.Ulid.operator !=(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
 static OpenConnect.Abstractions.Ulid.operator ==(OpenConnect.Abstractions.Ulid left, OpenConnect.Abstractions.Ulid right) -> bool
-static OpenConnect.Abstractions.Ulid.Parse(string! value) -> OpenConnect.Abstractions.Ulid
 static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator !=(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
 static OpenConnect.Abstractions.WorkerCapabilityDescriptor.operator ==(OpenConnect.Abstractions.WorkerCapabilityDescriptor? left, OpenConnect.Abstractions.WorkerCapabilityDescriptor? right) -> bool
+~override OpenConnect.Abstractions.AgentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.AgentId.ToString() -> string
+~override OpenConnect.Abstractions.CapabilityId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.CapabilityId.ToString() -> string
+~override OpenConnect.Abstractions.ExecutionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ExecutionId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ApprovalRequestId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.AttachmentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.AttachmentId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.CallId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.CallId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ContinuationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ContinuationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.ConversationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.ConversationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.DeviceId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.DeviceId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.EnrollmentId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.EnrollmentId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.FollowUpId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.FollowUpId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.KeyPackageId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.KeyPackageId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.MessageId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.MessageId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.PushRegistrationId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.PushRegistrationId.ToString() -> string
+~override OpenConnect.Abstractions.Messaging.RefreshGrantId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Messaging.RefreshGrantId.ToString() -> string
+~override OpenConnect.Abstractions.PrincipalId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.PrincipalId.ToString() -> string
+~override OpenConnect.Abstractions.SessionId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.SessionId.ToString() -> string
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.Speech.VoiceAudioFrameHeader.ToString() -> string
+~override OpenConnect.Abstractions.TaskId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TaskId.ToString() -> string
+~override OpenConnect.Abstractions.TenantId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.TenantId.ToString() -> string
+~override OpenConnect.Abstractions.ToolId.Equals(object obj) -> bool
+~override OpenConnect.Abstractions.ToolId.ToString() -> string
+~override OpenConnect.Abstractions.Ulid.Equals(object obj) -> bool

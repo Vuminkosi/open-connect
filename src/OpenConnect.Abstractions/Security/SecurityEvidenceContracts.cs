@@ -244,7 +244,8 @@ public sealed class SecurityEvidenceEvent
             writer.WriteString("schemaVersion", SecurityContractVersions.EvidenceV1);
             writer.WriteString("eventId", eventId.ToString("D"));
             writer.WriteString("requestId", requestId);
-            if (traceId is not null) writer.WriteString("traceId", traceId);
+            if (traceId is not null)
+                writer.WriteString("traceId", traceId);
             writer.WriteString("tenantId", tenantId);
             writer.WriteString("applicationId", applicationId);
             writer.WriteString("occurredAt", occurredAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));

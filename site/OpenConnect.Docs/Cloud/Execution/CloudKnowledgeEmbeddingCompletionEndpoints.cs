@@ -11,12 +11,15 @@ public static class CloudKnowledgeEmbeddingCompletionEndpoints
         CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         var (identity, error) = await CloudKnowledgeEmbeddingQuotaEndpoints.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
+        if (error is not null)
+            return error;
         if (reservationId == Guid.Empty || claimId == Guid.Empty || context.Request.ContentLength is > 0 ||
-            context.Request.Headers.ContainsKey("Transfer-Encoding") || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.BadRequest();
+            context.Request.Headers.ContainsKey("Transfer-Encoding") || context.Request.Headers.ContainsKey("Content-Encoding"))
+            return Results.BadRequest();
         try
         {
-            if (await context.Request.Body.ReadAsync(new byte[1], cancellationToken) != 0) return Results.BadRequest();
+            if (await context.Request.Body.ReadAsync(new byte[1], cancellationToken) != 0)
+                return Results.BadRequest();
             var result = await context.RequestServices.GetRequiredService<ICloudKnowledgeEmbeddingCompletionStore>()
                 .CompleteAsync(identity!.TenantId, identity.ApplicationId, reservationId, claimId, cancellationToken);
             return Results.Json(result, statusCode: result.Status switch

@@ -22,10 +22,12 @@ public static class CloudGatewayAuthorizationEndpoints
             context.Response.Headers.CacheControl = "no-store";
             if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
                 return Results.Unauthorized();
-            if (!databaseConfigured) return Results.Problem(statusCode: 503, title: "Cloud authorization is unavailable.");
+            if (!databaseConfigured)
+                return Results.Problem(statusCode: 503, title: "Cloud authorization is unavailable.");
             if (!context.Request.HasJsonContentType() || context.Request.Headers.ContainsKey("Content-Encoding"))
                 return Results.StatusCode(StatusCodes.Status415UnsupportedMediaType);
-            if (context.Request.ContentLength > 4096) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+            if (context.Request.ContentLength > 4096)
+                return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
 
             var buffer = new byte[4097];
             CloudGatewayAuthorizationRequest? request;
@@ -35,10 +37,12 @@ public static class CloudGatewayAuthorizationEndpoints
                 while (length < buffer.Length)
                 {
                     var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                    if (count == 0) break;
+                    if (count == 0)
+                        break;
                     length += count;
                 }
-                if (length > 4096) return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+                if (length > 4096)
+                    return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
                 request = JsonSerializer.Deserialize<CloudGatewayAuthorizationRequest>(buffer.AsSpan(0, length), JsonOptions);
             }
             catch (JsonException) { return Results.BadRequest(); }

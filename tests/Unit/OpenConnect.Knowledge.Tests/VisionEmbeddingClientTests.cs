@@ -258,9 +258,20 @@ public sealed class VisionEmbeddingClientTests
 
     private static HttpResponseMessage Reply(string taskId, bool zero = false) => new(HttpStatusCode.OK)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "vision.embed", result = new { vector = Enumerable.Range(0, 512).Select(i => !zero && i == 0 ? 1.0 : 0.0),
-            model_id = "fixture", fingerprint = new string('a', 64), space_id = new string('b', 64), dimension = 512 } }),
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "vision.embed",
+            result = new
+            {
+                vector = Enumerable.Range(0, 512).Select(i => !zero && i == 0 ? 1.0 : 0.0),
+                model_id = "fixture",
+                fingerprint = new string('a', 64),
+                space_id = new string('b', 64),
+                dimension = 512
+            }
+        }),
             Encoding.UTF8, "application/json")
     };
 

@@ -22,7 +22,8 @@ public sealed class DocumentationContainerContextTests
         while (pending.TryPop(out var project))
         {
             project = Path.GetFullPath(project);
-            if (!visited.Add(project)) continue;
+            if (!visited.Add(project))
+                continue;
             Assert.True(File.Exists(project), $"Referenced project is missing: {project}");
             var relative = Path.GetRelativePath(repository, project).Replace('\\', '/');
             if (relative.StartsWith("src/", StringComparison.Ordinal))

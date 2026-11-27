@@ -12,12 +12,17 @@ public sealed class CloudExecutionCompletionPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Completion test", default);
         var app = (await tenants.CreateApplicationAsync(owner, tenant.Id, "App", "Development", default)).Application!;
-        var now = DateTimeOffset.UtcNow; var bucketId = Guid.NewGuid(); var reservationId = Guid.NewGuid(); var claimId = Guid.NewGuid(); var deploymentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var bucketId = Guid.NewGuid();
+        var reservationId = Guid.NewGuid();
+        var claimId = Guid.NewGuid();
+        var deploymentId = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             db.QuotaBuckets.Add(new CloudQuotaBucket { Id = bucketId, TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = "classification.classify", Unit = "request", PeriodStart = now.AddMinutes(-1), PeriodEnd = now.AddHours(1), Limit = 1, Reserved = 0 });
@@ -40,10 +45,12 @@ public sealed class CloudExecutionCompletionPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             var bucket = await db.QuotaBuckets.SingleAsync(x => x.Id == bucketId);
-            Assert.Equal(0, bucket.Reserved); Assert.Equal(1, bucket.Consumed);
+            Assert.Equal(0, bucket.Reserved);
+            Assert.Equal(1, bucket.Consumed);
             Assert.Equal(1, (await db.UsageRecords.SingleAsync(x => x.ReservationId == reservationId)).Quantity);
         }
-        var legacyReservation = Guid.NewGuid(); var legacyClaim = Guid.NewGuid();
+        var legacyReservation = Guid.NewGuid();
+        var legacyClaim = Guid.NewGuid();
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.QuotaBuckets.Where(x => x.Id == bucketId).ExecuteUpdateAsync(x => x.SetProperty(y => y.Limit, 2L).SetProperty(y => y.Reserved, 1L));

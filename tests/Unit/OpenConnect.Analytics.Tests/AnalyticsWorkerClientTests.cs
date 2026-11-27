@@ -72,7 +72,8 @@ public sealed class AnalyticsWorkerClientTests
             using var result = await client.AnalyzeAsync(Context, payload.RootElement);
             Assert.Equal("analytics.analyze", result.RootElement.GetProperty("kind").GetString());
         }
-        else await Assert.ThrowsAsync<HttpRequestException>(() => client.AnalyzeAsync(Context, payload.RootElement));
+        else
+            await Assert.ThrowsAsync<HttpRequestException>(() => client.AnalyzeAsync(Context, payload.RootElement));
         Assert.False(capture.LastWrite.IsEmpty);
         Assert.All(capture.LastWrite.ToArray(), value => Assert.Equal(0, value));
     }
@@ -163,11 +164,22 @@ public sealed class AnalyticsWorkerClientTests
     [Fact]
     public void Accepts_unicode_scalar_length_used_by_python_and_json_schema()
     {
-        var payload = JsonSerializer.SerializeToElement(new { feature = string.Concat(Enumerable.Repeat("😀", 128)),
-            unit = "kg", lineage = "fixture", values = new[] { 1 }, forecast = (object?)null });
+        var payload = JsonSerializer.SerializeToElement(new
+        {
+            feature = string.Concat(Enumerable.Repeat("😀", 128)),
+            unit = "kg",
+            lineage = "fixture",
+            values = new[] { 1 },
+            forecast = (object?)null
+        });
         AnalyticsValidation.ValidateInput(payload);
-        var tooLong = JsonSerializer.SerializeToElement(new { feature = string.Concat(Enumerable.Repeat("😀", 129)),
-            unit = "kg", lineage = "fixture", values = new[] { 1 } });
+        var tooLong = JsonSerializer.SerializeToElement(new
+        {
+            feature = string.Concat(Enumerable.Repeat("😀", 129)),
+            unit = "kg",
+            lineage = "fixture",
+            values = new[] { 1 }
+        });
         Assert.Throws<ArgumentException>(() => AnalyticsValidation.ValidateInput(tooLong));
     }
 
@@ -241,15 +253,39 @@ public sealed class AnalyticsWorkerClientTests
 
     private static JsonDocument ForecastReply(string timestamp, int value, bool includePoint) => JsonDocument.Parse(JsonSerializer.Serialize(new
     {
-        schemaVersion = "openconnect.v1", taskId = "task", kind = "analytics.analyze",
-        result = new { feature = "weight", unit = "kg", lineage = "fixture", sample_size = 7, observed_count = 7,
-            missing_count = 0, coverage = 1, minimum = 1, maximum = 7, median = 4, median_absolute_deviation = 2,
-            threshold = 3.5, anomalies = Array.Empty<object>(), warnings = Array.Empty<string>(), algorithm_version = "robust-mad-v1",
-            forecast = new { algorithm_version = "seasonal-naive-v1", interval_seconds = 86400, seasonal_period = 1,
-                sample_size = 7, observed_count = 7, coverage = 1,
+        schemaVersion = "openconnect.v1",
+        taskId = "task",
+        kind = "analytics.analyze",
+        result = new
+        {
+            feature = "weight",
+            unit = "kg",
+            lineage = "fixture",
+            sample_size = 7,
+            observed_count = 7,
+            missing_count = 0,
+            coverage = 1,
+            minimum = 1,
+            maximum = 7,
+            median = 4,
+            median_absolute_deviation = 2,
+            threshold = 3.5,
+            anomalies = Array.Empty<object>(),
+            warnings = Array.Empty<string>(),
+            algorithm_version = "robust-mad-v1",
+            forecast = new
+            {
+                algorithm_version = "seasonal-naive-v1",
+                interval_seconds = 86400,
+                seasonal_period = 1,
+                sample_size = 7,
+                observed_count = 7,
+                coverage = 1,
                 points = includePoint ? new[] { new { timestamp, value, lower = 8, upper = 8 } } : [],
                 backtest = new { samples = 5, mean_absolute_error = 1, naive_mean_absolute_error = 1, residual_lower = 1, residual_upper = 1 },
-                warnings = new[] { "empirical_bands_not_calibrated", "limited_backtest_samples" } } }
+                warnings = new[] { "empirical_bands_not_calibrated", "limited_backtest_samples" }
+            }
+        }
     }));
 
     [Fact]
@@ -263,11 +299,30 @@ public sealed class AnalyticsWorkerClientTests
 
     private static HttpResponseMessage Reply(string taskId, int anomalyValue) => new(HttpStatusCode.OK)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId, kind = "analytics.analyze",
-            result = new { feature = "weight", unit = "kg", lineage = "fixture", sample_size = 6, observed_count = 6, missing_count = 0,
-                coverage = 1.0, minimum = 1, maximum = 100, median = 3.5, median_absolute_deviation = 1.5, threshold = 3.5,
-                anomalies = new[] { new { index = 5, value = anomalyValue, robust_score = 0.6744897501960817 * ((100.0 - 3.5) / 1.5) } }, warnings = Array.Empty<string>(),
-                algorithm_version = "robust-mad-v1" } }), Encoding.UTF8, "application/json")
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "analytics.analyze",
+            result = new
+            {
+                feature = "weight",
+                unit = "kg",
+                lineage = "fixture",
+                sample_size = 6,
+                observed_count = 6,
+                missing_count = 0,
+                coverage = 1.0,
+                minimum = 1,
+                maximum = 100,
+                median = 3.5,
+                median_absolute_deviation = 1.5,
+                threshold = 3.5,
+                anomalies = new[] { new { index = 5, value = anomalyValue, robust_score = 0.6744897501960817 * ((100.0 - 3.5) / 1.5) } },
+                warnings = Array.Empty<string>(),
+                algorithm_version = "robust-mad-v1"
+            }
+        }), Encoding.UTF8, "application/json")
     };
 
     private sealed class CapturingWriteStream : Stream
@@ -309,7 +364,8 @@ public sealed class AnalyticsWorkerClientTests
         public bool OutputWasBounded { get; private set; }
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            if (context.Destination == EgressDestination.Output) OutputWasBounded = cancellationToken.CanBeCanceled;
+            if (context.Destination == EgressDestination.Output)
+                OutputWasBounded = cancellationToken.CanBeCanceled;
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "fixture"));
         }
     }

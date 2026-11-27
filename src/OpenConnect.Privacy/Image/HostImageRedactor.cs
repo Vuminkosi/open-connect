@@ -37,9 +37,12 @@ public sealed class HostImageRedactor
         int maxMegapixels = 20,
         int defaultPaddingPixels = 4)
     {
-        if (maxImageBytes <= 0) throw new ArgumentOutOfRangeException(nameof(maxImageBytes));
-        if (maxMegapixels <= 0) throw new ArgumentOutOfRangeException(nameof(maxMegapixels));
-        if (defaultPaddingPixels < 0) throw new ArgumentOutOfRangeException(nameof(defaultPaddingPixels));
+        if (maxImageBytes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxImageBytes));
+        if (maxMegapixels <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxMegapixels));
+        if (defaultPaddingPixels < 0)
+            throw new ArgumentOutOfRangeException(nameof(defaultPaddingPixels));
 
         _maxImageBytes = maxImageBytes;
         _maxMegapixels = maxMegapixels;
@@ -322,7 +325,8 @@ public sealed class HostImageRedactor
             while (total < raw.Length)
             {
                 var read = zlib.Read(raw, total, raw.Length - total);
-                if (read == 0) break;
+                if (read == 0)
+                    break;
                 total += read;
             }
             if (total != raw.Length)
@@ -414,7 +418,8 @@ public sealed class HostImageRedactor
         var pa = Math.Abs(p - a);
         var pb = Math.Abs(p - b);
         var pc = Math.Abs(p - c);
-        if (pa <= pb && pa <= pc) return a;
+        if (pa <= pb && pa <= pc)
+            return a;
         return pb <= pc ? b : c;
     }
 

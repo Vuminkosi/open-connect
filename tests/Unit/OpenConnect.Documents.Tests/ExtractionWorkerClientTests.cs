@@ -154,9 +154,19 @@ public sealed class ExtractionWorkerClientTests
 
     private static HttpResponseMessage Reply(string taskId, string value) => new(HttpStatusCode.OK)
     {
-        Content = new StringContent(JsonSerializer.Serialize(new { schemaVersion = "openconnect.v1", taskId,
-            kind = "documents.extract", result = new { fields = new { total = new { value = int.Parse(value), start = 7, end = 9 } },
-                warnings = new[] { "source_support_not_semantic_validation" }, schema_valid = true, confidence_method = "not_estimated" } }), Encoding.UTF8, "application/json")
+        Content = new StringContent(JsonSerializer.Serialize(new
+        {
+            schemaVersion = "openconnect.v1",
+            taskId,
+            kind = "documents.extract",
+            result = new
+            {
+                fields = new { total = new { value = int.Parse(value), start = 7, end = 9 } },
+                warnings = new[] { "source_support_not_semantic_validation" },
+                schema_valid = true,
+                confidence_method = "not_estimated"
+            }
+        }), Encoding.UTF8, "application/json")
     };
 
     private sealed class Firewall(bool mask = false) : IPrivacyFirewall
@@ -186,7 +196,8 @@ public sealed class ExtractionWorkerClientTests
         public bool OutputWasBounded { get; private set; }
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
-            if (context.Destination == EgressDestination.Output) OutputWasBounded = cancellationToken.CanBeCanceled;
+            if (context.Destination == EgressDestination.Output)
+                OutputWasBounded = cancellationToken.CanBeCanceled;
             return ValueTask.FromResult(new EgressDecision(true, content, [], SecurityPolicyAction.Allow, "test"));
         }
     }

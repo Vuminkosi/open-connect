@@ -12,7 +12,8 @@ public sealed class CloudExecutionConsumptionFencePostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Consumption fence", default);
@@ -20,12 +21,17 @@ public sealed class CloudExecutionConsumptionFencePostgresTests
         var reference = "fence-" + Guid.NewGuid().ToString("N");
         var deployment = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
-        string availability, regions; bool verified;
+        string availability, regions;
+        bool verified;
         await using (var db = await factory.CreateDbContextAsync())
         {
             var catalog = await db.Capabilities.SingleAsync(x => x.Id == "classification.classify");
-            availability = catalog.PlatformAvailability; regions = catalog.AllowedRegions; verified = catalog.AllowedRegionsVerified;
-            catalog.PlatformAvailability = "available"; catalog.AllowedRegions = "[\"region-a\"]"; catalog.AllowedRegionsVerified = true;
+            availability = catalog.PlatformAvailability;
+            regions = catalog.AllowedRegions;
+            verified = catalog.AllowedRegionsVerified;
+            catalog.PlatformAvailability = "available";
+            catalog.AllowedRegions = "[\"region-a\"]";
+            catalog.AllowedRegionsVerified = true;
             db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
             db.TenantEntitlements.Add(new CloudTenantEntitlement { TenantId = tenant.Id, CapabilityId = "classification.classify", PlanGranted = true, Revision = 1 });
             db.TenantCapabilitySelections.Add(new CloudTenantCapabilitySelection { TenantId = tenant.Id, CapabilityId = "classification.classify", Enabled = true, Revision = 1 });
@@ -89,7 +95,9 @@ public sealed class CloudExecutionConsumptionFencePostgresTests
         {
             await using var db = await factory.CreateDbContextAsync();
             var catalog = await db.Capabilities.SingleAsync(x => x.Id == "classification.classify");
-            catalog.PlatformAvailability = availability; catalog.AllowedRegions = regions; catalog.AllowedRegionsVerified = verified;
+            catalog.PlatformAvailability = availability;
+            catalog.AllowedRegions = regions;
+            catalog.AllowedRegionsVerified = verified;
             await db.SaveChangesAsync();
         }
     }

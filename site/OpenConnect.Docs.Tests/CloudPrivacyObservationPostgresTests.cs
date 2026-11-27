@@ -23,7 +23,8 @@ public sealed class CloudPrivacyObservationPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N"));
         var analyst = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject(owner.Issuer, Guid.NewGuid().ToString("N"));
@@ -38,11 +39,28 @@ public sealed class CloudPrivacyObservationPostgresTests
         {
             db.Memberships.AddRange(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = analyst.Issuer, SubjectId = analyst.SubjectId, Role = "SecurityAnalyst", CreatedAt = now },
                 new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer, SubjectId = developer.SubjectId, Role = "Developer", CreatedAt = now });
-            for (var i = 0; i < 3; i++) db.PrivacyEvidence.Add(new CloudPrivacyEvidence { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id,
-                RequestId = Guid.NewGuid(), Outcome = i == 0 ? "privacy_blocked" : "allowed", TraceId = Guid.NewGuid().ToString("N"), OccurredAt = now,
-                CategoryCounts = i == 0 ? "{\"EMAIL\":2}" : null });
-            db.PrivacyEvidence.Add(new CloudPrivacyEvidence { Id = Guid.NewGuid(), TenantId = other.Id, ApplicationId = otherApp.Id,
-                RequestId = Guid.NewGuid(), Outcome = "allowed", TraceId = Guid.NewGuid().ToString("N"), OccurredAt = now });
+            for (var i = 0; i < 3; i++)
+                db.PrivacyEvidence.Add(new CloudPrivacyEvidence
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    RequestId = Guid.NewGuid(),
+                    Outcome = i == 0 ? "privacy_blocked" : "allowed",
+                    TraceId = Guid.NewGuid().ToString("N"),
+                    OccurredAt = now,
+                    CategoryCounts = i == 0 ? "{\"EMAIL\":2}" : null
+                });
+            db.PrivacyEvidence.Add(new CloudPrivacyEvidence
+            {
+                Id = Guid.NewGuid(),
+                TenantId = other.Id,
+                ApplicationId = otherApp.Id,
+                RequestId = Guid.NewGuid(),
+                Outcome = "allowed",
+                TraceId = Guid.NewGuid().ToString("N"),
+                OccurredAt = now
+            });
             await db.SaveChangesAsync();
         }
         var service = new CloudPrivacyObservationService(new EfCloudPrivacyObservationReader(factory, TimeProvider.System));
@@ -96,13 +114,18 @@ public sealed class CloudPrivacyObservationPostgresTests
     private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid tenantId, Guid otherTenantId,
         Guid caseId, CloudSubject analyst, CloudSubject developer)
     {
-        var builder = WebApplication.CreateBuilder(); builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<ICloudPrivacyObservationReader, EfCloudPrivacyObservationReader>();
         builder.Services.AddScoped<CloudPrivacyObservationService>();
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; });
         builder.Services.AddAuthorization(options => options.AddPolicy("CloudApi", policy => { policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme); policy.RequireAuthenticatedUser(); }));
-        await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization();
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapGet("/test-sign-in/{role}", async (string role, HttpContext context) =>
         {
             var subject = role == "analyst" ? analyst : developer;

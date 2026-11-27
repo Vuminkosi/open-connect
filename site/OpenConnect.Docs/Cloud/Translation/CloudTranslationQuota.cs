@@ -17,7 +17,8 @@ public sealed class CloudTranslationQuota(ICloudTranslationQuotaStore store, Tim
             return Task.FromResult(new CloudQuotaResult("invalid_request"));
         var utcExpiry = request.ExpiresAt.ToUniversalTime();
         var storedExpiry = new DateTimeOffset(utcExpiry.Ticks - utcExpiry.Ticks % 10, TimeSpan.Zero);
-        if (storedExpiry <= now) return Task.FromResult(new CloudQuotaResult("invalid_request"));
+        if (storedExpiry <= now)
+            return Task.FromResult(new CloudQuotaResult("invalid_request"));
         return store.ReserveAsync(request with { ExpiresAt = storedExpiry, RequestFingerprint = request.RequestFingerprint.ToArray() }, now, cancellationToken);
     }
 }

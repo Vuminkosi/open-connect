@@ -207,12 +207,14 @@ public sealed class IndexerTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
-            if (instrument.Meter.Name == "OpenConnect.Vectors") meterListener.EnableMeasurementEvents(instrument);
+            if (instrument.Meter.Name == "OpenConnect.Vectors")
+                meterListener.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<double>((_, _, tags, _) =>
         {
             foreach (var tag in tags)
-                if (tag.Key == "outcome" && tag.Value is string outcome) outcomes.Enqueue(outcome);
+                if (tag.Key == "outcome" && tag.Value is string outcome)
+                    outcomes.Enqueue(outcome);
         });
         listener.Start();
         await using var services = ConfiguredIndexer(logs, delivery, new FakeReader(null), new FakeStore());

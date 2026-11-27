@@ -10,7 +10,7 @@ public static class CloudAnalyticsQuotaEndpoints
 {
     private sealed record ReserveRequest(Guid RequestId, string FingerprintKeyId, string Fingerprint, DateTimeOffset ExpiresAt);
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
-        { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true };
+    { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, RespectRequiredConstructorParameters = true };
 
     public static void MapCloudAnalyticsQuota(this WebApplication app, CloudGatewayClientTrust trust, bool databaseConfigured)
     {
@@ -24,8 +24,10 @@ public static class CloudAnalyticsQuotaEndpoints
         Guid requestId, CancellationToken cancellationToken)
     {
         var (identity, error) = await AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
-        if (requestId == Guid.Empty) return Results.BadRequest();
+        if (error is not null)
+            return error;
+        if (requestId == Guid.Empty)
+            return Results.BadRequest();
         try
         {
             var result = await context.RequestServices.GetRequiredService<CloudQuotaService>().FindFingerprintKeyAsync(
@@ -40,18 +42,22 @@ public static class CloudAnalyticsQuotaEndpoints
         CancellationToken cancellationToken)
     {
         var (identity, error) = await AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
+        if (error is not null)
+            return error;
         var request = await ReadAsync(context.Request, cancellationToken);
         if (request is null || request.RequestId == Guid.Empty || !CloudRequestFingerprint.IsValidKeyId(request.FingerprintKeyId) || request.Fingerprint is null)
             return Results.BadRequest();
         byte[] fingerprint;
-        try { fingerprint = Convert.FromBase64String(request.Fingerprint); }
+        try
+        { fingerprint = Convert.FromBase64String(request.Fingerprint); }
         catch (FormatException) { return Results.BadRequest(); }
         try
         {
-            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != request.Fingerprint) return Results.BadRequest();
+            if (fingerprint.Length != 32 || Convert.ToBase64String(fingerprint) != request.Fingerprint)
+                return Results.BadRequest();
             var now = context.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow();
-            if (request.ExpiresAt <= now || request.ExpiresAt > now.AddMinutes(5)) return Results.BadRequest();
+            if (request.ExpiresAt <= now || request.ExpiresAt > now.AddMinutes(5))
+                return Results.BadRequest();
             var result = await context.RequestServices.GetRequiredService<CloudQuotaService>().ReserveAsync(new CloudQuotaRequest(
                 identity!.TenantId, identity.ApplicationId, "analytics.analyze", "request", request.RequestId,
                 request.FingerprintKeyId, fingerprint, 1, request.ExpiresAt), cancellationToken);
@@ -67,22 +73,27 @@ public static class CloudAnalyticsQuotaEndpoints
         CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         context.Response.Headers.CacheControl = "no-store";
-        if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return (null, Results.Unauthorized());
-        if (!databaseConfigured) return (null, Results.StatusCode(503));
+        if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
+            return (null, Results.Unauthorized());
+        if (!databaseConfigured)
+            return (null, Results.StatusCode(503));
         var headers = context.Request.Headers.Authorization;
         if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
             !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-            header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return (null, Results.Unauthorized());
+            header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace))
+            return (null, Results.Unauthorized());
         var authorization = await context.RequestServices.GetRequiredService<CloudMachineAuthorizationService>()
             .AuthorizeAsync(header.Parameter, "analytics.analyze", cancellationToken);
-        if (!authorization.Authorized || authorization.Identity is null) return (null, Results.StatusCode(authorization.Code switch
-        { "unauthorized" => 401, "capability_unavailable" => 503, _ => 403 }));
+        if (!authorization.Authorized || authorization.Identity is null)
+            return (null, Results.StatusCode(authorization.Code switch
+            { "unauthorized" => 401, "capability_unavailable" => 503, _ => 403 }));
         return (authorization.Identity, null);
     }
 
     private static async Task<ReserveRequest?> ReadAsync(HttpRequest request, CancellationToken cancellationToken)
     {
-        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 1024) return null;
+        if (!request.HasJsonContentType() || request.Headers.ContainsKey("Content-Encoding") || request.ContentLength > 1024)
+            return null;
         var buffer = new byte[1025];
         try
         {
@@ -90,14 +101,19 @@ public static class CloudAnalyticsQuotaEndpoints
             while (length < buffer.Length)
             {
                 var count = await request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 1024) return null;
+            if (length > 1024)
+                return null;
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                return null;
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var property in document.RootElement.EnumerateObject()) if (!names.Add(property.Name)) return null;
+            foreach (var property in document.RootElement.EnumerateObject())
+                if (!names.Add(property.Name))
+                    return null;
             return document.RootElement.Deserialize<ReserveRequest>(Options);
         }
         catch (JsonException) { return null; }

@@ -39,7 +39,8 @@ public sealed class PortalComponentTests : BunitContext
 
         Assert.Equal(new[] { "start-here", "details", "start-here-1", "start-here-1-1" }, headings.Select(h => h.Id));
         Assert.Equal(new[] { 2, 3, 2, 2 }, headings.Select(h => h.Level));
-        foreach (var heading in headings) Assert.NotNull(cut.Find($"#{heading.Id}"));
+        foreach (var heading in headings)
+            Assert.NotNull(cut.Find($"#{heading.Id}"));
         Assert.DoesNotContain(headings, h => h.Text == "Not a section");
     }
 

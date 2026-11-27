@@ -1,4 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
@@ -6,10 +8,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
-using System.Net.Http.Json;
-using System.Security.Claims;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -24,7 +24,8 @@ public sealed class CloudQuotaReadPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("issuer-a", Guid.NewGuid().ToString("N"));
         var billing = new CloudSubject("issuer-a", Guid.NewGuid().ToString("N"));
         var administrator = new CloudSubject("issuer-a", Guid.NewGuid().ToString("N"));
@@ -44,10 +45,30 @@ public sealed class CloudQuotaReadPostgresTests
                 new CloudMembership { TenantId = tenant.Id, SubjectIssuer = administrator.Issuer, SubjectId = administrator.SubjectId, Role = "Administrator", CreatedAt = now },
                 new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer, SubjectId = developer.SubjectId, Role = "Developer", CreatedAt = now });
             for (var i = 0; i < 3; i++)
-                db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = tenant.Id, ApplicationId = app.Id, CapabilityId = capability,
-                    Unit = "request", PeriodStart = now.AddHours(i), PeriodEnd = now.AddHours(i + 1), Limit = 10, Consumed = 2, Reserved = 3 });
-            db.QuotaBuckets.Add(new CloudQuotaBucket { Id = Guid.NewGuid(), TenantId = other.Id, ApplicationId = otherApp.Id, CapabilityId = capability,
-                Unit = "request", PeriodStart = now, PeriodEnd = now.AddHours(1), Limit = 99 });
+                db.QuotaBuckets.Add(new CloudQuotaBucket
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenant.Id,
+                    ApplicationId = app.Id,
+                    CapabilityId = capability,
+                    Unit = "request",
+                    PeriodStart = now.AddHours(i),
+                    PeriodEnd = now.AddHours(i + 1),
+                    Limit = 10,
+                    Consumed = 2,
+                    Reserved = 3
+                });
+            db.QuotaBuckets.Add(new CloudQuotaBucket
+            {
+                Id = Guid.NewGuid(),
+                TenantId = other.Id,
+                ApplicationId = otherApp.Id,
+                CapabilityId = capability,
+                Unit = "request",
+                PeriodStart = now,
+                PeriodEnd = now.AddHours(1),
+                Limit = 99
+            });
             await db.SaveChangesAsync();
         }
         var service = new CloudQuotaQueryService(new EfCloudQuotaReader(factory));

@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using OpenConnect.Abstractions;
-using OpenConnect.Privacy.Rules;
 using OpenConnect.Privacy.Policy;
+using OpenConnect.Privacy.Rules;
 using OpenConnect.Privacy.Tokenization;
 using Xunit;
 
@@ -160,7 +160,8 @@ public sealed class RulesSecurityDetectorTests
         var result = await new RulesSecurityDetector().DetectAndSanitizeAsync(input, Context);
         Assert.DoesNotContain("PRIVATE-MATERIAL", result.SanitizedContent);
         Assert.DoesNotContain("BEGIN", result.SanitizedContent);
-        if (suffix is not null) Assert.EndsWith(suffix, result.SanitizedContent);
+        if (suffix is not null)
+            Assert.EndsWith(suffix, result.SanitizedContent);
         Assert.Contains(result.DetectedEntities, entity => entity.EntityType == "SECRET");
     }
 

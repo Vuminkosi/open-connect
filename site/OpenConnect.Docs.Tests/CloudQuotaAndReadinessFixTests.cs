@@ -131,10 +131,12 @@ public sealed class CloudQuotaAndReadinessFixTests
             await db.SaveChangesAsync();
         }
         var readiness = new EfCloudWorkerReadinessStore(factory);
-        foreach (var id in ids) Assert.True(await readiness.IsReadyAsync(id, CancellationToken.None));
+        foreach (var id in ids)
+            Assert.True(await readiness.IsReadyAsync(id, CancellationToken.None));
         await using (var db = await factory.CreateDbContextAsync())
             await db.WorkerDeployments.Where(x => ids.Contains(x.Id)).ExecuteUpdateAsync(x => x.SetProperty(y => y.Enabled, false));
-        foreach (var id in ids) Assert.False(await readiness.IsReadyAsync(id, CancellationToken.None));
+        foreach (var id in ids)
+            Assert.False(await readiness.IsReadyAsync(id, CancellationToken.None));
     }
 
     [CloudPostgresFact]
@@ -143,7 +145,8 @@ public sealed class CloudQuotaAndReadinessFixTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new Factory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenants = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenants.CreateTenantAsync(owner, "Metered recovery", default);

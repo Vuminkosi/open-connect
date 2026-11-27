@@ -19,7 +19,8 @@ internal static class CloudCredentialSecrets
         finally { CryptographicOperations.ZeroMemory(randomSecret); }
         var bytes = Encoding.UTF8.GetBytes(token);
         byte[] hash;
-        try { hash = SHA256.HashData(bytes); }
+        try
+        { hash = SHA256.HashData(bytes); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
         return new(id, hash, Convert.ToHexString(hash.AsSpan(0, 6)), token);
     }
@@ -27,7 +28,8 @@ internal static class CloudCredentialSecrets
     internal static bool TryReadId(string? token, out Guid id)
     {
         id = Guid.Empty;
-        if (string.IsNullOrWhiteSpace(token) || token.Length > 160) return false;
+        if (string.IsNullOrWhiteSpace(token) || token.Length > 160)
+            return false;
         var parts = token.Split('_', 4);
         return parts.Length == 4 && parts[0] == "oc" && Guid.TryParseExact(parts[2], "N", out id) &&
             parts[3].Length >= 40 && parts[3].Length <= 48;
@@ -40,9 +42,11 @@ internal static class CloudCredentialSecrets
     {
         var bytes = Encoding.UTF8.GetBytes(token);
         byte[] hash;
-        try { hash = SHA256.HashData(bytes); }
+        try
+        { hash = SHA256.HashData(bytes); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
-        try { return CryptographicOperations.FixedTimeEquals(hash, expectedHash); }
+        try
+        { return CryptographicOperations.FixedTimeEquals(hash, expectedHash); }
         finally { CryptographicOperations.ZeroMemory(hash); }
     }
 

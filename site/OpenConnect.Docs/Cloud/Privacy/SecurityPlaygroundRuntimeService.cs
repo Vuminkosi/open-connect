@@ -780,7 +780,8 @@ public sealed class SecurityPlaygroundRuntimeService
         try
         {
             using var resp = await _probeClient.GetAsync(statsUri, cancellationToken);
-            if (!resp.IsSuccessStatusCode) return null;
+            if (!resp.IsSuccessStatusCode)
+                return null;
             using var doc = await JsonDocument.ParseAsync(await resp.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
             if (doc.RootElement.TryGetProperty("hitCount", out var hc) && hc.TryGetInt64(out var parsed))
                 return parsed;

@@ -16,7 +16,8 @@ public class CloudCredentialPostgresTests
         var connection = Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE");
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenantStore.CreateTenantAsync(owner, "Credential test", CancellationToken.None);
@@ -37,8 +38,17 @@ public class CloudCredentialPostgresTests
         var rolledBackId = Guid.NewGuid();
         await using (var session = await new EfCloudCredentialStore(factory).OpenAsync(transactional: true, CancellationToken.None))
         {
-            session.Add(new CloudCredential { Id = rolledBackId, TenantId = tenant.Id, ApplicationId = app.Id,
-                Environment = "Development", KeyHash = new byte[32], Fingerprint = "rollback", Scopes = "[]", IssuedAt = DateTimeOffset.UtcNow });
+            session.Add(new CloudCredential
+            {
+                Id = rolledBackId,
+                TenantId = tenant.Id,
+                ApplicationId = app.Id,
+                Environment = "Development",
+                KeyHash = new byte[32],
+                Fingerprint = "rollback",
+                Scopes = "[]",
+                IssuedAt = DateTimeOffset.UtcNow
+            });
             session.AddAudit(new CloudSubject(null!, owner.SubjectId), tenant.Id, "Owner", "test.failure", rolledBackId, DateTimeOffset.UtcNow);
             await Assert.ThrowsAsync<DbUpdateException>(() => session.CommitAsync(CancellationToken.None));
         }
@@ -71,7 +81,8 @@ public class CloudCredentialPostgresTests
         }
         finally { credentialGate.Resume.TrySetResult(); }
         var rejected = false;
-        try { rejected = (await rotating).Status == "credential_revoked"; }
+        try
+        { rejected = (await rotating).Status == "credential_revoked"; }
         catch (Exception exception) when (HasSerializationFailure(exception)) { rejected = true; }
         Assert.True(rejected);
         Assert.Null(await normal.ValidateAsync(raceCredential.Secret, CancellationToken.None));
@@ -108,7 +119,8 @@ public class CloudCredentialPostgresTests
         }
         finally { gate.Resume.TrySetResult(); }
 
-        try { Assert.Equal("succeeded", (await issuance).Status); }
+        try
+        { Assert.Equal("succeeded", (await issuance).Status); }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { }
         Assert.True(gate.ReadInTransaction);
         var denied = await normal.CreateAsync(owner, tenant.Id, app.Id, [capabilityId], DateTimeOffset.UtcNow.AddDays(1), CancellationToken.None);

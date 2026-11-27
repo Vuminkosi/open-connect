@@ -21,12 +21,19 @@ internal sealed class CloudPrivacyStatisticsAccumulator
     {
         switch (outcome)
         {
-            case "allowed": _allowed++; break;
-            case "privacy_blocked": _blocked++; break;
-            case "detector_unavailable": _unavailable++; break;
+            case "allowed":
+                _allowed++;
+                break;
+            case "privacy_blocked":
+                _blocked++;
+                break;
+            case "detector_unavailable":
+                _unavailable++;
+                break;
         }
         var categories = CloudPrivacyCategories.Decode(categoryCounts, outcome);
-        if (categories is null) { _missing++; return; }
+        if (categories is null)
+        { _missing++; return; }
         foreach (var category in categories)
             _categories[category.Category] = checked(_categories.GetValueOrDefault(category.Category) + category.Count);
     }
@@ -50,7 +57,8 @@ public sealed class EfCloudPrivacyStatisticsReader(IDbContextFactory<CloudContro
     public async Task<CloudPrivacyStatistics?> GetTenantAsync(CloudSubject subject, Guid tenantId, DateTimeOffset? from,
         DateTimeOffset? to, CancellationToken cancellationToken)
     {
-        if (tenantId == Guid.Empty || from >= to) throw new ArgumentException("Invalid privacy statistics query.");
+        if (tenantId == Guid.Empty || from >= to)
+            throw new ArgumentException("Invalid privacy statistics query.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
         var actor = db.Memberships.AsNoTracking().Where(item => item.TenantId == tenantId &&
             item.SubjectIssuer == subject.Issuer && item.SubjectId == subject.SubjectId);
@@ -61,8 +69,10 @@ public sealed class EfCloudPrivacyStatisticsReader(IDbContextFactory<CloudContro
         {
             var membership = actor.Where(item => item.Role == "Owner" || item.Role == "Administrator" || item.Role == "SecurityAnalyst");
             var query = db.PrivacyEvidence.AsNoTracking().Where(item => item.TenantId == tenantId && membership.Any());
-            if (from is not null) query = query.Where(item => item.OccurredAt >= from.Value.ToUniversalTime());
-            if (to is not null) query = query.Where(item => item.OccurredAt < to.Value.ToUniversalTime());
+            if (from is not null)
+                query = query.Where(item => item.OccurredAt >= from.Value.ToUniversalTime());
+            if (to is not null)
+                query = query.Where(item => item.OccurredAt < to.Value.ToUniversalTime());
             var totals = new CloudPrivacyStatisticsAccumulator();
             await foreach (var item in query.Select(item => new { item.Outcome, item.CategoryCounts })
                 .AsAsyncEnumerable().WithCancellation(cancellationToken))
@@ -71,12 +81,21 @@ public sealed class EfCloudPrivacyStatisticsReader(IDbContextFactory<CloudContro
             // A concurrent membership change must not turn a denied read into an apparent zero-count result.
             role = await actor.Select(item => item.Role).SingleOrDefaultAsync(cancellationToken);
             authorized = role is "Owner" or "Administrator" or "SecurityAnalyst";
-            if (!authorized) result = null;
+            if (!authorized)
+                result = null;
         }
-        db.AuditEvents.Add(new CloudAuditEvent { Id = Guid.NewGuid(), TenantId = tenantId, SubjectIssuer = subject.Issuer,
-            SubjectId = subject.SubjectId, ActorRole = role ?? "None", Action = "privacy.statistics.read",
-            Outcome = authorized ? "succeeded" : "forbidden", TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
-            OccurredAt = clock.GetUtcNow() });
+        db.AuditEvents.Add(new CloudAuditEvent
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            SubjectIssuer = subject.Issuer,
+            SubjectId = subject.SubjectId,
+            ActorRole = role ?? "None",
+            Action = "privacy.statistics.read",
+            Outcome = authorized ? "succeeded" : "forbidden",
+            TraceId = Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N"),
+            OccurredAt = clock.GetUtcNow()
+        });
         await db.SaveChangesAsync(cancellationToken);
         return result;
     }
@@ -92,8 +111,10 @@ public static class CloudPrivacyStatisticsEndpoints
         {
             context.Response.Headers.CacheControl = "no-store";
             var subject = CloudSubjectResolver.FromPrincipal(principal, identityIssuer);
-            if (subject is null) return Results.Unauthorized();
-            if (tenantId == Guid.Empty || from >= to) return Results.BadRequest();
+            if (subject is null)
+                return Results.Unauthorized();
+            if (tenantId == Guid.Empty || from >= to)
+                return Results.BadRequest();
             var result = await reader.GetTenantAsync(subject, tenantId, from, to, cancellationToken);
             return result is null ? Results.NotFound() : Results.Ok(result);
         });

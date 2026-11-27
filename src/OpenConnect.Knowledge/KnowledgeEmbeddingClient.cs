@@ -1,6 +1,6 @@
-using System.Net.Http.Headers;
 using System.Buffers;
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -118,12 +118,24 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
         var now = DateTimeOffset.UtcNow;
         var taskId = Guid.NewGuid().ToString(_cloudGateway ? "D" : "N");
         var body = _cloudGateway
-            ? JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.cloud.knowledge-embed/v1", requestId = taskId,
-                capability = "knowledge.embed", expiresAt = now.AddMinutes(2).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
-                input = new { inputKind, texts = safeTexts } })
-            : JsonSerializer.SerializeToUtf8Bytes(new { schemaVersion = "openconnect.v1", taskId, kind = "knowledge.embed",
-                tenantId = context.Tenant.Value.ToString(), issuedAt = now.AddSeconds(-5),
-                expiresAt = now.AddMinutes(2), payload = new { inputKind, texts = safeTexts } });
+            ? JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                schemaVersion = "openconnect.cloud.knowledge-embed/v1",
+                requestId = taskId,
+                capability = "knowledge.embed",
+                expiresAt = now.AddMinutes(2).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+                input = new { inputKind, texts = safeTexts }
+            })
+            : JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                schemaVersion = "openconnect.v1",
+                taskId,
+                kind = "knowledge.embed",
+                tenantId = context.Tenant.Value.ToString(),
+                issuedAt = now.AddSeconds(-5),
+                expiresAt = now.AddMinutes(2),
+                payload = new { inputKind, texts = safeTexts }
+            });
         MemoryStream? responseBuffer = null;
         byte[]? responseBytes = null;
         byte[]? responseChunk = null;
@@ -207,8 +219,10 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
         finally
         {
             CryptographicOperations.ZeroMemory(body);
-            if (responseBytes is not null) CryptographicOperations.ZeroMemory(responseBytes);
-            if (responseChunk is not null) CryptographicOperations.ZeroMemory(responseChunk);
+            if (responseBytes is not null)
+                CryptographicOperations.ZeroMemory(responseBytes);
+            if (responseChunk is not null)
+                CryptographicOperations.ZeroMemory(responseChunk);
             if (responseBuffer is not null)
             {
                 if (responseBuffer.TryGetBuffer(out var contents) && contents.Array is not null)
@@ -220,19 +234,24 @@ public sealed class KnowledgeEmbeddingClient : IDisposable
 
     private static bool ValidTexts(IReadOnlyList<string> texts)
     {
-        if (texts.Count is < 1 or > 32) return false;
+        if (texts.Count is < 1 or > 32)
+            return false;
         var total = 0;
         foreach (var text in texts)
         {
-            if (string.IsNullOrEmpty(text)) return false;
-            var remaining = text.AsSpan(); var count = 0;
+            if (string.IsNullOrEmpty(text))
+                return false;
+            var remaining = text.AsSpan();
+            var count = 0;
             while (!remaining.IsEmpty)
             {
-                if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done || ++count > 8192) return false;
+                if (Rune.DecodeFromUtf16(remaining, out _, out var consumed) != OperationStatus.Done || ++count > 8192)
+                    return false;
                 remaining = remaining[consumed..];
             }
             total += count;
-            if (total > 65536) return false;
+            if (total > 65536)
+                return false;
         }
         return true;
     }

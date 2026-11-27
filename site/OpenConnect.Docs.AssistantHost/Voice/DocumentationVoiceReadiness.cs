@@ -37,17 +37,20 @@ internal sealed class DocumentationVoiceReadiness(
         try
         {
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode)
+                return false;
             await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
             var buffer = new byte[MaxResponseBytes + 1];
             var total = 0;
             while (total < buffer.Length)
             {
                 var read = await stream.ReadAsync(buffer.AsMemory(total), timeout.Token).ConfigureAwait(false);
-                if (read == 0) break;
+                if (read == 0)
+                    break;
                 total += read;
             }
-            if (total > MaxResponseBytes) return false;
+            if (total > MaxResponseBytes)
+                return false;
             using var json = JsonDocument.Parse(buffer.AsMemory(0, total));
             return json.RootElement.ValueKind == JsonValueKind.Object &&
                 json.RootElement.TryGetProperty("modelReady", out var ready) && ready.ValueKind == JsonValueKind.True;

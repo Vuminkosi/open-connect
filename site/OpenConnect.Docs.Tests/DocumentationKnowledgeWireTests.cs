@@ -45,8 +45,13 @@ public sealed class DocumentationKnowledgeWireTests
                 Assert.Equal("Bearer fixture-cloud-token", context.Request.Headers.Authorization.ToString());
                 Assert.False(context.Request.Headers.ContainsKey("X-OpenConnect-Signature"));
                 calls.Add("cloud.embed");
-                return Results.Json(new { schemaVersion = "openconnect.cloud.knowledge-embed.result/v1",
-                    requestId = root.GetProperty("requestId").GetString(), traceId = new string('a', 32), result = Embedding() });
+                return Results.Json(new
+                {
+                    schemaVersion = "openconnect.cloud.knowledge-embed.result/v1",
+                    requestId = root.GetProperty("requestId").GetString(),
+                    traceId = new string('a', 32),
+                    result = Embedding()
+                });
             }
             Assert.Equal("Bearer fixture-token", context.Request.Headers.Authorization.ToString());
             Assert.Equal(Convert.ToHexString(HMACSHA256.HashData(key, body)).ToLowerInvariant(),
@@ -75,7 +80,8 @@ public sealed class DocumentationKnowledgeWireTests
                     Assert.Equal(stored.Tenant, tenant);
                     Assert.Equal(stored.Principal, payload.GetProperty("principalId").GetString());
                     Assert.Equal(stored.Document, payload.GetProperty("documentId").GetString());
-                    if (failStatusOnce) { failStatusOnce = false; return Results.StatusCode(503); }
+                    if (failStatusOnce)
+                    { failStatusOnce = false; return Results.StatusCode(503); }
                     result = new { state = "completed", attempts = 1, result_generation = 1, retry_at = (string?)null };
                     break;
                 case "knowledge.embed":
@@ -86,11 +92,18 @@ public sealed class DocumentationKnowledgeWireTests
                     var searchPrincipal = payload.GetProperty("principalId").GetString();
                     var match = Assert.Single(indexed.Values, item => item.Tenant == tenant && item.Principal == searchPrincipal);
                     Assert.Equal(new string('c', 64), payload.GetProperty("hybrid").GetProperty("embeddingSpaceId").GetString());
-                    result = new { model_id = "fixture", fingerprint = new string('b', 64), score_type = "raw_logit", warnings = Array.Empty<string>(),
+                    result = new
+                    {
+                        model_id = "fixture",
+                        fingerprint = new string('b', 64),
+                        score_type = "raw_logit",
+                        warnings = Array.Empty<string>(),
                         hits = new[] { new { rerank_score = 1.0, hit = new { document_id = wrongSource ? "other-document" : match.Document, source_revision = "v1", chunk_id = new string('b', 64),
-                            page_id = "page", page_index = 0, start = 0, end = 4, text = "Mars", score = 0.5 } } } };
+                            page_id = "page", page_index = 0, start = 0, end = 4, text = "Mars", score = 0.5 } } }
+                    };
                     break;
-                default: throw new InvalidOperationException("Unexpected fixture operation.");
+                default:
+                    throw new InvalidOperationException("Unexpected fixture operation.");
             }
             return Results.Json(new { schemaVersion = "openconnect.v1", taskId = task, kind, result });
         }
@@ -146,6 +159,12 @@ public sealed class DocumentationKnowledgeWireTests
         finally { await app.StopAsync(); CryptographicOperations.ZeroMemory(key); }
     }
 
-    private static object Embedding() => new { model_id = "fixture", fingerprint = new string('b', 64), dimension = 2,
-        space_id = new string('c', 64), items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1 } } };
+    private static object Embedding() => new
+    {
+        model_id = "fixture",
+        fingerprint = new string('b', 64),
+        dimension = 2,
+        space_id = new string('c', 64),
+        items = new[] { new { vector = new[] { 0.6, 0.8 }, truncated = false, norm = 1 } }
+    };
 }

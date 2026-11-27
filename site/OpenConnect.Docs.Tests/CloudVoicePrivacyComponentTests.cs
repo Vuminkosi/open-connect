@@ -14,7 +14,8 @@ public sealed class CloudVoicePrivacyComponentTests : BunitContext
     [Fact]
     public async Task DisplaysSeparateBoundariesAndClearsObservationsWhenIdentityChanges()
     {
-        var tenant = Guid.NewGuid(); var authentication = new MutableAuthentication();
+        var tenant = Guid.NewGuid();
+        var authentication = new MutableAuthentication();
         Services.AddSingleton<ICloudVoicePrivacyReader>(new Reader(tenant));
         Services.AddSingleton<AuthenticationStateProvider>(authentication);
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

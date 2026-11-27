@@ -36,7 +36,8 @@ internal static class DocumentationKnowledgeRegistration
         IConfiguration configuration, IHostEnvironment environment)
     {
         const string prefix = "OpenConnect:KnowledgeDemo:";
-        if (!configuration.GetValue<bool>(prefix + "Enabled")) return services;
+        if (!configuration.GetValue<bool>(prefix + "Enabled"))
+            return services;
         if (!environment.IsDevelopment() || !services.Any(service => service.ServiceType == typeof(DocumentationGatewayVisitorTokens)))
             throw new InvalidOperationException("The knowledge example requires development and documentation visitor identity.");
         var allowHttp = configuration.GetValue<bool>(prefix + "AllowInsecureHttp");
@@ -64,9 +65,11 @@ internal static class DocumentationKnowledgeRegistration
             !int.TryParse(configuration[prefix + "ObjectSize"], out var size))
             throw new InvalidOperationException("The knowledge example worker settings are invalid.");
         byte[] keyBytes;
-        try { keyBytes = Convert.FromHexString(key); }
+        try
+        { keyBytes = Convert.FromHexString(key); }
         catch (FormatException) { throw new InvalidOperationException("The knowledge example worker settings are invalid."); }
-        try { if (keyBytes.Length < 32) throw new InvalidOperationException("The knowledge example worker settings are invalid."); }
+        try
+        { if (keyBytes.Length < 32) throw new InvalidOperationException("The knowledge example worker settings are invalid."); }
         finally { CryptographicOperations.ZeroMemory(keyBytes); }
         try
         {
@@ -100,20 +103,25 @@ internal sealed class DocumentationKnowledgeDemo(DocumentationGatewayVisitorIden
 
     public async Task<JsonDocument> SearchAsync(string query, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(query) || query.Length > 2000) throw new ArgumentException("Invalid query.", nameof(query));
-        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal)) throw new UnauthorizedAccessException();
-        if (!await _oneAtATime.WaitAsync(0, cancellationToken).ConfigureAwait(false)) throw new InvalidOperationException("Knowledge example is busy.");
+        if (string.IsNullOrWhiteSpace(query) || query.Length > 2000)
+            throw new ArgumentException("Invalid query.", nameof(query));
+        if (!tokens.TryValidate(visitor.Token, out var tenant, out var principal))
+            throw new UnauthorizedAccessException();
+        if (!await _oneAtATime.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("Knowledge example is busy.");
         var acquired = false;
         byte[]? key = null;
         try
         {
             acquired = await capacity.Slots.WaitAsync(0, cancellationToken).ConfigureAwait(false);
-            if (!acquired) throw new InvalidOperationException("Knowledge example is busy.");
+            if (!acquired)
+                throw new InvalidOperationException("Knowledge example is busy.");
             _submission ??= new KnowledgeIndexSubmission(Guid.NewGuid(), "documentation", "visitor-demo", "docs-" + principal,
                 settings.ObjectVersion, settings.EmbeddingSpace, settings.ObjectId, settings.ObjectSha256, settings.ObjectSize,
                 settings.ObjectVersion, 0, [principal], [], DateTimeOffset.UtcNow.AddHours(1));
             var submission = _submission;
-            if (submission.DocumentExpiresAt <= DateTimeOffset.UtcNow) throw new InvalidOperationException("Knowledge example expired.");
+            if (submission.DocumentExpiresAt <= DateTimeOffset.UtcNow)
+                throw new InvalidOperationException("Knowledge example expired.");
             var context = new EgressContext(new TenantId(Ulid.Parse(tenant)), new PrincipalId(Ulid.Parse(principal)),
                 new SessionId(Ulid.NewUlid()), EgressDestination.Worker);
             bool Authorized(EgressContext scope) => tokens.TryValidate(visitor.Token, out var currentTenant, out var currentPrincipal) &&
@@ -139,24 +147,30 @@ internal sealed class DocumentationKnowledgeDemo(DocumentationGatewayVisitorIden
                     using var status = await index.StatusAsync(context, submission.JobId, submission.ApplicationId,
                         submission.CollectionId, submission.DocumentId, [], deadline.Token).ConfigureAwait(false);
                     var state = status.RootElement.GetProperty("result").GetProperty("state").GetString();
-                    if (state == "completed") { _indexed = true; break; }
-                    if (state == "dead") throw new InvalidOperationException("Knowledge indexing failed.");
+                    if (state == "completed")
+                    { _indexed = true; break; }
+                    if (state == "dead")
+                        throw new InvalidOperationException("Knowledge indexing failed.");
                     await Task.Delay(TimeSpan.FromSeconds(1), deadline.Token).ConfigureAwait(false);
                 }
             }
             var response = await search.SearchHybridAsync(context, submission.ApplicationId, submission.CollectionId, [], query,
                 async (scope, text, ct) =>
                 {
-                    if (!Authorized(scope)) throw new UnauthorizedAccessException();
+                    if (!Authorized(scope))
+                        throw new UnauthorizedAccessException();
                     var embeddingScope = settings.Cloud ? scope with { Destination = EgressDestination.ExternalModel } : scope;
                     var result = await embed.EmbedAsync(embeddingScope, "query", [text], ct).ConfigureAwait(false);
-                    if (!Authorized(scope)) throw new UnauthorizedAccessException();
-                    if (result.SpaceId != submission.EmbeddingSpaceId) throw new InvalidOperationException("Knowledge model space changed.");
+                    if (!Authorized(scope))
+                        throw new UnauthorizedAccessException();
+                    if (result.SpaceId != submission.EmbeddingSpaceId)
+                        throw new InvalidOperationException("Knowledge model space changed.");
                     return result;
                 }, cancellationToken: deadline.Token).ConfigureAwait(false);
             try
             {
-                if (!Authorized(context)) throw new UnauthorizedAccessException();
+                if (!Authorized(context))
+                    throw new UnauthorizedAccessException();
                 foreach (var ranked in response.RootElement.GetProperty("result").GetProperty("hits").EnumerateArray())
                 {
                     var hit = ranked.GetProperty("hit");
@@ -170,8 +184,10 @@ internal sealed class DocumentationKnowledgeDemo(DocumentationGatewayVisitorIden
         }
         finally
         {
-            if (key is not null) CryptographicOperations.ZeroMemory(key);
-            if (acquired) capacity.Slots.Release();
+            if (key is not null)
+                CryptographicOperations.ZeroMemory(key);
+            if (acquired)
+                capacity.Slots.Release();
             _oneAtATime.Release();
         }
     }

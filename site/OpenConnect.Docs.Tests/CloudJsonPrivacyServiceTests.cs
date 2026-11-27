@@ -17,7 +17,8 @@ public sealed class CloudJsonPrivacyServiceTests
         var result = await new CloudJsonPrivacyService(new RulesSecurityDetector())
             .EvaluateWithEvidenceAsync(identity, Guid.NewGuid(), document.RootElement, CancellationToken.None);
         Assert.Equal(expected, result.Decision.Code);
-        if (expected == "privacy_blocked") Assert.NotEmpty(result.Categories);
+        if (expected == "privacy_blocked")
+            Assert.NotEmpty(result.Categories);
     }
 
     [Fact]

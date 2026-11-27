@@ -20,10 +20,20 @@ public sealed class CloudVoiceQuotaEndpointTests
         using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10));
         var trust = new CloudGatewayClientTrust([Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256))]);
         var material = CloudCredentialSecrets.Create("Development");
-        var tenant = Guid.NewGuid(); var application = Guid.NewGuid();
-        var credential = new CloudCredential { Id = material.Id, TenantId = tenant, ApplicationId = application,
-            Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = "[\"voice.synthesize\"]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
+        var tenant = Guid.NewGuid();
+        var application = Guid.NewGuid();
+        var credential = new CloudCredential
+        {
+            Id = material.Id,
+            TenantId = tenant,
+            ApplicationId = application,
+            Environment = "Development",
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = "[\"voice.synthesize\"]",
+            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
+        };
         var snapshot = new CloudCapabilitySnapshot(
             [new CloudCapabilityDefinition { Id = "voice.synthesize", Name = "Voice", Description = "fixture", ContractVersion = "v1",
                 BillingUnit = "character", PlatformAvailability = "available", Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" }],
@@ -45,17 +55,26 @@ public sealed class CloudVoiceQuotaEndpointTests
             .AddSingleton(new CloudVoiceOutputPrivacyService(new RulesSecurityDetector()))
             .AddSingleton<ICloudVoiceOutputEvidenceStore>(outputEvidence).BuildServiceProvider();
         var id = Guid.NewGuid();
-        string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new { requestId = id, fingerprintKeyId = "active",
-            fingerprint = Convert.ToBase64String(new byte[32]), characters, expiresAt = DateTimeOffset.UtcNow.AddMinutes(1) });
+        string Json(int characters) => System.Text.Json.JsonSerializer.Serialize(new
+        {
+            requestId = id,
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            characters,
+            expiresAt = DateTimeOffset.UtcNow.AddMinutes(1)
+        });
         DefaultHttpContext Context(string body)
         {
             var context = new DefaultHttpContext { RequestServices = services };
-            context.Request.Scheme = "https"; context.Connection.ClientCertificate = certificate;
+            context.Request.Scheme = "https";
+            context.Connection.ClientCertificate = certificate;
             context.Request.Headers.Authorization = "Bearer " + material.Secret;
-            context.Request.ContentType = "application/json"; context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+            context.Request.ContentType = "application/json";
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
             return context;
         }
-        var noCert = Context(Json(4)); noCert.Connection.ClientCertificate = null;
+        var noCert = Context(Json(4));
+        noCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudVoiceQuotaEndpoints.ReserveAsync(noCert, trust, true, CancellationToken.None)));
         Assert.Equal(400, Status(await CloudVoiceQuotaEndpoints.ReserveAsync(Context(Json(0)), trust, true, CancellationToken.None)));
         Assert.Equal(400, Status(await CloudVoiceQuotaEndpoints.ReserveAsync(Context(Json(2001)), trust, true, CancellationToken.None)));
@@ -83,7 +102,8 @@ public sealed class CloudVoiceQuotaEndpointTests
             return context;
         }
         var safe = "{\"text\":\"hello 🌍\",\"voiceId\":\"af_heart\",\"locale\":\"en-US\",\"format\":\"wav\"}";
-        var missingCert = PrivacyContext(safe); missingCert.Connection.ClientCertificate = null;
+        var missingCert = PrivacyContext(safe);
+        missingCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(missingCert, trust, true, default)));
         Assert.Equal(400, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe.Replace("{", "{\"text\":\"duplicate\",", StringComparison.Ordinal)), trust, true, default)));
         Assert.Equal(0, evidence.Calls);
@@ -94,10 +114,20 @@ public sealed class CloudVoiceQuotaEndpointTests
         evidence.Fail = true;
         Assert.Equal(503, Status(await CloudVoicePrivacyEndpoints.EvaluateAsync(PrivacyContext(safe), trust, true, default)));
 
-        var claimJson = System.Text.Json.JsonSerializer.Serialize(new { fingerprintKeyId = "active", fingerprint = Convert.ToBase64String(new byte[32]),
-            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]), endpointReference = "voice-worker", region = "region-a",
-            contractVersion = "v1", modelId = "kokoro", modelRevision = "revision-1", modelDigest = "sha256:" + new string('a', 64) });
-        var claimNoCert = Context(claimJson); claimNoCert.Connection.ClientCertificate = null;
+        var claimJson = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            fingerprintKeyId = "active",
+            fingerprint = Convert.ToBase64String(new byte[32]),
+            workerPayloadFingerprint = Convert.ToBase64String(new byte[32]),
+            endpointReference = "voice-worker",
+            region = "region-a",
+            contractVersion = "v1",
+            modelId = "kokoro",
+            modelRevision = "revision-1",
+            modelDigest = "sha256:" + new string('a', 64)
+        });
+        var claimNoCert = Context(claimJson);
+        claimNoCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, claimNoCert, trust, true, default)));
         Assert.Equal(400, Status(await CloudVoiceClaimEndpoints.ClaimAsync(id, Context(claimJson.Replace("workerPayloadFingerprint", "unknown", StringComparison.Ordinal)), trust, true, default)));
         Assert.Equal(0, claims.Calls);
@@ -116,7 +146,8 @@ public sealed class CloudVoiceQuotaEndpointTests
             context.Request.Headers["X-Cloud-Claim-Id"] = id.ToString("D");
             return context;
         }
-        var outputNoCert = OutputContext("hello"); outputNoCert.Connection.ClientCertificate = null;
+        var outputNoCert = OutputContext("hello");
+        outputNoCert.Connection.ClientCertificate = null;
         Assert.Equal(401, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(outputNoCert, trust, true, default)));
         Assert.Equal(400, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext(" "), trust, true, default)));
         Assert.Equal(200, Status(await CloudVoiceOutputPrivacyEndpoints.InspectAsync(OutputContext("hello"), trust, true, default)));
@@ -149,8 +180,10 @@ public sealed class CloudVoiceQuotaEndpointTests
         public Task AppendAsync(CloudCredentialIdentity identity, Guid requestId, string fingerprintKeyId, byte[] fingerprint,
             int characters, string outcome, string traceId, CancellationToken cancellationToken)
         {
-            if (Fail) throw new InvalidOperationException();
-            Calls++; Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
+            if (Fail)
+                throw new InvalidOperationException();
+            Calls++;
+            Last = (identity.TenantId, identity.ApplicationId, requestId, characters, outcome);
             return Task.CompletedTask;
         }
     }

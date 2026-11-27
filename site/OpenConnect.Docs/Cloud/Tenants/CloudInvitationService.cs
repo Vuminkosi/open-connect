@@ -26,7 +26,8 @@ public sealed class CloudInvitationService(ICloudInvitationStore store, IConfigu
 
     public async Task<CloudInvitationChangeResult> RevokeAsync(CloudSubject actor, Guid tenantId, Guid invitationId, int expectedRevision, CancellationToken cancellationToken)
     {
-        if (expectedRevision >= 1) return await store.RevokeAsync(actor, tenantId, invitationId, expectedRevision, cancellationToken);
+        if (expectedRevision >= 1)
+            return await store.RevokeAsync(actor, tenantId, invitationId, expectedRevision, cancellationToken);
         await store.AuditInvalidAsync(actor, tenantId, CloudInvitationOperation.Revoke, cancellationToken);
         return new("invalid_request");
     }
@@ -71,7 +72,8 @@ public sealed class CloudInvitationService(ICloudInvitationStore store, IConfigu
         var bytes = Encoding.UTF8.GetBytes(code);
         var hash = SHA256.HashData(bytes);
         CryptographicOperations.ZeroMemory(bytes);
-        try { return await store.AcceptAsync(actor, id, hash, timeProvider.GetUtcNow(), cancellationToken); }
+        try
+        { return await store.AcceptAsync(actor, id, hash, timeProvider.GetUtcNow(), cancellationToken); }
         finally { CryptographicOperations.ZeroMemory(hash); }
     }
 }

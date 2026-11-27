@@ -57,7 +57,8 @@ public sealed class HostPrivacyEvidenceTests
         var evidence = HostPrivacyEvidence.Create(Guid.NewGuid(), context,
             new EgressDecision(false, null, [], SecurityPolicyAction.Block, reason));
         Assert.Equal(expected, evidence.ReasonCode);
-        if (reason == "private diagnostic") Assert.DoesNotContain(reason, JsonSerializer.Serialize(evidence), StringComparison.Ordinal);
+        if (reason == "private diagnostic")
+            Assert.DoesNotContain(reason, JsonSerializer.Serialize(evidence), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -543,8 +544,10 @@ public sealed class HostPrivacyEvidenceTests
         public ValueTask<EgressDecision> EvaluateAsync(string content, EgressContext context, CancellationToken cancellationToken = default)
         {
             var entities = new List<EntitySpan>();
-            if (content.Contains('@')) entities.Add(new(0, 1, "EMAIL"));
-            if (content.Contains("phone-value", StringComparison.Ordinal)) entities.Add(new(0, 1, "PHONE"));
+            if (content.Contains('@'))
+                entities.Add(new(0, 1, "EMAIL"));
+            if (content.Contains("phone-value", StringComparison.Ordinal))
+                entities.Add(new(0, 1, "PHONE"));
             return ValueTask.FromResult(new EgressDecision(entities.Count == 0, entities.Count == 0 ? content : null,
                 entities, entities.Count == 0 ? SecurityPolicyAction.Allow : SecurityPolicyAction.Block, "test"));
         }
@@ -758,7 +761,8 @@ public sealed class HostPrivacyEvidenceTests
         public List<HostPrivacyEvidence> Events { get; } = [];
         public ValueTask RecordAsync(HostPrivacyEvidence evidence, CancellationToken cancellationToken = default)
         {
-            if (fail) throw new InvalidOperationException("secret sink error");
+            if (fail)
+                throw new InvalidOperationException("secret sink error");
             Events.Add(evidence);
             return ValueTask.CompletedTask;
         }

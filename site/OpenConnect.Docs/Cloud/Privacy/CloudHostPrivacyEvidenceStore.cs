@@ -57,7 +57,8 @@ public sealed class CloudHostPrivacyEvidenceStore(IDbContextFactory<CloudControl
             Add(credential, "credential", identity.CredentialId);
             Add(credential, "tenant", identity.TenantId);
             Add(credential, "application", identity.ApplicationId);
-            if (await credential.ExecuteScalarAsync(cancellationToken) is null) return false;
+            if (await credential.ExecuteScalarAsync(cancellationToken) is null)
+                return false;
         }
         await using (var insert = connection.CreateCommand())
         {
@@ -88,7 +89,8 @@ public sealed class CloudHostPrivacyEvidenceStore(IDbContextFactory<CloudControl
                     AND "IntegrityDigest" IS NOT DISTINCT FROM @integrityDigest
                 """;
             Bind(verify, identity, report);
-            if (await verify.ExecuteScalarAsync(cancellationToken) is null) return false;
+            if (await verify.ExecuteScalarAsync(cancellationToken) is null)
+                return false;
         }
         await transaction.CommitAsync(cancellationToken);
         return true;
@@ -96,10 +98,14 @@ public sealed class CloudHostPrivacyEvidenceStore(IDbContextFactory<CloudControl
 
     private static void Bind(DbCommand command, CloudCredentialIdentity identity, CloudHostPrivacyReport report)
     {
-        Add(command, "event", report.EventId); Add(command, "tenant", identity.TenantId);
-        Add(command, "application", identity.ApplicationId); Add(command, "host", report.HostTenantId);
-        Add(command, "destination", report.Destination.ToString()); Add(command, "allowed", report.Allowed);
-        Add(command, "action", report.Action.ToString()); Add(command, "categories", report.CategoryCounts);
+        Add(command, "event", report.EventId);
+        Add(command, "tenant", identity.TenantId);
+        Add(command, "application", identity.ApplicationId);
+        Add(command, "host", report.HostTenantId);
+        Add(command, "destination", report.Destination.ToString());
+        Add(command, "allowed", report.Allowed);
+        Add(command, "action", report.Action.ToString());
+        Add(command, "categories", report.CategoryCounts);
         Add(command, "reason", report.ReasonCode);
         Add(command, "traceId", (object?)report.TraceId ?? DBNull.Value);
         Add(command, "requestId", (object?)report.RequestId ?? DBNull.Value);

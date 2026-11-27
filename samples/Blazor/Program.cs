@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MudBlazor.Services;
 using OpenConnect.Abstractions.Messaging;
 using OpenConnect.Agents.Templates;
@@ -299,6 +300,11 @@ builder.Services.AddOpenConnectMessagingHosting(options =>
     options.RequireEncryption = true;
     options.AllowUnencryptedFallback = false;
 });
+if (gatewayOptions.Mode != TodoGatewayMode.SameHostGateway)
+{
+    // Only the same-host gateway owns a local voice session store and maps call admission.
+    builder.Services.RemoveAll<IMessagingVoiceAdmissionBroker>();
+}
 builder.Services.AddOpenConnectDeviceEnrollment(options =>
 {
     options.Enabled = messagingEnabled;

@@ -103,7 +103,8 @@ public sealed class HostPrivacyEvidence
         var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var entity in decision.DetectedEntities)
         {
-            if (entity is null) throw new ArgumentException("Invalid privacy evidence.");
+            if (entity is null)
+                throw new ArgumentException("Invalid privacy evidence.");
             var category = entity.EntityType is "EMAIL" or "PHONE" or "PAYMENT_CARD" or "SECRET" or "PERSONAL_DATA"
                 ? entity.EntityType : "OTHER";
             counts.TryGetValue(category, out var count);
@@ -197,11 +198,16 @@ public sealed class HostPrivacyEvidence
             }
             writer.WriteEndObject();
             writer.WriteString("enforcementAuthority", enforcementAuthority);
-            if (traceId is not null) writer.WriteString("traceId", traceId);
-            if (requestId is not null) writer.WriteString("requestId", requestId);
-            if (occurredAt is not null) writer.WriteString("occurredAt", occurredAt.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
-            if (policyId is not null) writer.WriteString("policyId", policyId);
-            if (policyRevision is not null) writer.WriteString("policyRevision", policyRevision);
+            if (traceId is not null)
+                writer.WriteString("traceId", traceId);
+            if (requestId is not null)
+                writer.WriteString("requestId", requestId);
+            if (occurredAt is not null)
+                writer.WriteString("occurredAt", occurredAt.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+            if (policyId is not null)
+                writer.WriteString("policyId", policyId);
+            if (policyRevision is not null)
+                writer.WriteString("policyRevision", policyRevision);
             writer.WriteEndObject();
         }
 
@@ -211,7 +217,8 @@ public sealed class HostPrivacyEvidence
 
     private static string? ValidateOptionalIdentifier(string? value, int maxLength, bool allowSlash)
     {
-        if (value is null) return null;
+        if (value is null)
+            return null;
         if (value.Length == 0 || value.Length > maxLength)
             throw new ArgumentException("Invalid privacy evidence.");
         foreach (var ch in value)

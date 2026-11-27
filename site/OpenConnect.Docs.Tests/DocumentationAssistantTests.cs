@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Docs.Services;
 using OpenConnect.Docs.Services.Voice;
 using OpenConnect.LiveUI;
 using OpenConnect.LiveUI.Inference;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace OpenConnect.Docs.Tests;
@@ -208,9 +208,12 @@ public sealed class DocumentationAssistantTests
     public void LiveUIWorkerRequiresBothGatewayAndExplicitOptIn(bool gateway, bool enabled, bool expected)
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = gateway.ToString(), ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:LiveUIWorkerEnabled"] = enabled.ToString() });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = gateway.ToString(),
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:LiveUIWorkerEnabled"] = enabled.ToString()
+        });
         builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
         using var provider = builder.Services.BuildServiceProvider();
         Assert.Equal(expected, provider.GetRequiredService<IOptions<LiveUIInferenceOptions>>().Value.Worker.Enabled);
@@ -220,9 +223,12 @@ public sealed class DocumentationAssistantTests
     public void ConfiguredApplicationCredentialIsAppliedToGatewayRequests()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:GatewayBearer"] = "test-token" });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:GatewayBearer"] = "test-token"
+        });
         builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
         using var services = builder.Services.BuildServiceProvider();
         var client = services.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IOpenConnectClient));
@@ -236,9 +242,12 @@ public sealed class DocumentationAssistantTests
     public void RejectsMalformedApplicationCredentials(string token)
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
-            ["OpenConnect:Assistant:GatewayBearer"] = token });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/",
+            ["OpenConnect:Assistant:GatewayBearer"] = token
+        });
         Assert.Throws<InvalidOperationException>(() => builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment));
     }
 
@@ -248,9 +257,12 @@ public sealed class DocumentationAssistantTests
     public void PlaintextCredentialsAreRestrictedToDevelopmentLoopback(string gateway, bool allowed)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = gateway,
-            ["OpenConnect:Assistant:GatewayBearer"] = "test-token" });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = gateway,
+            ["OpenConnect:Assistant:GatewayBearer"] = "test-token"
+        });
         if (allowed)
             builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
         else
@@ -261,15 +273,21 @@ public sealed class DocumentationAssistantTests
     public void ConfiguredComposerUsesApplicationGatewayAndRejectsCloudCapabilityRoutes()
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/" });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/"
+        });
         builder.Services.AddDocumentationAssistant(builder.Configuration, builder.Environment);
         using var services = builder.Services.BuildServiceProvider();
         Assert.True(services.GetRequiredService<DocumentationAssistantAvailability>().Configured);
         Assert.Equal("https://gateway.example/openconnect/v1/", services.GetRequiredService<OpenConnectClientOptions>().ApiBaseAddress!.ToString());
         var invalid = WebApplication.CreateBuilder();
-        invalid.Configuration.AddInMemoryCollection(new Dictionary<string, string?> {
-            ["OpenConnect:Assistant:Enabled"] = "true", ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/cloud/v1/" });
+        invalid.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Assistant:Enabled"] = "true",
+            ["OpenConnect:Assistant:GatewayUrl"] = "https://gateway.example/cloud/v1/"
+        });
         Assert.Throws<InvalidOperationException>(() => invalid.Services.AddDocumentationAssistant(invalid.Configuration, invalid.Environment));
     }
 

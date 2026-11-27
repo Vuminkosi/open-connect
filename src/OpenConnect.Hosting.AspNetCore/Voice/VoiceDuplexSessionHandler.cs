@@ -1993,17 +1993,23 @@ internal static class VoiceDuplexSessionHandler
 
             if (cts is not null)
             {
-                try { await cts.CancelAsync().ConfigureAwait(false); } catch { }
+                try
+                { await cts.CancelAsync().ConfigureAwait(false); }
+                catch { }
             }
 
             if (pipe is not null)
             {
-                try { await pipe.Writer.CompleteAsync().ConfigureAwait(false); } catch { }
+                try
+                { await pipe.Writer.CompleteAsync().ConfigureAwait(false); }
+                catch { }
             }
 
             if (task is not null)
             {
-                try { await task.ConfigureAwait(false); } catch { }
+                try
+                { await task.ConfigureAwait(false); }
+                catch { }
             }
 
             cts?.Dispose();
@@ -2044,7 +2050,9 @@ internal static class VoiceDuplexSessionHandler
 
             if (reader is not null)
             {
-                try { await reader.ConfigureAwait(false); } catch { }
+                try
+                { await reader.ConfigureAwait(false); }
+                catch { }
             }
         }
 

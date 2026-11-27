@@ -27,19 +27,33 @@ public sealed class CloudTranslationDeploymentProfileTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var deploymentId = Guid.NewGuid();
         var tenant = await new EfCloudTenantStore(factory, TimeProvider.System)
             .CreateTenantAsync(new CloudSubject("https://issuer.example", Guid.NewGuid().ToString("N")), "Translation matching", default);
         await using (var db = await factory.CreateDbContextAsync())
         {
             var capability = await db.Capabilities.SingleAsync(x => x.Id == "translation.translate");
-            capability.AllowedRegions = "[\"region-a\"]"; capability.AllowedRegionsVerified = true;
+            capability.AllowedRegions = "[\"region-a\"]";
+            capability.AllowedRegionsVerified = true;
             db.RegionPolicies.Add(new CloudRegionPolicy { TenantId = tenant.Id, AllowedRegions = "[\"region-a\"]", Revision = 1 });
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = "translation.translate",
-                EndpointReference = "nllb-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "region-a",
-                ContractVersion = "v1", ModelId = "nllb", ModelRevision = "revision-1", ModelDigest = "sha256:" + new string('a', 64),
-                ImageDigest = "sha256:" + new string('b', 64), ConcurrencyLimit = 1, Enabled = true, Revision = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deploymentId,
+                CapabilityId = "translation.translate",
+                EndpointReference = "nllb-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "region-a",
+                ContractVersion = "v1",
+                ModelId = "nllb",
+                ModelRevision = "revision-1",
+                ModelDigest = "sha256:" + new string('a', 64),
+                ImageDigest = "sha256:" + new string('b', 64),
+                ConcurrencyLimit = 1,
+                Enabled = true,
+                Revision = 1
+            });
             await db.SaveChangesAsync();
         }
         var service = new CloudTranslationDeploymentProfiles(new EfCloudTranslationDeploymentProfileStore(factory, TimeProvider.System));
@@ -49,14 +63,19 @@ public sealed class CloudTranslationDeploymentProfileTests
         Assert.Equal("invalid_request", await service.PutAsync(actor, "trace", profile with { LanguagePairs = [new("eng_Latn", "eng_Latn")] }, 0, default));
         Assert.Equal("succeeded", await service.PutAsync(actor, "trace", profile, 0, default));
         var stored = await service.GetAsync(deploymentId, default);
-        Assert.NotNull(stored); Assert.Equal(1, stored.Revision); Assert.Equal(1, stored.DeploymentRevision);
+        Assert.NotNull(stored);
+        Assert.Equal(1, stored.Revision);
+        Assert.Equal(1, stored.DeploymentRevision);
         Assert.Equal(profile.LanguagePairs, stored.LanguagePairs);
         Assert.Equal("conflict", await service.PutAsync(actor, "trace", profile, 0, default));
         var changed = profile with { TokenizerHash = new string('b', 64), LanguagePairs = [new("fra_Latn", "eng_Latn")] };
         var results = await Task.WhenAll(service.PutAsync(actor, "trace", changed, 1, default), service.PutAsync(actor, "trace", changed, 1, default));
-        Assert.Single(results, result => result == "succeeded"); Assert.Single(results, result => result == "conflict");
+        Assert.Single(results, result => result == "succeeded");
+        Assert.Single(results, result => result == "conflict");
         stored = await service.GetAsync(deploymentId, default);
-        Assert.NotNull(stored); Assert.Equal(2, stored.Revision); Assert.Equal(changed.TokenizerHash, stored.TokenizerHash);
+        Assert.NotNull(stored);
+        Assert.Equal(2, stored.Revision);
+        Assert.Equal(changed.TokenizerHash, stored.TokenizerHash);
         Assert.Equal(changed.LanguagePairs, stored.LanguagePairs);
         var matcher = new CloudTranslationDeploymentMatch(new EfCloudTranslationDeploymentReader(factory));
         var match = new CloudTranslationDeploymentMatchRequest(deploymentId, await EndpointAsync(factory, deploymentId), "region-a", "v1", "nllb", "revision-1",
@@ -88,27 +107,37 @@ public sealed class CloudTranslationDeploymentProfileTests
     private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, Guid deploymentId)
     {
         const string issuer = "https://operator.example";
-        var builder = WebApplication.CreateBuilder(); builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Enabled"] = "true",
-            ["OpenConnect:Cloud:Identity:Authority"] = issuer, ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer,
-            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator" });
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton<CloudOperatorAccess>();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
+        });
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<CloudOperatorAccess>();
         builder.Services.AddScoped<ICloudTranslationDeploymentProfileStore, EfCloudTranslationDeploymentProfileStore>();
-        builder.Services.AddScoped<CloudTranslationDeploymentProfiles>(); builder.Services.AddAntiforgery(x => x.HeaderName = "X-CSRF-TOKEN");
+        builder.Services.AddScoped<CloudTranslationDeploymentProfiles>();
+        builder.Services.AddAntiforgery(x => x.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(x =>
         {
             x.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
             x.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });
         builder.Services.AddAuthorization(x => x.AddPolicy("CloudApi", policy => policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme).RequireAuthenticatedUser()));
-        await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization();
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapGet("/test-sign-in/{subject}", async (string subject, HttpContext context) => await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject, ClaimValueTypes.String, issuer)], CookieAuthenticationDefaults.AuthenticationScheme))));
         app.MapGet("/test-antiforgery", (HttpContext context, IAntiforgery antiforgery) => Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
         app.MapGroup("/cloud/api/v1").RequireAuthorization("CloudApi").MapCloudTranslationDeploymentProfileEndpoints();
         await app.StartAsync();
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
-            { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
+        { BaseAddress = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
         var path = $"/cloud/api/v1/operator/deployments/{deploymentId:D}/translation-profile";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         await client.GetAsync("/test-sign-in/ordinary-user");
@@ -119,28 +148,41 @@ public sealed class CloudTranslationDeploymentProfileTests
         var token = tokenJson.RootElement.GetProperty("token").GetString()!;
         using (var request = Write(path, token, 3))
         {
-            var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
             Assert.Equal("\"4\"", response.Headers.ETag?.ToString());
         }
-        using (var request = Write(path, token, 3)) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write(path, token, 3))
+            Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
         using (var request = Write(path, token, 4))
         {
             request.Content = new StringContent("{\"deploymentRevision\":2,\"tokenizerHash\":\"" + new string('a', 64) +
                 "\",\"languagePairs\":[{\"sourceLang\":\"eng_Latn\",\"SourceLang\":\"fra_Latn\",\"targetLang\":\"fra_Latn\"}]}", System.Text.Encoding.UTF8, "application/json");
             Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         }
-        var read = await client.GetAsync(path); Assert.Equal("\"4\"", read.Headers.ETag?.ToString());
+        var read = await client.GetAsync(path);
+        Assert.Equal("\"4\"", read.Headers.ETag?.ToString());
         Assert.Equal("no-store", read.Headers.CacheControl?.ToString());
         await using var db = await factory.CreateDbContextAsync();
         var events = await db.AuditEvents.Where(x => x.Action == "translation.deployment.profile.write" && x.ResourceId == deploymentId.ToString("D")).ToListAsync();
-        Assert.Contains(events, x => x.Outcome == "forbidden"); Assert.Contains(events, x => x.Outcome == "conflict");
+        Assert.Contains(events, x => x.Outcome == "forbidden");
+        Assert.Contains(events, x => x.Outcome == "conflict");
     }
 
     private static HttpRequestMessage Write(string path, string token, long revision)
     {
-        var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(new { deploymentRevision = 2,
-            tokenizerHash = new string('c', 64), languagePairs = new[] { new { sourceLang = "eng_Latn", targetLang = "fra_Latn" } } }) };
-        request.Headers.Add("X-CSRF-TOKEN", token); request.Headers.Add("If-Match", $"\"{revision}\""); return request;
+        var request = new HttpRequestMessage(HttpMethod.Put, path)
+        {
+            Content = JsonContent.Create(new
+            {
+                deploymentRevision = 2,
+                tokenizerHash = new string('c', 64),
+                languagePairs = new[] { new { sourceLang = "eng_Latn", targetLang = "fra_Latn" } }
+            })
+        };
+        request.Headers.Add("X-CSRF-TOKEN", token);
+        request.Headers.Add("If-Match", $"\"{revision}\"");
+        return request;
     }
 
     private sealed class TestFactory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>

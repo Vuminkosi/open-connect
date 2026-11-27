@@ -380,7 +380,8 @@ public sealed class SpeechToTextTests
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _inner.Dispose();
+            if (disposing)
+                _inner.Dispose();
             base.Dispose(disposing);
         }
     }

@@ -58,7 +58,8 @@ public sealed class CloudPrivacyEvidenceSinkTests
         using var http = new HttpClient(new Handler(async request =>
         {
             bodies.Add(await request.Content!.ReadAsStringAsync());
-            if (bodies.Count == 1) throw new HttpRequestException("transient");
+            if (bodies.Count == 1)
+                throw new HttpRequestException("transient");
             return bodies.Count == 2 ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) : Reply($"{{\"eventId\":\"{evidence.EventId:D}\"}}");
         }));
         using var sink = new CloudPrivacyEvidenceSink(http, new Uri("https://cloud.example/"), "credential");

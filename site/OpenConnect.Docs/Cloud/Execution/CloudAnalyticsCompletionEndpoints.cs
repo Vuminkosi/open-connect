@@ -14,9 +14,11 @@ public static class CloudAnalyticsCompletionEndpoints
         CloudGatewayClientTrust trust, bool databaseConfigured, CancellationToken cancellationToken)
     {
         var (identity, error) = await CloudAnalyticsQuotaEndpoints.AuthorizeAsync(context, trust, databaseConfigured, cancellationToken);
-        if (error is not null) return error;
+        if (error is not null)
+            return error;
         if (reservationId == Guid.Empty || claimId == Guid.Empty || !context.Request.HasJsonContentType() ||
-            context.Request.ContentLength is > 128 || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.BadRequest();
+            context.Request.ContentLength is > 128 || context.Request.Headers.ContainsKey("Content-Encoding"))
+            return Results.BadRequest();
         var buffer = new byte[129];
         try
         {
@@ -24,16 +26,20 @@ public static class CloudAnalyticsCompletionEndpoints
             while (length < buffer.Length)
             {
                 var count = await context.Request.Body.ReadAsync(buffer.AsMemory(length), cancellationToken);
-                if (count == 0) break;
+                if (count == 0)
+                    break;
                 length += count;
             }
-            if (length > 128) return Results.BadRequest();
+            if (length > 128)
+                return Results.BadRequest();
             using var document = JsonDocument.Parse(buffer.AsMemory(0, length));
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return Results.BadRequest();
+            if (root.ValueKind != JsonValueKind.Object)
+                return Results.BadRequest();
             var properties = root.EnumerateObject().ToArray();
             if (properties.Length != 1 || properties[0].Name != "computeMilliseconds" || properties[0].Value.ValueKind != JsonValueKind.Number ||
-                !properties[0].Value.TryGetInt32(out var milliseconds) || milliseconds is < 1 or > 120000) return Results.BadRequest();
+                !properties[0].Value.TryGetInt32(out var milliseconds) || milliseconds is < 1 or > 120000)
+                return Results.BadRequest();
             var result = await context.RequestServices.GetRequiredService<ICloudAnalyticsCompletionStore>()
                 .CompleteAsync(identity!.TenantId, identity.ApplicationId, reservationId, claimId, milliseconds, cancellationToken);
             return Results.Json(result, statusCode: result.Status switch

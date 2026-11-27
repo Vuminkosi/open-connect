@@ -13,7 +13,8 @@ public sealed class CloudWorkerClientTrust
     public CloudWorkerClientTrust(IEnumerable<CloudWorkerCertificateBinding> bindings, CloudGatewayClientTrust? gatewayTrust)
     {
         var values = bindings.ToArray();
-        if (values.Length is < 1 or > 128) throw new InvalidOperationException("Configure one to 128 worker certificate bindings.");
+        if (values.Length is < 1 or > 128)
+            throw new InvalidOperationException("Configure one to 128 worker certificate bindings.");
         try
         {
             _bindings = values.Select(x => (x.DeploymentId, Convert.FromHexString(x.ClientCertificateSha256))).ToArray();
@@ -29,12 +30,15 @@ public sealed class CloudWorkerClientTrust
 
     public Guid? ResolveDeployment(X509Certificate2? certificate, DateTimeOffset now)
     {
-        if (certificate is null || now < certificate.NotBefore.ToUniversalTime() || now > certificate.NotAfter.ToUniversalTime()) return null;
+        if (certificate is null || now < certificate.NotBefore.ToUniversalTime() || now > certificate.NotAfter.ToUniversalTime())
+            return null;
         var usages = certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().ToArray();
-        if (usages.Length != 1 || !usages[0].EnhancedKeyUsages.Cast<Oid>().Any(x => x.Value == "1.3.6.1.5.5.7.3.2")) return null;
+        if (usages.Length != 1 || !usages[0].EnhancedKeyUsages.Cast<Oid>().Any(x => x.Value == "1.3.6.1.5.5.7.3.2"))
+            return null;
         var hash = certificate.GetCertHash(HashAlgorithmName.SHA256);
         foreach (var (deploymentId, pin) in _bindings)
-            if (CryptographicOperations.FixedTimeEquals(pin, hash)) return deploymentId;
+            if (CryptographicOperations.FixedTimeEquals(pin, hash))
+                return deploymentId;
         return null;
     }
 

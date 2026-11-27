@@ -1,14 +1,14 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.EntityFrameworkCore;
 using OpenConnect.Abstractions;
 using OpenConnect.Client;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
-using OpenConnect.Docs.Services;
 using OpenConnect.Docs.Cloud;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
+using OpenConnect.Docs.Services;
 using OpenConnect.Privacy.Rules;
 using OpenConnect.Privacy.Worker;
 

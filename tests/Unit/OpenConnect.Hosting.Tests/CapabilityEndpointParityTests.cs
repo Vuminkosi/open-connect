@@ -64,7 +64,9 @@ public sealed class CapabilityEndpointParityTests
         registry.Register(new CapabilityDescriptor(new CapabilityId("knowledge.embed"), CapabilityKind.Model, DetectorState.Ready));
         registry.Register(new CapabilityDescriptor(new CapabilityId("knowledge.index"), CapabilityKind.Tool, DetectorState.Ready));
         registry.Register(new CapabilityDescriptor(new CapabilityId("vision.embed"), CapabilityKind.Model, DetectorState.Loading));
-        var services = new ServiceCollection(); services.AddLogging(); services.AddSingleton<ICapabilityRegistry>(registry);
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ICapabilityRegistry>(registry);
         using var provider = services.BuildServiceProvider();
         var response = await ExecuteAsync(OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleReadyCapabilities(provider), provider);
         using var json = JsonDocument.Parse(response.Body);

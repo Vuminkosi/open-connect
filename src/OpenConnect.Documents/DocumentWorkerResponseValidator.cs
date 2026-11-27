@@ -11,66 +11,74 @@ internal static class DocumentWorkerResponseValidator
 
     internal static void Validate(JsonElement result, string kind)
     {
-        if (kind == "documents.analyze") { ValidateAnalysis(result); return; }
+        if (kind == "documents.analyze")
+        { ValidateAnalysis(result); return; }
         Properties(result, kind == "documents.fields" ? ["pages", "fields", "warnings"] :
             kind == "documents.layout" ? ["pages", "lines", "warnings"] :
             kind == "documents.tables" ? ["pages", "tables", "warnings"] : ["pages"]);
         var pagesElement = result.GetProperty("pages");
         Array(pagesElement, 1, 30);
         var pages = new List<Page>();
-        foreach (var item in pagesElement.EnumerateArray()) pages.Add(ParsePage(item));
+        foreach (var item in pagesElement.EnumerateArray())
+            pages.Add(ParsePage(item));
         EnsureSameProvenance(pages);
-        if (kind == "documents.layout") { ValidateLines(result, pages); return; }
-        if (kind == "documents.tables") { ValidateTables(result, pages); return; }
-        if (kind != "documents.fields") return;
+        if (kind == "documents.layout")
+        { ValidateLines(result, pages); return; }
+        if (kind == "documents.tables")
+        { ValidateTables(result, pages); return; }
+        if (kind != "documents.fields")
+            return;
         ValidateFields(result, pages);
     }
 
     private static Page ParsePage(JsonElement item)
     {
-            Properties(item, ["text", "width", "height", "spans", "model_id", "model_fingerprint", "language"]);
-            var text = String(item.GetProperty("text"));
-            PositiveInt(item.GetProperty("width"));
-            PositiveInt(item.GetProperty("height"));
-            var modelId = String(item.GetProperty("model_id"));
-            if (modelId.Length == 0 || String(item.GetProperty("language")) != "eng")
+        Properties(item, ["text", "width", "height", "spans", "model_id", "model_fingerprint", "language"]);
+        var text = String(item.GetProperty("text"));
+        PositiveInt(item.GetProperty("width"));
+        PositiveInt(item.GetProperty("height"));
+        var modelId = String(item.GetProperty("model_id"));
+        if (modelId.Length == 0 || String(item.GetProperty("language")) != "eng")
+            Invalid();
+        var fingerprint = String(item.GetProperty("model_fingerprint"));
+        if (fingerprint.Length != 64 || fingerprint.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
+            Invalid();
+        var offsets = CodePointOffsets(text);
+        var spanElements = item.GetProperty("spans");
+        Array(spanElements, 0, 50000);
+        var spans = new List<Span>();
+        var previousEnd = 0;
+        foreach (var span in spanElements.EnumerateArray())
+        {
+            Properties(span, ["text", "start", "end", "box", "confidence"]);
+            var start = NonnegativeInt(span.GetProperty("start"));
+            var end = PositiveInt(span.GetProperty("end"));
+            var word = String(span.GetProperty("text"));
+            if (start < previousEnd || start >= end || end >= offsets.Length || word.Length == 0 ||
+                !text.AsSpan(offsets[start], offsets[end] - offsets[start]).SequenceEqual(word))
                 Invalid();
-            var fingerprint = String(item.GetProperty("model_fingerprint"));
-            if (fingerprint.Length != 64 || fingerprint.Any(c => c is not (>= '0' and <= '9' or >= 'a' and <= 'f')))
+            if (spans.Count == 0 ? start != 0 :
+                start != previousEnd + 1 || text[offsets[previousEnd]] is not (' ' or '\n'))
                 Invalid();
-            var offsets = CodePointOffsets(text);
-            var spanElements = item.GetProperty("spans");
-            Array(spanElements, 0, 50000);
-            var spans = new List<Span>();
-            var previousEnd = 0;
-            foreach (var span in spanElements.EnumerateArray())
-            {
-                Properties(span, ["text", "start", "end", "box", "confidence"]);
-                var start = NonnegativeInt(span.GetProperty("start"));
-                var end = PositiveInt(span.GetProperty("end"));
-                var word = String(span.GetProperty("text"));
-                if (start < previousEnd || start >= end || end >= offsets.Length || word.Length == 0 ||
-                    !text.AsSpan(offsets[start], offsets[end] - offsets[start]).SequenceEqual(word))
-                    Invalid();
-                if (spans.Count == 0 ? start != 0 :
-                    start != previousEnd + 1 || text[offsets[previousEnd]] is not (' ' or '\n'))
-                    Invalid();
-                var box = span.GetProperty("box");
-                Array(box, 4, 4);
-                var coordinates = box.EnumerateArray().Select(UnitNumber).ToArray();
-                if (coordinates[0] >= coordinates[2] || coordinates[1] >= coordinates[3]) Invalid();
-                spans.Add(new Span(start, end, UnitNumber(span.GetProperty("confidence")), coordinates));
-                previousEnd = end;
-            }
-            if (previousEnd != offsets.Length - 1) Invalid();
-            return new Page(text, offsets, spans, modelId, fingerprint);
+            var box = span.GetProperty("box");
+            Array(box, 4, 4);
+            var coordinates = box.EnumerateArray().Select(UnitNumber).ToArray();
+            if (coordinates[0] >= coordinates[2] || coordinates[1] >= coordinates[3])
+                Invalid();
+            spans.Add(new Span(start, end, UnitNumber(span.GetProperty("confidence")), coordinates));
+            previousEnd = end;
+        }
+        if (previousEnd != offsets.Length - 1)
+            Invalid();
+        return new Page(text, offsets, spans, modelId, fingerprint);
     }
 
     private static void EnsureSameProvenance(IReadOnlyList<Page> pages)
     {
         var first = pages.FirstOrDefault(page => page.ModelId is not null);
         if (first is not null && pages.Any(page => page.ModelId is not null &&
-            (page.ModelId != first.ModelId || page.ModelFingerprint != first.ModelFingerprint))) Invalid();
+            (page.ModelId != first.ModelId || page.ModelFingerprint != first.ModelFingerprint)))
+            Invalid();
     }
 
     private static void ValidateAnalysis(JsonElement result)
@@ -84,23 +92,27 @@ internal static class DocumentWorkerResponseValidator
         foreach (var entry in rawPages.EnumerateArray())
         {
             Properties(entry, ["page_index", "status", "page", "reason"]);
-            if (NonnegativeInt(entry.GetProperty("page_index")) != pages.Count) Invalid();
+            if (NonnegativeInt(entry.GetProperty("page_index")) != pages.Count)
+                Invalid();
             var status = String(entry.GetProperty("status"));
             var page = entry.GetProperty("page");
             var reason = entry.GetProperty("reason");
             if (status == "completed")
             {
-                if (reason.ValueKind != JsonValueKind.Null) Invalid();
+                if (reason.ValueKind != JsonValueKind.Null)
+                    Invalid();
                 pages.Add(ParsePage(page));
                 completedPages++;
             }
             else if (status == "failed")
             {
-                if (page.ValueKind != JsonValueKind.Null || String(reason) is not ("page_unavailable" or "ocr_unavailable" or "deadline_exceeded")) Invalid();
+                if (page.ValueKind != JsonValueKind.Null || String(reason) is not ("page_unavailable" or "ocr_unavailable" or "deadline_exceeded"))
+                    Invalid();
                 failed = true;
                 pages.Add(new Page("", [0], [], null, null));
             }
-            else Invalid();
+            else
+                Invalid();
         }
         EnsureSameProvenance(pages);
         var incomplete = false;
@@ -109,38 +121,51 @@ internal static class DocumentWorkerResponseValidator
             var component = result.GetProperty(name);
             Properties(component, ["status", "items", "warnings"]);
             var status = String(component.GetProperty("status"));
-            if (completedPages == 0 && status != "unavailable") Invalid();
+            if (completedPages == 0 && status != "unavailable")
+                Invalid();
             var items = component.GetProperty("items");
             var warnings = component.GetProperty("warnings");
             Array(items, 0, name == "layout" ? 50000 : name == "tables" ? 100 : 1000);
             Array(warnings, 0, 8);
             var codes = warnings.EnumerateArray().Select(String).ToArray();
-            if (codes.Distinct(StringComparer.Ordinal).Count() != codes.Length) Invalid();
+            if (codes.Distinct(StringComparer.Ordinal).Count() != codes.Length)
+                Invalid();
             if (status == "unavailable")
             {
-                if (items.GetArrayLength() != 0 || codes.Length != 1 || codes[0] is not ("component_unavailable" or "no_completed_pages")) Invalid();
-                if ((codes[0] == "no_completed_pages") != (completedPages == 0)) Invalid();
+                if (items.GetArrayLength() != 0 || codes.Length != 1 || codes[0] is not ("component_unavailable" or "no_completed_pages"))
+                    Invalid();
+                if ((codes[0] == "no_completed_pages") != (completedPages == 0))
+                    Invalid();
                 incomplete = true;
                 continue;
             }
-            if (status is not ("completed" or "partial")) Invalid();
+            if (status is not ("completed" or "partial"))
+                Invalid();
             var partial = codes.Any(code => code != "heuristic_tables_require_review");
-            if ((status == "partial") != partial) Invalid();
+            if ((status == "partial") != partial)
+                Invalid();
             incomplete |= partial;
             var synthetic = JsonSerializer.SerializeToElement(new Dictionary<string, JsonElement> { [itemName] = items, ["warnings"] = warnings });
-            if (name == "layout") ValidateLines(synthetic, pages);
-            else if (name == "tables") ValidateTables(synthetic, pages);
-            else ValidateFields(synthetic, pages);
+            if (name == "layout")
+                ValidateLines(synthetic, pages);
+            else if (name == "tables")
+                ValidateTables(synthetic, pages);
+            else
+                ValidateFields(synthetic, pages);
         }
         var overall = String(result.GetProperty("status"));
-        if (overall != (failed || incomplete ? "partial" : "completed")) Invalid();
+        if (overall != (failed || incomplete ? "partial" : "completed"))
+            Invalid();
         var overallWarnings = result.GetProperty("warnings");
         Array(overallWarnings, 1, 3);
         var actual = overallWarnings.EnumerateArray().Select(String).ToArray();
         var expected = new List<string> { "heuristic_candidates_require_review" };
-        if (incomplete && completedPages > 0) expected.Add("component_results_incomplete");
-        if (failed) expected.Add("page_results_incomplete");
-        if (actual.Length != expected.Count || !actual.ToHashSet(StringComparer.Ordinal).SetEquals(expected)) Invalid();
+        if (incomplete && completedPages > 0)
+            expected.Add("component_results_incomplete");
+        if (failed)
+            expected.Add("page_results_incomplete");
+        if (actual.Length != expected.Count || !actual.ToHashSet(StringComparer.Ordinal).SetEquals(expected))
+            Invalid();
     }
 
     private static void ValidateFields(JsonElement result, IReadOnlyList<Page> pages)
@@ -152,7 +177,8 @@ internal static class DocumentWorkerResponseValidator
             Properties(field, ["page_index", "label", "value", "label_start", "label_end", "value_start",
                 "value_end", "label_span_indexes", "value_span_indexes", "minimum_ocr_confidence"]);
             var pageIndex = NonnegativeInt(field.GetProperty("page_index"));
-            if (pageIndex >= pages.Count) Invalid();
+            if (pageIndex >= pages.Count)
+                Invalid();
             var page = pages[pageIndex];
             var labelStart = NonnegativeInt(field.GetProperty("label_start"));
             var labelEnd = PositiveInt(field.GetProperty("label_end"));
@@ -177,7 +203,8 @@ internal static class DocumentWorkerResponseValidator
         foreach (var warning in warnings.EnumerateArray())
         {
             var value = String(warning);
-            if (value is not ("field_candidates_skipped" or "field_limit_reached") || !seen.Add(value)) Invalid();
+            if (value is not ("field_candidates_skipped" or "field_limit_reached") || !seen.Add(value))
+                Invalid();
         }
     }
 
@@ -195,12 +222,14 @@ internal static class DocumentWorkerResponseValidator
             var pageIndex = NonnegativeInt(table.GetProperty("page_index"));
             var rows = PositiveInt(table.GetProperty("rows"));
             var columns = PositiveInt(table.GetProperty("columns"));
-            if (pageIndex >= pages.Count || pageIndex < lastPage || rows < 2 || columns is < 2 or > 20 || (long)rows * columns > 10000) Invalid();
+            if (pageIndex >= pages.Count || pageIndex < lastPage || rows < 2 || columns is < 2 or > 20 || (long)rows * columns > 10000)
+                Invalid();
             lastPage = pageIndex;
             var page = pages[pageIndex];
             var cells = table.GetProperty("cells");
             Array(cells, 1, 10000);
-            if (cells.GetArrayLength() != rows * columns || (total += cells.GetArrayLength()) > 10000) Invalid();
+            if (cells.GetArrayLength() != rows * columns || (total += cells.GetArrayLength()) > 10000)
+                Invalid();
             var position = 0;
             var previousTableSpan = -1;
             var columnStarts = new double[columns];
@@ -211,38 +240,48 @@ internal static class DocumentWorkerResponseValidator
                 var row = position / columns;
                 var column = position % columns;
                 if (NonnegativeInt(cell.GetProperty("row")) != row ||
-                    NonnegativeInt(cell.GetProperty("column")) != column) Invalid();
+                    NonnegativeInt(cell.GetProperty("column")) != column)
+                    Invalid();
                 position++;
                 var start = NonnegativeInt(cell.GetProperty("start"));
                 var end = PositiveInt(cell.GetProperty("end"));
                 var refs = cell.GetProperty("span_indexes");
                 var confidence = ValidateReferences(refs, page, start, end);
                 var selected = refs.EnumerateArray().Select(item => NonnegativeInt(item)).ToArray();
-                if (page.Spans[selected[0]].Start != start || page.Spans[selected[^1]].End != end) Invalid();
+                if (page.Spans[selected[0]].Start != start || page.Spans[selected[^1]].End != end)
+                    Invalid();
                 for (var i = 1; i < selected.Length; i++)
                 {
                     var previous = page.Spans[selected[i - 1]];
                     var current = page.Spans[selected[i]];
                     if (page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[current.Start] - page.Offsets[previous.End]).Contains('\n') ||
-                        current.Box[0] < previous.Box[0] || current.Box[0] - previous.Box[2] >= 0.04) Invalid();
+                        current.Box[0] < previous.Box[0] || current.Box[0] - previous.Box[2] >= 0.04)
+                        Invalid();
                 }
                 var first = page.Spans[selected[0]];
                 if (column == 0 && selected[0] > 0)
                 {
                     var previous = page.Spans[selected[0] - 1];
-                    if (!page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[first.Start] - page.Offsets[previous.End]).SequenceEqual("\n")) Invalid();
+                    if (!page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[first.Start] - page.Offsets[previous.End]).SequenceEqual("\n"))
+                        Invalid();
                 }
                 if (previousTableSpan >= 0)
                 {
-                    if (selected[0] != previousTableSpan + 1) Invalid();
+                    if (selected[0] != previousTableSpan + 1)
+                        Invalid();
                     var previous = page.Spans[previousTableSpan];
                     var separator = page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[first.Start] - page.Offsets[previous.End]);
-                    if (!separator.SequenceEqual(column == 0 ? "\n" : " ")) Invalid();
-                    if (column > 0 && (first.Box[0] < previous.Box[0] || first.Box[0] - previous.Box[2] < 0.04)) Invalid();
+                    if (!separator.SequenceEqual(column == 0 ? "\n" : " "))
+                        Invalid();
+                    if (column > 0 && (first.Box[0] < previous.Box[0] || first.Box[0] - previous.Box[2] < 0.04))
+                        Invalid();
                 }
-                if (row == 0) columnStarts[column] = first.Box[0];
-                else if (Math.Abs(first.Box[0] - columnStarts[column]) > 0.025) Invalid();
-                if (column == 0) { rowTop = first.Box[1]; rowBottom = first.Box[3]; }
+                if (row == 0)
+                    columnStarts[column] = first.Box[0];
+                else if (Math.Abs(first.Box[0] - columnStarts[column]) > 0.025)
+                    Invalid();
+                if (column == 0)
+                { rowTop = first.Box[1]; rowBottom = first.Box[3]; }
                 foreach (var index in selected)
                 {
                     rowTop = Math.Min(rowTop, page.Spans[index].Box[1]);
@@ -252,14 +291,18 @@ internal static class DocumentWorkerResponseValidator
                 {
                     var last = page.Spans[selected[^1]];
                     if (selected[^1] + 1 < page.Spans.Count &&
-                        !page.Text.AsSpan(page.Offsets[last.End], page.Offsets[page.Spans[selected[^1] + 1].Start] - page.Offsets[last.End]).SequenceEqual("\n")) Invalid();
-                    if (row > 0 && (rowTop < priorTop || rowTop - priorBottom > 0.08)) Invalid();
-                    priorTop = rowTop; priorBottom = rowBottom;
+                        !page.Text.AsSpan(page.Offsets[last.End], page.Offsets[page.Spans[selected[^1] + 1].Start] - page.Offsets[last.End]).SequenceEqual("\n"))
+                        Invalid();
+                    if (row > 0 && (rowTop < priorTop || rowTop - priorBottom > 0.08))
+                        Invalid();
+                    priorTop = rowTop;
+                    priorBottom = rowBottom;
                 }
                 previousTableSpan = selected[^1];
                 foreach (var index in selected)
                 {
-                    if (index <= lastSpan[pageIndex] || !used.Add((pageIndex, index))) Invalid();
+                    if (index <= lastSpan[pageIndex] || !used.Add((pageIndex, index)))
+                        Invalid();
                     lastSpan[pageIndex] = index;
                 }
                 var bounds = cell.GetProperty("box");
@@ -267,7 +310,8 @@ internal static class DocumentWorkerResponseValidator
                 var box = bounds.EnumerateArray().Select(UnitNumber).ToArray();
                 if (box[0] != selected.Min(i => page.Spans[i].Box[0]) || box[1] != selected.Min(i => page.Spans[i].Box[1]) ||
                     box[2] != selected.Max(i => page.Spans[i].Box[2]) || box[3] != selected.Max(i => page.Spans[i].Box[3]) ||
-                    UnitNumber(cell.GetProperty("minimum_ocr_confidence")) != confidence) Invalid();
+                    UnitNumber(cell.GetProperty("minimum_ocr_confidence")) != confidence)
+                    Invalid();
             }
         }
         var warnings = result.GetProperty("warnings");
@@ -276,9 +320,11 @@ internal static class DocumentWorkerResponseValidator
         foreach (var warning in warnings.EnumerateArray())
         {
             var value = String(warning);
-            if (value is not ("line_limit_reached" or "heuristic_tables_require_review" or "table_limit_reached") || !seen.Add(value)) Invalid();
+            if (value is not ("line_limit_reached" or "heuristic_tables_require_review" or "table_limit_reached") || !seen.Add(value))
+                Invalid();
         }
-        if (tables.GetArrayLength() > 0 && !seen.Contains("heuristic_tables_require_review")) Invalid();
+        if (tables.GetArrayLength() > 0 && !seen.Contains("heuristic_tables_require_review"))
+            Invalid();
     }
 
     private static void ValidateLines(JsonElement result, IReadOnlyList<Page> pages)
@@ -291,9 +337,11 @@ internal static class DocumentWorkerResponseValidator
         {
             Properties(line, ["page_index", "start", "end", "span_indexes", "box", "minimum_ocr_confidence"]);
             var pageIndex = NonnegativeInt(line.GetProperty("page_index"));
-            if (pageIndex >= pages.Count || pageIndex < previousPage) Invalid();
+            if (pageIndex >= pages.Count || pageIndex < previousPage)
+                Invalid();
             for (var index = previousPage; index < pageIndex; index++)
-                if (next[index] != pages[index].Spans.Count) Invalid();
+                if (next[index] != pages[index].Spans.Count)
+                    Invalid();
             previousPage = pageIndex;
             var page = pages[pageIndex];
             var start = NonnegativeInt(line.GetProperty("start"));
@@ -305,31 +353,39 @@ internal static class DocumentWorkerResponseValidator
             {
                 var previous = page.Spans[next[pageIndex] - 1];
                 if (next[pageIndex] >= page.Spans.Count ||
-                    !page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[page.Spans[next[pageIndex]].Start] - page.Offsets[previous.End]).SequenceEqual("\n")) Invalid();
+                    !page.Text.AsSpan(page.Offsets[previous.End], page.Offsets[page.Spans[next[pageIndex]].Start] - page.Offsets[previous.End]).SequenceEqual("\n"))
+                    Invalid();
             }
             foreach (var reference in refs.EnumerateArray())
             {
                 var index = NonnegativeInt(reference);
-                if (index != next[pageIndex]++ || index >= page.Spans.Count) Invalid();
+                if (index != next[pageIndex]++ || index >= page.Spans.Count)
+                    Invalid();
                 selected.Add(page.Spans[index]);
             }
-            if (selected[0].Start != start || selected[^1].End != end) Invalid();
+            if (selected[0].Start != start || selected[^1].End != end)
+                Invalid();
             for (var index = 1; index < selected.Count; index++)
                 if (page.Text.AsSpan(page.Offsets[selected[index - 1].End],
-                    page.Offsets[selected[index].Start] - page.Offsets[selected[index - 1].End]).SequenceEqual("\n")) Invalid();
+                    page.Offsets[selected[index].Start] - page.Offsets[selected[index - 1].End]).SequenceEqual("\n"))
+                    Invalid();
             var bounds = line.GetProperty("box");
             Array(bounds, 4, 4);
             var values = bounds.EnumerateArray().Select(UnitNumber).ToArray();
             if (values[0] != selected.Min(span => span.Box[0]) || values[1] != selected.Min(span => span.Box[1]) ||
                 values[2] != selected.Max(span => span.Box[2]) || values[3] != selected.Max(span => span.Box[3]) ||
-                UnitNumber(line.GetProperty("minimum_ocr_confidence")) != selected.Min(span => span.Confidence)) Invalid();
+                UnitNumber(line.GetProperty("minimum_ocr_confidence")) != selected.Min(span => span.Confidence))
+                Invalid();
         }
         var warnings = result.GetProperty("warnings");
         Array(warnings, 0, 1);
         var truncated = warnings.GetArrayLength() == 1 && String(warnings[0]) == "line_limit_reached";
-        if (warnings.GetArrayLength() == 1 && !truncated) Invalid();
-        if (truncated && (lines.GetArrayLength() != 50000 || !pages.Where((page, index) => next[index] < page.Spans.Count).Any())) Invalid();
-        if (!truncated && pages.Where((page, index) => next[index] != page.Spans.Count).Any()) Invalid();
+        if (warnings.GetArrayLength() == 1 && !truncated)
+            Invalid();
+        if (truncated && (lines.GetArrayLength() != 50000 || !pages.Where((page, index) => next[index] < page.Spans.Count).Any()))
+            Invalid();
+        if (!truncated && pages.Where((page, index) => next[index] != page.Spans.Count).Any())
+            Invalid();
     }
 
     private static double ValidateReferences(JsonElement references, Page page, int start, int end)
@@ -341,20 +397,25 @@ internal static class DocumentWorkerResponseValidator
         while (low < high)
         {
             var middle = low + (high - low) / 2;
-            if (page.Spans[middle].End <= start) low = middle + 1;
-            else high = middle;
+            if (page.Spans[middle].End <= start)
+                low = middle + 1;
+            else
+                high = middle;
         }
         var expected = low;
         foreach (var reference in references.EnumerateArray())
         {
             var index = NonnegativeInt(reference);
-            if (index != expected || index >= page.Spans.Count) Invalid();
+            if (index != expected || index >= page.Spans.Count)
+                Invalid();
             var span = page.Spans[index];
-            if (span.End <= start || span.Start >= end) Invalid();
+            if (span.End <= start || span.Start >= end)
+                Invalid();
             minimum = Math.Min(minimum, span.Confidence);
             expected++;
         }
-        if (expected < page.Spans.Count && page.Spans[expected].Start < end) Invalid();
+        if (expected < page.Spans.Count && page.Spans[expected].Start < end)
+            Invalid();
         return minimum;
     }
 
@@ -372,13 +433,16 @@ internal static class DocumentWorkerResponseValidator
 
     private static void Properties(JsonElement value, string[] expected)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
         {
-            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
+            if (!expected.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
         }
-        if (seen.Count != expected.Length) Invalid();
+        if (seen.Count != expected.Length)
+            Invalid();
     }
 
     private static void Array(JsonElement value, int minimum, int maximum)
@@ -389,27 +453,31 @@ internal static class DocumentWorkerResponseValidator
 
     private static string String(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.String) Invalid();
+        if (value.ValueKind != JsonValueKind.String)
+            Invalid();
         return value.GetString()!;
     }
 
     private static int NonnegativeInt(JsonElement value)
     {
-        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var result) || result < 0) Invalid();
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var result) || result < 0)
+            Invalid();
         return value.GetInt32();
     }
 
     private static int PositiveInt(JsonElement value)
     {
         var number = NonnegativeInt(value);
-        if (number == 0) Invalid();
+        if (number == 0)
+            Invalid();
         return number;
     }
 
     private static double UnitNumber(JsonElement value)
     {
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number) ||
-            !double.IsFinite(number) || number < 0 || number > 1) Invalid();
+            !double.IsFinite(number) || number < 0 || number > 1)
+            Invalid();
         return value.GetDouble();
     }
 

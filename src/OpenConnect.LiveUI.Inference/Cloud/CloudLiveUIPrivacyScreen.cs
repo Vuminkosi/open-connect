@@ -42,7 +42,8 @@ public static class CloudLiveUIPrivacyScreen
             {
                 fields.Add(capability.TargetId);
                 fields.Add(action);
-                if (capability.Label is not null) fields.Add(capability.Label);
+                if (capability.Label is not null)
+                    fields.Add(capability.Label);
             }
         }
         if (fields.Any(field => field is null))
@@ -59,7 +60,8 @@ public static class CloudLiveUIPrivacyScreen
 
         async ValueTask<EgressDecision> EvaluateAsync(string content)
         {
-            try { return await gate.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false); }
+            try
+            { return await gate.EvaluateAsync(content, context, cancellationToken).ConfigureAwait(false); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch { throw new PrivacyBlockedException("LiveUI Cloud input was blocked by privacy policy."); }
         }

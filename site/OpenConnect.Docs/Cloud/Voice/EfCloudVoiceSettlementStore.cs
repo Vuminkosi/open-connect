@@ -15,7 +15,8 @@ public sealed class EfCloudVoiceSettlementStore(IDbContextFactory<CloudControlPl
                 x.DeploymentId == deploymentId && x.TenantId == reservation.TenantId && x.ApplicationId == reservation.ApplicationId, cancellationToken) ||
             !await db.ExecutionConsumptions.AsNoTracking().AnyAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.DeploymentId == deploymentId, cancellationToken) ||
             !await db.QuotaBuckets.AnyAsync(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId && x.ApplicationId == reservation.ApplicationId &&
-                x.CapabilityId == "voice.synthesize" && x.Unit == "character", cancellationToken)) return "unavailable";
+                x.CapabilityId == "voice.synthesize" && x.Unit == "character", cancellationToken))
+            return "unavailable";
         if (reservation.FinalizedAt is not null)
         {
             var completed = await db.ExecutionCompletions.AsNoTracking().AnyAsync(x => x.ReservationId == reservationId && x.ClaimId == claimId && x.Outcome == "completed", cancellationToken);
@@ -26,12 +27,14 @@ public sealed class EfCloudVoiceSettlementStore(IDbContextFactory<CloudControlPl
         await db.SaveChangesAsync(cancellationToken);
         var finalized = await db.QuotaReservations.Where(x => x.Id == reservationId && x.FinalizedAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Actual, reservation.Amount).SetProperty(y => y.FinalizedAt, now), cancellationToken);
-        if (finalized != 1) return "unavailable";
+        if (finalized != 1)
+            return "unavailable";
         var updated = await db.QuotaBuckets.Where(x => x.Id == reservation.BucketId && x.TenantId == reservation.TenantId &&
                 x.ApplicationId == reservation.ApplicationId && x.Reserved >= reservation.Amount)
             .ExecuteUpdateAsync(x => x.SetProperty(y => y.Reserved, y => y.Reserved - reservation.Amount)
                 .SetProperty(y => y.Consumed, y => y.Consumed + reservation.Amount), cancellationToken);
-        if (updated != 1) return "unavailable";
+        if (updated != 1)
+            return "unavailable";
         await transaction.CommitAsync(cancellationToken);
         return "completed";
     }

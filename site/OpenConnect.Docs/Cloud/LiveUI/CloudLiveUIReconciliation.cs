@@ -21,7 +21,8 @@ public sealed class CloudLiveUIReconciliation(CloudOperatorAccess access, ICloud
     public async Task<CloudLiveUIReconciliationPage> ListUnknownAsync(ClaimsPrincipal principal, CloudLiveUIReconciliationCursor? after,
         int limit, CancellationToken cancellationToken)
     {
-        if (!access.IsAllowed(principal)) return new("forbidden");
+        if (!access.IsAllowed(principal))
+            return new("forbidden");
         if (limit is < 1 or > 100 || after is { ReservationId: var id } && id == Guid.Empty)
             return new("invalid_request");
         var cursor = after is null ? null : after with { ExpiresAt = after.ExpiresAt.ToUniversalTime() };

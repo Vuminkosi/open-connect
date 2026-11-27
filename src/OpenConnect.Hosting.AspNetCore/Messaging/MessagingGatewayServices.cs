@@ -308,7 +308,8 @@ public sealed class MessagingRealtimeHub : IMessagingRealtimeHub
         {
             Interlocked.CompareExchange(ref _closeReason, reason, null);
             _channel.Writer.TryComplete();
-            try { _cts.Cancel(); }
+            try
+            { _cts.Cancel(); }
             catch (ObjectDisposedException) { }
         }
 

@@ -21,13 +21,15 @@ internal sealed class TodoDocumentDemo(TodoDocumentDemoAccess access, IConfigura
         var origin = configuration["OpenConnect:DocumentDemo:ExtractionOrigin"];
         var token = configuration["OPENCONNECT_WORKER_TOKEN"];
         var inferenceToken = configuration["OPENCONNECT_INFERENCE_TOKEN"];
-        if (string.IsNullOrWhiteSpace(inferenceToken)) inferenceToken = token;
+        if (string.IsNullOrWhiteSpace(inferenceToken))
+            inferenceToken = token;
         var keyText = configuration["OPENCONNECT_WORKER_SIGNING_KEY"];
         if (string.IsNullOrWhiteSpace(socket) || !Uri.TryCreate(origin, UriKind.Absolute, out var endpoint) ||
             string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(keyText))
             throw new InvalidOperationException("Document example is not configured.");
         byte[] key;
-        try { key = Convert.FromHexString(keyText); }
+        try
+        { key = Convert.FromHexString(keyText); }
         catch (FormatException) { throw new InvalidOperationException("Document example is not configured."); }
         try
         {

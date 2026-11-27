@@ -14,7 +14,8 @@ internal static class EfCloudClaimDeployment
         var catalog = capabilities.Capabilities.SingleOrDefault(x => x.Id == capabilityId);
         if (policy is null || catalog is null || !catalog.AllowedRegionsVerified ||
             !(JsonSerializer.Deserialize<string[]>(policy.AllowedRegions) ?? []).Contains(request.Region, StringComparer.Ordinal) ||
-            !(JsonSerializer.Deserialize<string[]>(catalog.AllowedRegions) ?? []).Contains(request.Region, StringComparer.Ordinal)) return null;
+            !(JsonSerializer.Deserialize<string[]>(catalog.AllowedRegions) ?? []).Contains(request.Region, StringComparer.Ordinal))
+            return null;
         // Serialize claims across all gateway instances for this deployment.
         var deployment = await db.WorkerDeployments.FromSqlInterpolated($"SELECT * FROM cloud.worker_deployments WHERE \"EndpointReference\" = {request.EndpointReference} FOR UPDATE")
             .AsNoTracking().SingleOrDefaultAsync(cancellationToken);

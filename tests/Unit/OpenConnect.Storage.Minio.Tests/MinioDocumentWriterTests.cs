@@ -1,6 +1,6 @@
-using Xunit;
 using System.Net;
 using Minio.DataModel.Response;
+using Xunit;
 
 namespace OpenConnect.Storage.Minio.Tests;
 

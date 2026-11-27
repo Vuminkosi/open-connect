@@ -48,8 +48,16 @@ public sealed class VoiceRealtimeTranscriptTests
     public void VoiceHandshakePreservesConnectionIdentity()
     {
         var connection = Ulid.NewUlid().ToString();
-        var json = System.Text.Json.JsonSerializer.Serialize(new { sessionId = "session", captureId = Guid.NewGuid(),
-            speechEpoch = 1, clientConnectionId = connection, sampleRate = 24000, channels = 1, bitsPerSample = 16 });
+        var json = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            sessionId = "session",
+            captureId = Guid.NewGuid(),
+            speechEpoch = 1,
+            clientConnectionId = connection,
+            sampleRate = 24000,
+            channels = 1,
+            bitsPerSample = 16
+        });
         Assert.True(VoiceRealtimeWebSocketHandler.TryValidateHandshake(json, "session", out _, out _, out var actual));
         Assert.Equal(connection, actual);
     }
@@ -105,7 +113,8 @@ public sealed class VoiceRealtimeTranscriptTests
         var session = sessions.Create(tenant, principal);
         using var connection = sessions.RegisterBoundConnection(session)!;
         using var other = scenario == "ambiguous" ? sessions.RegisterBoundConnection(session) : null;
-        if (scenario == "disconnected") connection.Dispose();
+        if (scenario == "disconnected")
+            connection.Dispose();
         var requested = scenario == "wrong" ? Ulid.NewUlid().ToString() : connection.ConnectionId;
         var dispatcher = new RecordingDispatcher();
         using var services = new ServiceCollection()

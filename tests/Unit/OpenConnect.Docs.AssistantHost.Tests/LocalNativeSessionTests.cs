@@ -62,10 +62,18 @@ public sealed class LocalNativeSessionTests
 
     private static AgentExecutionContext Context(NativeAgentSessionBinding binding) => new()
     {
-        TenantScope = binding.TenantId.Value.ToString(), PrincipalOrWorkloadScope = binding.PrincipalId.Value.ToString(),
-        IdentityKind = AgentIdentityMode.ActiveUser, SessionId = binding.SessionId, TaskId = new TaskId(Ulid.NewUlid()),
-        AgentExecutionId = new ExecutionId(Ulid.NewUlid()), Depth = 0, CatalogRevision = 1, PolicyRevision = 1,
-        AuthRevision = 1, Deadline = DateTimeOffset.UtcNow.AddMinutes(1), RemainingBudgets = ImmutableDictionary<string, long>.Empty,
+        TenantScope = binding.TenantId.Value.ToString(),
+        PrincipalOrWorkloadScope = binding.PrincipalId.Value.ToString(),
+        IdentityKind = AgentIdentityMode.ActiveUser,
+        SessionId = binding.SessionId,
+        TaskId = new TaskId(Ulid.NewUlid()),
+        AgentExecutionId = new ExecutionId(Ulid.NewUlid()),
+        Depth = 0,
+        CatalogRevision = 1,
+        PolicyRevision = 1,
+        AuthRevision = 1,
+        Deadline = DateTimeOffset.UtcNow.AddMinutes(1),
+        RemainingBudgets = ImmutableDictionary<string, long>.Empty,
         CancellationToken = CancellationToken.None
     };
 }

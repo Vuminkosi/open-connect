@@ -2,8 +2,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Docs.Cloud;
 using Xunit;
 
@@ -71,9 +71,18 @@ public sealed class CloudHostPrivacyEndpointTests
         using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(5));
         var trust = new CloudGatewayClientTrust([Convert.ToHexString(certificate.GetCertHash(HashAlgorithmName.SHA256))]);
         var material = CloudCredentialSecrets.Create("Development");
-        var credential = new CloudCredential { Id = material.Id, TenantId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-            ApplicationId = Guid.NewGuid(), Environment = "Development", KeyHash = material.Hash, Fingerprint = material.Fingerprint,
-            Scopes = "[]", IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1), ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10) };
+        var credential = new CloudCredential
+        {
+            Id = material.Id,
+            TenantId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            ApplicationId = Guid.NewGuid(),
+            Environment = "Development",
+            KeyHash = material.Hash,
+            Fingerprint = material.Fingerprint,
+            Scopes = "[]",
+            IssuedAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
+        };
         var evidenceStore = new EvidenceStore();
         using var services = new ServiceCollection().AddSingleton(new CloudCredentialService(new CredentialStore(credential), TimeProvider.System))
             .AddSingleton<ICloudHostPrivacyEvidenceStore>(evidenceStore).BuildServiceProvider();
@@ -202,7 +211,8 @@ public sealed class CloudHostPrivacyEndpointTests
         {
             Calls++;
             Identity = identity;
-            if (Fail) throw new InvalidOperationException("sensitive storage details");
+            if (Fail)
+                throw new InvalidOperationException("sensitive storage details");
             Reports.Add(report);
             return Task.FromResult(Accept);
         }

@@ -18,7 +18,8 @@ public sealed class OutgoingContentScannerTests
         var decision = new OutgoingContentScanner().ScanOutgoing(content, Context, failClosed: false);
         Assert.Equal(allowed, decision.Allowed);
         Assert.Equal(reason, decision.Reason);
-        if (!allowed) Assert.Null(decision.SanitizedContent);
+        if (!allowed)
+            Assert.Null(decision.SanitizedContent);
     }
 
     [Theory]

@@ -416,8 +416,10 @@ public sealed class SecurityWorkerClientAndFirewallTests
         ms.Write(data);
         // Compute CRC32 over type + data
         uint crc = 0xFFFFFFFFu;
-        foreach (var b in type) crc = UpdateCrc(crc, b);
-        foreach (var b in data) crc = UpdateCrc(crc, b);
+        foreach (var b in type)
+            crc = UpdateCrc(crc, b);
+        foreach (var b in data)
+            crc = UpdateCrc(crc, b);
         Span<byte> crcBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(crcBytes, crc ^ 0xFFFFFFFFu);
         ms.Write(crcBytes);

@@ -1,6 +1,6 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using System.Data.Common;
 using Npgsql;
 using OpenConnect.Docs.Cloud;
 using Xunit;
@@ -25,15 +25,22 @@ public class CloudTenantPostgresTests
         var connection = Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE");
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var first = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var second = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var store = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await store.CreateTenantAsync(first, "Owner concurrency", CancellationToken.None);
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = second.Issuer, SubjectId = second.SubjectId,
-                Role = "Owner", CreatedAt = DateTimeOffset.UtcNow });
+            db.Memberships.Add(new CloudMembership
+            {
+                TenantId = tenant.Id,
+                SubjectIssuer = second.Issuer,
+                SubjectId = second.SubjectId,
+                Role = "Owner",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
             await db.SaveChangesAsync();
         }
         var gate = new OwnerCountGate();
@@ -55,15 +62,22 @@ public class CloudTenantPostgresTests
     {
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var store = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await store.CreateTenantAsync(owner, "Membership changes", CancellationToken.None);
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer, SubjectId = developer.SubjectId,
-                Role = "Developer", CreatedAt = DateTimeOffset.UtcNow });
+            db.Memberships.Add(new CloudMembership
+            {
+                TenantId = tenant.Id,
+                SubjectIssuer = developer.Issuer,
+                SubjectId = developer.SubjectId,
+                Role = "Developer",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
             await db.SaveChangesAsync();
         }
         var outsider = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
@@ -94,7 +108,8 @@ public class CloudTenantPostgresTests
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var store = new EfCloudTenantStore(factory, TimeProvider.System);
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
@@ -103,8 +118,14 @@ public class CloudTenantPostgresTests
         var otherTenant = await store.CreateTenantAsync(outsider, "Other tenant", CancellationToken.None);
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.Memberships.Add(new CloudMembership { TenantId = tenant.Id, SubjectIssuer = developer.Issuer,
-                SubjectId = developer.SubjectId, Role = "Developer", CreatedAt = DateTimeOffset.UtcNow });
+            db.Memberships.Add(new CloudMembership
+            {
+                TenantId = tenant.Id,
+                SubjectIssuer = developer.Issuer,
+                SubjectId = developer.SubjectId,
+                Role = "Developer",
+                CreatedAt = DateTimeOffset.UtcNow
+            });
             await db.SaveChangesAsync();
         }
         var members = await store.GetMembersAsync(owner, tenant.Id, CancellationToken.None);
@@ -122,7 +143,8 @@ public class CloudTenantPostgresTests
         var connection = Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE");
         var normalOptions = new DbContextOptionsBuilder<CloudControlPlaneDbContext>().UseNpgsql(connection).Options;
         IDbContextFactory<CloudControlPlaneDbContext> normalFactory = new TestFactory(normalOptions);
-        await using (var db = await normalFactory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await normalFactory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var normalStore = new EfCloudTenantStore(normalFactory, TimeProvider.System);
         var tenant = await normalStore.CreateTenantAsync(owner, "Concurrent test", CancellationToken.None);
@@ -142,7 +164,8 @@ public class CloudTenantPostgresTests
         }
 
         CloudApplicationSummary? created = null;
-        try { created = (await creation).Application; }
+        try
+        { created = (await creation).Application; }
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.SerializationFailure) { }
         var denied = await normalStore.CreateApplicationAsync(owner, tenant.Id, "After removal", "Development", CancellationToken.None);
         Assert.Null(denied.Application);
@@ -159,7 +182,8 @@ public class CloudTenantPostgresTests
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE"))
             .Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var store = new EfCloudTenantStore(factory, TimeProvider.System);
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var tenant = await store.CreateTenantAsync(owner, "Transaction test", CancellationToken.None);
@@ -188,7 +212,8 @@ public class CloudTenantPostgresTests
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE"))
             .Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var store = new EfCloudTenantStore(factory, TimeProvider.System);
         var owner = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
         var developer = new CloudSubject("test-issuer", Guid.NewGuid().ToString("N"));
@@ -253,7 +278,8 @@ public class CloudTenantPostgresTests
         {
             if (command.CommandText.Contains("count(", StringComparison.OrdinalIgnoreCase) && command.CommandText.Contains("cloud.memberships", StringComparison.Ordinal))
             {
-                if (Interlocked.Increment(ref _count) == 2) _both.TrySetResult();
+                if (Interlocked.Increment(ref _count) == 2)
+                    _both.TrySetResult();
                 await _both.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             }
             return result;

@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using Bunit;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 using OpenConnect.Docs.Cloud;
 using OpenConnect.Docs.Components.Pages.Cloud;
 using Xunit;
@@ -19,7 +19,8 @@ public sealed class CloudCredentialComponentTests : BunitContext
         var options = new DbContextOptionsBuilder<CloudControlPlaneDbContext>()
             .UseNpgsql(Environment.GetEnvironmentVariable("OPENCONNECT_CLOUD_TEST_DATABASE")).Options;
         IDbContextFactory<CloudControlPlaneDbContext> factory = new TestFactory(options);
-        await using (var db = await factory.CreateDbContextAsync()) await db.Database.MigrateAsync();
+        await using (var db = await factory.CreateDbContextAsync())
+            await db.Database.MigrateAsync();
         var subject = new CloudSubject("https://test.example", Guid.NewGuid().ToString("N"));
         var tenantStore = new EfCloudTenantStore(factory, TimeProvider.System);
         var tenant = await tenantStore.CreateTenantAsync(subject, "Portal test", CancellationToken.None);

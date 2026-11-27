@@ -46,7 +46,8 @@ public sealed class MinioDocumentWriter
         _write = async (key, bytes, token) =>
         {
             var versioning = await client.GetVersioningAsync(new GetVersioningArgs().WithBucket(bucket), token).ConfigureAwait(false);
-            if (versioning?.Status != "Enabled") throw new InvalidOperationException("Document storage is unavailable.");
+            if (versioning?.Status != "Enabled")
+                throw new InvalidOperationException("Document storage is unavailable.");
             using var stream = new MemoryStream(bytes, writable: false);
             var upload = await client.PutObjectAsync(new PutObjectArgs().WithBucket(bucket).WithObject(key).WithStreamData(stream)
                 .WithObjectSize(bytes.Length).WithContentType("application/octet-stream"), token).ConfigureAwait(false);

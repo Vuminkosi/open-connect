@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using OpenConnect.Abstractions;
 
 namespace OpenConnect.Hosting.AspNetCore;
@@ -39,8 +39,10 @@ internal static class WorkerCapabilityResponseParser
     internal static IReadOnlyList<CapabilityDescriptor> Parse(JsonElement root, IReadOnlySet<string> allowed, bool inference)
     {
         ArgumentNullException.ThrowIfNull(allowed);
-        if (allowed.Count == 0 || allowed.Any(id => !Known.ContainsKey(id))) throw new ArgumentException("Invalid capability scope.");
-        try { return inference ? ParseInference(root, allowed) : ParseStructured(root, allowed); }
+        if (allowed.Count == 0 || allowed.Any(id => !Known.ContainsKey(id)))
+            throw new ArgumentException("Invalid capability scope.");
+        try
+        { return inference ? ParseInference(root, allowed) : ParseStructured(root, allowed); }
         catch (Exception exception) when (exception is not OperationCanceledException)
         { throw new InvalidOperationException("Invalid worker capability response."); }
     }
@@ -49,7 +51,8 @@ internal static class WorkerCapabilityResponseParser
     {
         Properties(root, "capabilities");
         var list = root.GetProperty("capabilities");
-        if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() > 64) Invalid();
+        if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() > 64)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<CapabilityDescriptor>();
         foreach (var descriptor in list.EnumerateArray())
@@ -60,11 +63,13 @@ internal static class WorkerCapabilityResponseParser
             var version = Text(descriptor.GetProperty("version"), 128);
             if (!seen.Add(id) || descriptor.GetProperty("schemaVersion").GetString() != "openconnect.v1" ||
                 descriptor.GetProperty("state").GetString() != "ready" || descriptor.GetProperty("localOnly").ValueKind != JsonValueKind.True ||
-                string.IsNullOrWhiteSpace(version)) Invalid();
+                string.IsNullOrWhiteSpace(version))
+                Invalid();
             if (allowed.Contains(id))
             {
                 if (!Known.TryGetValue(id, out var expected) ||
-                    !(kind == expected.WorkerKind || (expected.WorkerKind == "imessaging" && kind == "tool"))) Invalid();
+                    !(kind == expected.WorkerKind || (expected.WorkerKind == "imessaging" && kind == "tool")))
+                    Invalid();
                 result.Add(new CapabilityDescriptor(new CapabilityId(id), expected.HostKind, DetectorState.Ready));
             }
         }
@@ -75,14 +80,20 @@ internal static class WorkerCapabilityResponseParser
     {
         Properties(root, "worker", "version", "backend", "engine", "modelId", "modelRevision", "modelLoaded", "capabilities", "privacyMode");
         if (root.GetProperty("worker").GetString() != "inference" || root.GetProperty("engine").GetString() != "real" ||
-            root.GetProperty("privacyMode").GetString() != "strict-local" || root.GetProperty("modelLoaded").ValueKind is not (JsonValueKind.True or JsonValueKind.False)) Invalid();
-        _ = Text(root.GetProperty("version"), 128); _ = Text(root.GetProperty("backend"), 128);
+            root.GetProperty("privacyMode").GetString() != "strict-local" || root.GetProperty("modelLoaded").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            Invalid();
+        _ = Text(root.GetProperty("version"), 128);
+        _ = Text(root.GetProperty("backend"), 128);
         foreach (var field in new[] { "modelId", "modelRevision" })
-            if (root.GetProperty(field).ValueKind != JsonValueKind.Null) _ = Text(root.GetProperty(field), 256);
+            if (root.GetProperty(field).ValueKind != JsonValueKind.Null)
+                _ = Text(root.GetProperty(field), 256);
         var list = root.GetProperty("capabilities");
-        if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() > 64) Invalid();
+        if (list.ValueKind != JsonValueKind.Array || list.GetArrayLength() > 64)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var value in list.EnumerateArray()) if (!seen.Add(Text(value, 256))) Invalid();
+        foreach (var value in list.EnumerateArray())
+            if (!seen.Add(Text(value, 256)))
+                Invalid();
         return allowed.Contains("documents.extract") && seen.Contains("documents.extract")
             ? [new CapabilityDescriptor(new CapabilityId("documents.extract"), CapabilityKind.Tool, DetectorState.Ready)] : [];
     }
@@ -90,17 +101,21 @@ internal static class WorkerCapabilityResponseParser
     private static string Text(JsonElement element, int maximum)
     {
         var value = element.GetString();
-        if (string.IsNullOrWhiteSpace(value) || value.Length > maximum || value.Any(c => c < 32 || c == 127 || char.IsSurrogate(c))) Invalid();
+        if (string.IsNullOrWhiteSpace(value) || value.Length > maximum || value.Any(c => c < 32 || c == 127 || char.IsSurrogate(c)))
+            Invalid();
         return value!;
     }
 
     private static void Properties(JsonElement value, params string[] names)
     {
-        if (value.ValueKind != JsonValueKind.Object) Invalid();
+        if (value.ValueKind != JsonValueKind.Object)
+            Invalid();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var property in value.EnumerateObject())
-            if (!names.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name)) Invalid();
-        if (seen.Count != names.Length) Invalid();
+            if (!names.Contains(property.Name, StringComparer.Ordinal) || !seen.Add(property.Name))
+                Invalid();
+        if (seen.Count != names.Length)
+            Invalid();
     }
 
     [System.Diagnostics.CodeAnalysis.DoesNotReturn]

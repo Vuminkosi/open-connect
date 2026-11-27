@@ -77,7 +77,8 @@ public sealed class LiveUIBrowserRuntime(
 
     internal async ValueTask SetSpotlightCaptionAsync(string? title, string? body, CancellationToken cancellationToken = default)
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         try
         {
             _module ??= await jsRuntime.InvokeAsync<IJSObjectReference>("import", cancellationToken, ModulePath).ConfigureAwait(false);

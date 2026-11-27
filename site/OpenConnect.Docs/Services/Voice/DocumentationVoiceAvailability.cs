@@ -13,17 +13,20 @@ public sealed class DocumentationVoiceAvailability(HttpClient client) : IDisposa
         {
             using var response = await client.GetAsync(new Uri(client.BaseAddress!, "/internal/docs/voice/model-ready"),
                 HttpCompletionOption.ResponseHeadersRead, timeout.Token).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode)
+                return false;
             await using var stream = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
             var buffer = new byte[1025];
             var total = 0;
             while (total < buffer.Length)
             {
                 var read = await stream.ReadAsync(buffer.AsMemory(total), timeout.Token).ConfigureAwait(false);
-                if (read == 0) break;
+                if (read == 0)
+                    break;
                 total += read;
             }
-            if (total > 1024) return false;
+            if (total > 1024)
+                return false;
             using var json = JsonDocument.Parse(buffer.AsMemory(0, total));
             return json.RootElement.ValueKind == JsonValueKind.Object &&
                 json.RootElement.TryGetProperty("available", out var available) && available.ValueKind == JsonValueKind.True;

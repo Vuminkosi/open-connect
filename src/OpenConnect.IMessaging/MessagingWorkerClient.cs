@@ -178,10 +178,12 @@ public sealed class MessagingWorkerClient : IMessagingWorkerClient, IDisposable
         finally
         {
             CryptographicOperations.ZeroMemory(body);
-            if (chunk is not null) CryptographicOperations.ZeroMemory(chunk);
+            if (chunk is not null)
+                CryptographicOperations.ZeroMemory(chunk);
             if (buffer is not null)
             {
-                if (buffer.TryGetBuffer(out var seg)) CryptographicOperations.ZeroMemory(seg.AsSpan());
+                if (buffer.TryGetBuffer(out var seg))
+                    CryptographicOperations.ZeroMemory(seg.AsSpan());
                 buffer.Dispose();
             }
         }

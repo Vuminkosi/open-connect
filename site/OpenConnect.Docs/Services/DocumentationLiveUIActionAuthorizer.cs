@@ -13,14 +13,17 @@ public sealed class DocumentationLiveUIActionAuthorizer(DocumentationContentStor
                 string.Equals(path, $"/docs/{document.Version}/{document.Slug}", StringComparison.Ordinal)) == true);
         static bool CloudGuidanceRoute(string? path) => string.Equals(path, "/cloud", StringComparison.Ordinal);
         bool GuidanceRoute(string? path) => PublicRoute(path) || CloudGuidanceRoute(path);
-        if (!GuidanceRoute(context.Route.Path)) return Deny();
+        if (!GuidanceRoute(context.Route.Path))
+            return Deny();
         if (context.Action.Type == LiveUIActionType.Navigate)
         {
             var destination = context.Manifest.Routes.SingleOrDefault(route => route.Id == context.Action.Parameters.DestinationRouteId);
             return GuidanceRoute(destination?.Path) ? Allow() : Deny();
         }
-        if (context.Action.Type == LiveUIActionType.ClearHighlight) return Allow();
-        if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null) return Allow();
+        if (context.Action.Type == LiveUIActionType.ClearHighlight)
+            return Allow();
+        if (context.Action.Type == LiveUIActionType.Inspect && context.Target is null)
+            return Allow();
         if (CloudGuidanceRoute(context.Route.Path))
         {
             return context.Target is { Kind: LiveUITargetKind.Heading or LiveUITargetKind.Region or LiveUITargetKind.Link } &&

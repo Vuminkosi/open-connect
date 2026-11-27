@@ -18,17 +18,20 @@ public sealed class DocumentationHeadingIds
         {
             if (char.IsLetterOrDigit(character))
             {
-                if (separator && builder.Length > 0) builder.Append('-');
+                if (separator && builder.Length > 0)
+                    builder.Append('-');
                 builder.Append(character);
                 separator = false;
             }
-            else if (char.IsWhiteSpace(character) || character == '-') separator = true;
+            else if (char.IsWhiteSpace(character) || character == '-')
+                separator = true;
         }
 
         var key = builder.Length == 0 ? "section" : builder.ToString();
         var count = _counts.GetValueOrDefault(key);
         var candidate = count == 0 ? key : $"{key}-{count}";
-        while (!_used.Add(candidate)) candidate = $"{key}-{++count}";
+        while (!_used.Add(candidate))
+            candidate = $"{key}-{++count}";
         _counts[key] = count + 1;
         return candidate;
     }

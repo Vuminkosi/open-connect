@@ -13,7 +13,8 @@ public sealed class EfCloudLiveUIOutputEvidenceStore(IDbContextFactory<CloudCont
             traceId.Any(c => c is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
             throw new ArgumentException("Invalid LiveUI output observation.");
         await using var db = await factory.CreateDbContextAsync(cancellationToken);
-        var id = Guid.NewGuid(); var now = timeProvider.GetUtcNow();
+        var id = Guid.NewGuid();
+        var now = timeProvider.GetUtcNow();
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO cloud.liveui_output_privacy_evidence
                 ("Id", "TenantId", "ApplicationId", "RequestId", "ReservationId", "ClaimId", "Outcome", "TraceId", "OccurredAt")

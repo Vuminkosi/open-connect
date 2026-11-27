@@ -120,8 +120,10 @@ public sealed class SileroVoiceActivityAudioStream : IDisposable
         try
         {
             var expected = _removedSourceSamples + _resampleBuffer.Count;
-            if (position == expected) return;
-            if (position < expected) throw new InvalidDataException("Audio positions moved backwards.");
+            if (position == expected)
+                return;
+            if (position < expected)
+                throw new InvalidDataException("Audio positions moved backwards.");
             var sequence = _sequence;
             ResetCore();
             _sequence = sequence;

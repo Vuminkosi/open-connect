@@ -12,10 +12,10 @@ public static class LiveUIInferenceCapabilities
         ArgumentNullException.ThrowIfNull(page);
         return page.Targets.Select(target => new LiveUIInferenceCapability(target.TargetId,
                 target.Capabilities.SelectMany(capability => ToActions(capability, target.Kind)).Distinct(StringComparer.Ordinal).ToArray())
-                { Label = BoundedLabel(target.Label) })
+        { Label = BoundedLabel(target.Label) })
             .Where(capability => capability.Actions.Count > 0)
             .Concat(page.NavigableRoutes.Select(route => new LiveUIInferenceCapability(route.RouteId, ["navigate"])
-                { Label = BoundedLabel(route.Title) }))
+            { Label = BoundedLabel(route.Title) }))
             .ToArray();
     }
 
@@ -24,15 +24,18 @@ public static class LiveUIInferenceCapabilities
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(page);
-        if (request.RouteId != page.RouteId || request.ManifestHash != page.ContentHash || request.Capabilities is null) return false;
+        if (request.RouteId != page.RouteId || request.ManifestHash != page.ContentHash || request.Capabilities is null)
+            return false;
         var current = FromPage(page);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var requested in request.Capabilities)
         {
-            if (requested is null || requested.Actions is null || !seen.Add(requested.TargetId)) return false;
+            if (requested is null || requested.Actions is null || !seen.Add(requested.TargetId))
+                return false;
             var authorized = current.Where(item => item.TargetId == requested.TargetId).ToArray();
             if (authorized.Length != 1 || !string.Equals(authorized[0].Label, requested.Label, StringComparison.Ordinal) ||
-                requested.Actions.Count == 0 || requested.Actions.Any(action => !authorized[0].Actions.Contains(action, StringComparer.Ordinal))) return false;
+                requested.Actions.Count == 0 || requested.Actions.Any(action => !authorized[0].Actions.Contains(action, StringComparer.Ordinal)))
+                return false;
         }
         return true;
     }
@@ -42,7 +45,8 @@ public static class LiveUIInferenceCapabilities
 
     private static IEnumerable<string> ToActions(LiveUICapability capability, string targetKind)
     {
-        if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind)) return [];
+        if (!Enum.TryParse<LiveUITargetKind>(targetKind, ignoreCase: true, out var kind))
+            return [];
         return capability switch
         {
             LiveUICapability.Activate => ["activate"],

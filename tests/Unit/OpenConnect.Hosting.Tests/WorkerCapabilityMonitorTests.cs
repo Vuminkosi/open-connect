@@ -52,8 +52,11 @@ public sealed class WorkerCapabilityMonitorTests
         using var monitor = new WorkerCapabilityMonitor(registry, [source], null, _ =>
             new HttpClient(new Handler(_ => healthy
                 ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Ready) }
-                : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable))) { BaseAddress = new Uri("https://worker.test") });
-        var services = new ServiceCollection(); services.AddLogging(); services.AddSingleton<ICapabilityRegistry>(registry);
+                : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)))
+            { BaseAddress = new Uri("https://worker.test") });
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ICapabilityRegistry>(registry);
         using var provider = services.BuildServiceProvider();
         async Task<JsonDocument> ReadEndpoint()
         {
@@ -103,7 +106,8 @@ public sealed class WorkerCapabilityMonitorTests
             new HttpClient(new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(oversized ? new string('x', 65537) : Ready)
-            })) { BaseAddress = new Uri("https://worker.test") });
+            }))
+            { BaseAddress = new Uri("https://worker.test") });
         await monitor.RefreshAsync();
         Assert.NotNull(registry.Get(new CapabilityId("knowledge.embed")));
         oversized = true;
@@ -124,7 +128,8 @@ public sealed class WorkerCapabilityMonitorTests
         {
             var handler = new Handler(_ =>
             {
-                if (source == first && cancelOnPoll) cancellation.Cancel();
+                if (source == first && cancelOnPoll)
+                    cancellation.Cancel();
                 return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(source == first ? Ready : analytics) };
             });
             return new HttpClient(handler) { BaseAddress = new Uri("https://worker.test") };

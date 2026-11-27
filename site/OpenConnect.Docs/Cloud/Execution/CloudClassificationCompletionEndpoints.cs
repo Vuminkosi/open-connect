@@ -10,20 +10,27 @@ public static class CloudClassificationCompletionEndpoints
             Guid reservationId, Guid claimId, HttpContext context, CancellationToken cancellationToken) =>
         {
             context.Response.Headers.CacheControl = "no-store";
-            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow)) return Results.Unauthorized();
-            if (!databaseConfigured) return Results.StatusCode(503);
+            if (!context.Request.IsHttps || !trust.IsTrusted(context.Connection.ClientCertificate, DateTimeOffset.UtcNow))
+                return Results.Unauthorized();
+            if (!databaseConfigured)
+                return Results.StatusCode(503);
             var headers = context.Request.Headers.Authorization;
             if (headers.Count != 1 || !AuthenticationHeaderValue.TryParse(headers.ToString(), out var header) ||
                 !string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(header.Parameter) ||
-                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace)) return Results.Unauthorized();
+                header.Parameter.Length > 160 || header.Parameter.Any(char.IsWhiteSpace))
+                return Results.Unauthorized();
             CloudCredentialIdentity? identity;
-            try { identity = await context.RequestServices.GetRequiredService<CloudCredentialService>().ValidateAsync(header.Parameter, cancellationToken); }
+            try
+            { identity = await context.RequestServices.GetRequiredService<CloudCredentialService>().ValidateAsync(header.Parameter, cancellationToken); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch { return Results.StatusCode(503); }
-            if (identity is null) return Results.Unauthorized();
-            if (!identity.Scopes.Contains("classification.classify")) return Results.StatusCode(403);
+            if (identity is null)
+                return Results.Unauthorized();
+            if (!identity.Scopes.Contains("classification.classify"))
+                return Results.StatusCode(403);
             if (reservationId == Guid.Empty || claimId == Guid.Empty || context.Request.ContentLength is > 0 ||
-                context.Request.Headers.ContainsKey("Transfer-Encoding") || context.Request.Headers.ContainsKey("Content-Encoding")) return Results.BadRequest();
+                context.Request.Headers.ContainsKey("Transfer-Encoding") || context.Request.Headers.ContainsKey("Content-Encoding"))
+                return Results.BadRequest();
             try
             {
                 var result = await context.RequestServices.GetRequiredService<CloudExecutionCompletionService>().CompleteClassificationAsync(

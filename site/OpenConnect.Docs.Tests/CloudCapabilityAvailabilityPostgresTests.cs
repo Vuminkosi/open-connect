@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -11,6 +10,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenConnect.Docs.Cloud;
@@ -32,13 +32,31 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
-            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test",
-                ContractVersion = "v1", BillingUnit = "request", PlatformAvailability = "not_configured",
-                Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.Capabilities.Add(new CloudCapabilityDefinition
+            {
+                Id = capability,
+                Name = "Test",
+                Description = "Test",
+                ContractVersion = "v1",
+                BillingUnit = "request",
+                PlatformAvailability = "not_configured",
+                Dependencies = "[]",
+                Modalities = "[]",
+                AllowedRegions = "[]"
+            });
             await db.SaveChangesAsync();
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = deploymentId, CapabilityId = capability,
-                EndpointReference = "race-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "test",
-                ContractVersion = "v1", ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = deploymentId,
+                CapabilityId = capability,
+                EndpointReference = "race-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "test",
+                ContractVersion = "v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 1
+            });
             await db.SaveChangesAsync();
         }
         var service = new CloudCapabilityAvailabilityService(new EfCloudCapabilityAvailabilityStore(factory, TimeProvider.System));
@@ -54,7 +72,8 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
                 for (var attempt = 0; attempt < 150 && !waiting; attempt++)
                 {
                     waiting = await observer.Database.SqlQueryRaw<bool>("SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%cloud.worker_deployments%') AS \"Value\"").SingleAsync();
-                    if (!waiting) await Task.Delay(20);
+                    if (!waiting)
+                        await Task.Delay(20);
                 }
             }
             Assert.True(waiting, "The declaration did not wait for the deployment update.");
@@ -76,9 +95,18 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
         await using (var db = await factory.CreateDbContextAsync())
         {
             await db.Database.MigrateAsync();
-            db.Capabilities.Add(new CloudCapabilityDefinition { Id = capability, Name = "Test", Description = "Test",
-                ContractVersion = "v1", BillingUnit = "request", PlatformAvailability = "not_configured",
-                Dependencies = "[]", Modalities = "[]", AllowedRegions = "[]" });
+            db.Capabilities.Add(new CloudCapabilityDefinition
+            {
+                Id = capability,
+                Name = "Test",
+                Description = "Test",
+                ContractVersion = "v1",
+                BillingUnit = "request",
+                PlatformAvailability = "not_configured",
+                Dependencies = "[]",
+                Modalities = "[]",
+                AllowedRegions = "[]"
+            });
             await db.SaveChangesAsync();
         }
         var service = new CloudCapabilityAvailabilityService(new EfCloudCapabilityAvailabilityStore(factory, TimeProvider.System));
@@ -88,9 +116,18 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
         Assert.Equal("deployment_required", (await service.PutAsync(actor, trace, capability, "available", 1, default)).Status);
         await using (var db = await factory.CreateDbContextAsync())
         {
-            db.WorkerDeployments.Add(new CloudWorkerDeployment { Id = Guid.NewGuid(), CapabilityId = capability,
-                EndpointReference = "test-" + Guid.NewGuid().ToString("N"), Transport = "https-mtls", Region = "test", ContractVersion = "v1",
-                ImageDigest = "sha256:" + new string('a', 64), Enabled = true, ConcurrencyLimit = 1 });
+            db.WorkerDeployments.Add(new CloudWorkerDeployment
+            {
+                Id = Guid.NewGuid(),
+                CapabilityId = capability,
+                EndpointReference = "test-" + Guid.NewGuid().ToString("N"),
+                Transport = "https-mtls",
+                Region = "test",
+                ContractVersion = "v1",
+                ImageDigest = "sha256:" + new string('a', 64),
+                Enabled = true,
+                ConcurrencyLimit = 1
+            });
             await db.SaveChangesAsync();
         }
         var concurrent = await Task.WhenAll(Enumerable.Range(0, 2)
@@ -120,11 +157,20 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
     private static async Task VerifyHttpAsync(IDbContextFactory<CloudControlPlaneDbContext> factory, string capability)
     {
         const string issuer = "https://operator.example";
-        var builder = WebApplication.CreateBuilder(); builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["OpenConnect:Cloud:Identity:Enabled"] = "true", ["OpenConnect:Cloud:Identity:Authority"] = issuer,
-            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer, ["OpenConnect:Cloud:Operators:0:Subject"] = "operator" });
-        builder.Services.AddSingleton(factory); builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton<CloudOperatorAccess>();
-        builder.Services.AddScoped<ICloudCapabilityAvailabilityStore, EfCloudCapabilityAvailabilityStore>(); builder.Services.AddScoped<CloudCapabilityAvailabilityService>();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["OpenConnect:Cloud:Identity:Enabled"] = "true",
+            ["OpenConnect:Cloud:Identity:Authority"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Issuer"] = issuer,
+            ["OpenConnect:Cloud:Operators:0:Subject"] = "operator"
+        });
+        builder.Services.AddSingleton(factory);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<CloudOperatorAccess>();
+        builder.Services.AddScoped<ICloudCapabilityAvailabilityStore, EfCloudCapabilityAvailabilityStore>();
+        builder.Services.AddScoped<CloudCapabilityAvailabilityService>();
         builder.Services.AddAntiforgery(x => x.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(x =>
         {
@@ -132,7 +178,9 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
             x.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });
         builder.Services.AddAuthorization(x => x.AddPolicy("CloudApi", policy => policy.AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme).RequireAuthenticatedUser()));
-        await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization();
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapGet("/test-sign-in/{subject}", async (string subject, HttpContext context) => await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, subject, ClaimValueTypes.String, issuer)], CookieAuthenticationDefaults.AuthenticationScheme))));
         app.MapGet("/test-antiforgery", (HttpContext context, IAntiforgery antiforgery) => Results.Ok(new { token = antiforgery.GetAndStoreTokens(context).RequestToken }));
@@ -149,17 +197,22 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
         var token = tokenJson.RootElement.GetProperty("token").GetString()!;
         using (var request = Write(path, token, "3", "available"))
         {
-            var response = await client.SendAsync(request); Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("\"4\"", response.Headers.ETag?.ToString());
         }
-        using (var request = Write(path, token, "3", "not_configured")) Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
-        using (var request = Write(path, token, "4", "invalid")) Assert.Equal(HttpStatusCode.UnprocessableEntity, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write(path, token, "3", "not_configured"))
+            Assert.Equal(HttpStatusCode.Conflict, (await client.SendAsync(request)).StatusCode);
+        using (var request = Write(path, token, "4", "invalid"))
+            Assert.Equal(HttpStatusCode.UnprocessableEntity, (await client.SendAsync(request)).StatusCode);
         using (var request = Write(path, token, "4", "available"))
         {
             request.Content = new StringContent("{\"availability\":\"available\",\"Availability\":\"not_configured\"}", System.Text.Encoding.UTF8, "application/json");
             Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         }
-        var read = await client.GetAsync(path); Assert.Equal("\"4\"", read.Headers.ETag?.ToString()); Assert.Equal("no-store", read.Headers.CacheControl?.ToString());
+        var read = await client.GetAsync(path);
+        Assert.Equal("\"4\"", read.Headers.ETag?.ToString());
+        Assert.Equal("no-store", read.Headers.CacheControl?.ToString());
         await using var db = await factory.CreateDbContextAsync();
         Assert.Contains(await db.AuditEvents.Where(x => x.Action == "catalog.availability.changed" && x.ResourceId == capability).ToListAsync(), x => x.Outcome == "forbidden");
     }
@@ -167,7 +220,9 @@ public sealed class CloudCapabilityAvailabilityPostgresTests
     private static HttpRequestMessage Write(string path, string token, string revision, string availability)
     {
         var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(new { availability }) };
-        request.Headers.Add("X-CSRF-TOKEN", token); request.Headers.Add("If-Match", $"\"{revision}\""); return request;
+        request.Headers.Add("X-CSRF-TOKEN", token);
+        request.Headers.Add("If-Match", $"\"{revision}\"");
+        return request;
     }
 
     private sealed class Factory(DbContextOptions<CloudControlPlaneDbContext> options) : IDbContextFactory<CloudControlPlaneDbContext>
