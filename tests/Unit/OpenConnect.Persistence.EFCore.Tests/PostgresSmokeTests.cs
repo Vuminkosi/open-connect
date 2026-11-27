@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
@@ -35,41 +35,46 @@ public sealed class PostgresSmokeTests(ITestOutputHelper output)
     private static OpenConnectDbContext CreateContext(string connectionString) =>
         new(new DbContextOptionsBuilder<OpenConnectDbContext>().UseNpgsql(connectionString).Options);
 
+    private static readonly string[] ExpectedTables =
+    [
+        "ApprovalNonces", "Approvals", "Events", "Leases",
+        "MessagingAttachments", "MessagingCalls", "MessagingContinuations", "MessagingConversations",
+        "MessagingDevices", "MessagingEnrollments", "MessagingFollowUps", "MessagingKeyPackages",
+        "MessagingMessages", "MessagingParticipants", "MessagingPushRegistrations", "MessagingReceipts",
+        "MessagingRefreshGrants", "NativeAgentSessions", "OperationalRuns", "Outbox",
+        "PrivacyTokens", "PublicSessionMappings", "Sessions", "Tasks",
+        "Turns",
+    ];
+
     [Fact]
-    public async Task PostgresSmoke_MigrationContent_has_expected_openconnect_tables()
+    public void PostgresSmoke_ModelHasExpectedOpenConnectTables()
     {
-        await using var db = CreateScriptContext();
-        var script = db.Database.GenerateCreateScript();
-        var lines = script.Split('\n');
-        var scriptPath = Path.Combine(Path.GetTempPath(), $"efsmoke-{Guid.NewGuid():N}.sql");
-        try
-        {
-            await File.WriteAllLinesAsync(scriptPath, lines.Take(60));
-        }
-        finally
-        {
-            if (File.Exists(scriptPath))
-                File.Delete(scriptPath);
-        }
-        Assert.All(db.Model.GetEntityTypes(), e => Assert.Equal("openconnect", e.GetSchema()));
-        Assert.Equal(12, db.Model.GetEntityTypes().Count(e => e.GetSchema() == "openconnect"));
-        // PgContext defines no business entities; 12 = all OpenConnect tables, zero coupling
-        Assert.Equal(12, System.Text.RegularExpressions.Regex.Matches(script, @"CREATE TABLE").Count);
-        Assert.Equal(12, db.Model.GetEntityTypes().Count());
-        Assert.Contains("NativeAgentSessions", script);
+        using var db = CreateScriptContext();
+        var tables = db.Model.GetEntityTypes().ToArray();
+        Assert.All(tables, table => Assert.Equal("openconnect", table.GetSchema()));
+        var names = tables.Select(table => table.GetTableName()).OrderBy(name => name, StringComparer.Ordinal);
+        Assert.Equal(ExpectedTables, names);
     }
 
     [Fact]
-    public void PostgresSmoke_IdempotentScriptHasOnlyOpenConnectTables()
+    public void PostgresSmoke_CreateScriptHasOnlyOpenConnectTables()
     {
-        using var pgContext = CreateScriptContext();
-        var sql = pgContext.Database.GenerateCreateScript();
-        var expectedTables = new[] { "Sessions", "Tasks", "Turns", "Events", "Outbox", "Leases", "Approvals", "PrivacyTokens", "OperationalRuns", "NativeAgentSessions", "PublicSessionMappings", "ApprovalNonces" };
-        Assert.All(expectedTables, table => Assert.Contains($"openconnect.\"{table}\"", sql));
-        Assert.Equal(12, System.Text.RegularExpressions.Regex.Matches(sql, "CREATE TABLE").Count);
+        using var db = CreateScriptContext();
+        var sql = db.Database.GenerateCreateScript();
+        var generationHelper = db.GetService<ISqlGenerationHelper>();
+        var expected = ExpectedTables.Select(table => generationHelper.DelimitIdentifier(table, "openconnect"));
+        const string prefix = "CREATE TABLE ";
+        const string suffix = " (";
+        var createStatements = sql.ReplaceLineEndings("\n").Split('\n')
+            .Where(line => line.StartsWith(prefix, StringComparison.Ordinal))
+            .ToArray();
+        Assert.All(createStatements, line => Assert.EndsWith(suffix, line));
+        var actual = createStatements.Select(line => line[prefix.Length..^suffix.Length]);
+        Assert.Equal(expected.Order(StringComparer.Ordinal), actual.Order(StringComparer.Ordinal));
         Assert.DoesNotContain("Customers", sql);
         Assert.DoesNotContain("Orders", sql);
     }
+
     [PostgresSmokeFixtureFact]
     public async Task PostgresSmoke_RoundTrip_persists_openconnect_workflows()
     {
