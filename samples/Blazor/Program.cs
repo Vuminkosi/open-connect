@@ -11,7 +11,6 @@ using MudBlazor.Services;
 using OpenConnect.Abstractions.Messaging;
 using OpenConnect.Agents.Templates;
 using OpenConnect.Client;
-using OpenConnect.Client.Messaging;
 using OpenConnect.Components.Blazor;
 using OpenConnect.Core;
 using OpenConnect.Hosting.AspNetCore;
@@ -290,7 +289,6 @@ builder.Services.AddOpenConnectMessaging(options =>
         options.AllowInsecureLoopbackHttpInDevelopment = builder.Environment.IsDevelopment();
     }
 });
-builder.Services.AddOpenConnectMessagingClient();
 builder.Services.AddOpenConnectMessagingPersistence<BlazorDbContext>();
 builder.Services.AddOpenConnectMessagingHosting(options =>
 {

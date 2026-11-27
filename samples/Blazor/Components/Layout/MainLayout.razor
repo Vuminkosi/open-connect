@@ -71,24 +71,6 @@
             </div>
         }
 
-        @if (_messagingEnabled)
-        {
-            <MudTooltip Text="Encrypted Messaging Inbox">
-                <MudIconButton Icon="@Icons.Material.Outlined.Forum"
-                               Color="Color.Default"
-                               Class="oc-touch-target"
-                               aria-label="Open encrypted messaging inbox"
-                               OnClick="OpenMessaging" />
-            </MudTooltip>
-            <MudTooltip Text="Linked Mobile Devices">
-                <MudIconButton Icon="@Icons.Material.Outlined.Devices"
-                               Color="Color.Default"
-                               Class="oc-touch-target"
-                               aria-label="Open linked mobile devices"
-                               OnClick="OpenLinkedDevices" />
-            </MudTooltip>
-        }
-
         <div class="d-none d-lg-flex align-center px-3 py-1 rounded-pill mr-2"
              style="background-color: var(--mud-palette-background); border: 1px solid var(--mud-palette-lines-default);">
             <span class="oc-pulse-dot mr-2" aria-hidden="true"></span>
@@ -105,7 +87,7 @@
         <LiveUIInferenceModelSetup />
     </MudAppBar>
 
-    <MudMainContent id="main-content" Class="pa-4 pa-md-8 pt-20" Style="max-width: 1280px; margin: 0 auto; width: 100%;">
+    <MudMainContent id="main-content" Class="pa-4 pa-md-8" Style="max-width: 1280px; margin: 0 auto; width: 100%; padding-top: 88px !important;">
         @if (_messagingEnabled)
         {
             <MessagingProvider IsAuthenticated="true">

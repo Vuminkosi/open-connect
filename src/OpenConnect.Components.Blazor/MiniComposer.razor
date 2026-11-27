@@ -59,6 +59,30 @@
                 <span class="oc-bubble-subtitle" style="display: none;">@StatusText</span>
 
                 <span class="oc-bubble__header-actions">
+                    @if (EnableMessaging)
+                    {
+                        <MudBadge Content="@MessagingUnreadCount"
+                                  Visible="@(MessagingUnreadCount > 0)"
+                                  Color="Color.Primary"
+                                  Overlap="true"
+                                  Bordered="true">
+                            <MudIconButton Icon="@Icons.Material.Outlined.Forum"
+                                           Size="Size.Small"
+                                           Color="Color.Default"
+                                           OnClick="OpenMessagingAsync"
+                                           aria-label="@(MessagingUnreadCount > 0 ? $"Open encrypted messaging inbox ({MessagingUnreadCount} unread)" : "Open encrypted messaging inbox")"
+                                           title="@(MessagingUnreadCount > 0 ? $"Encrypted messaging inbox ({MessagingUnreadCount} unread)" : "Encrypted messaging inbox")" />
+                        </MudBadge>
+                    }
+                    @if (EnableLinkedDevices)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Devices"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       OnClick="OpenLinkedDevicesAsync"
+                                       aria-label="Open linked mobile devices"
+                                       title="Linked mobile devices" />
+                    }
                     <MudMenu @ref="_settingsMenu"
                              Icon="@Icons.Material.Filled.Settings"
                              Size="Size.Small"
@@ -335,6 +359,29 @@
                     </button>
                 </div>
             </div>
+
+            @if (_showBuiltInLinkedDevices)
+            {
+                <div class="oc-bubble-divider"></div>
+                <div class="pa-2" role="region" aria-label="Linked mobile devices">
+                    <div class="d-flex align-center justify-space-between mb-1">
+                        <MudText Typo="Typo.subtitle2">Linked mobile devices</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CloseBuiltInMessagingPanels" aria-label="Close linked devices" />
+                    </div>
+                    <OpenConnect.Components.Blazor.Messaging.LinkedDevices />
+                </div>
+            }
+            else if (_showBuiltInMessaging)
+            {
+                <div class="oc-bubble-divider"></div>
+                <div class="pa-2" role="region" aria-label="Encrypted messaging inbox">
+                    <div class="d-flex align-center justify-space-between mb-1">
+                        <MudText Typo="Typo.subtitle2">Encrypted messaging inbox</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CloseBuiltInMessagingPanels" aria-label="Close messaging inbox" />
+                    </div>
+                    <OpenConnect.Components.Blazor.Messaging.MessagingInbox />
+                </div>
+            }
 
         </section>
     }
