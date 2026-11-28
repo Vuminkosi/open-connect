@@ -67,7 +67,10 @@ public static class PrivacyServiceCollectionExtensions
     public static IServiceCollection AddOpenConnectRulesDetector(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.TryAddSingleton<ISecurityDetector>(sp => new RulesSecurityDetector(sp.GetService<ITokenVault>()));
+        services.TryAddSingleton<ISecurityDetector>(sp => new RulesSecurityDetector(
+            sp.GetService<ITokenVault>(),
+            customRules: null,
+            tokenTtl: (sp.GetService<IOptions<PrivacyOptions>>()?.Value ?? new PrivacyOptions()).DefaultTokenTtl));
         return services;
     }
 }

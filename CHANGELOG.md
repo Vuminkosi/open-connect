@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `PrivacyOptions.DefaultTokenTtl` is now applied to vault tokens created by the rules detector registered with `AddOpenConnectRulesDetector` (#153). Previously the detector always used 30 minutes. The default is still 30 minutes. `RulesSecurityDetector` has a new constructor overload that takes the token lifetime.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

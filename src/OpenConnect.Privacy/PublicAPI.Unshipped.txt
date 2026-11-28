@@ -227,7 +227,7 @@ OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.get -> System.Text.RegularE
 OpenConnect.Privacy.Rules.CustomDetectorRule.Pattern.init -> void
 OpenConnect.Privacy.Rules.RulesSecurityDetector
 OpenConnect.Privacy.Rules.RulesSecurityDetector.DetectAndSanitizeAsync(string! content, OpenConnect.Privacy.EgressContext! context, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<OpenConnect.Privacy.DetectorResult!>
-OpenConnect.Privacy.Rules.RulesSecurityDetector.RulesSecurityDetector(OpenConnect.Privacy.ITokenVault? vault = null, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Rules.CustomDetectorRule!>? customRules = null) -> void
+OpenConnect.Privacy.Rules.RulesSecurityDetector.RulesSecurityDetector(OpenConnect.Privacy.ITokenVault? vault = null, System.Collections.Generic.IReadOnlyList<OpenConnect.Privacy.Rules.CustomDetectorRule!>? customRules = null, System.TimeSpan? tokenTtl = null) -> void
 OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer
 OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.FlushAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>
 OpenConnect.Privacy.Streaming.StreamingPlaceholderBuffer.ProcessChunkAsync(string! chunk, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string!>

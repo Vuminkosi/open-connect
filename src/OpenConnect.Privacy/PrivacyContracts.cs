@@ -137,7 +137,7 @@ public sealed class PrivacyOptions
     public bool Enabled { get; set; } = true;
     /// <summary>Gets or sets the firewall enforcement mode.</summary>
     public FirewallMode Mode { get; set; } = FirewallMode.StrictLocal;
-    /// <summary>Gets or sets the default lifetime for privacy tokens.</summary>
+    /// <summary>Gets or sets the lifetime of vault tokens created by the registered rules detector. Must be positive; defaults to 30 minutes.</summary>
     public TimeSpan DefaultTokenTtl { get; set; } = TimeSpan.FromMinutes(30);
     /// <summary>Gets or sets whether outbound egress validation is required.</summary>
     public bool RequireEgressValidation { get; set; } = true;

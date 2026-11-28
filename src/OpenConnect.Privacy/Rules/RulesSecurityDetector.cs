@@ -32,14 +32,23 @@ public sealed class RulesSecurityDetector : ISecurityDetector
     private static readonly Regex LabeledPiiRegex = new(@"(?im)\b(?:full[\s_\-]*name|first[\s_\-]*name|last[\s_\-]*name|given[\s_\-]*name|family[\s_\-]*name|date[\s_\-]*of[\s_\-]*birth|birth[\s_\-]*date|dob|social[\s_\-]*security[\s_\-]*number|ssn|national[\s_\-]*id|passport[\s_\-]*(?:number|no)|driv(?:er(?:'s)?|ing)[\s_\-]*licen[cs]e(?:[\s_\-]*(?:number|no))?|tax[\s_\-]*(?:identification|id)(?:[\s_\-]*(?:number|no))?|bank[\s_\-]*account(?:[\s_\-]*(?:number|no))?|medical[\s_\-]*record(?:[\s_\-]*(?:number|no))?|(?:ip|mac)[\s_\-]*address|device[\s_\-]*(?:id|identifier)|imei|latitude|longitude|street[\s_\-]*address|home[\s_\-]*address|(?:e[\s_\-]*mail|telephone|phone|mobile)(?:[\s_\-]*(?:address|number|no))?)""?[ \t]*[:=][ \t]*(?:""(?<value>(?:\\(?:[^\r\n]|(?=\r?$))|[^\\""\r\n])+)(?:""|(?=\r?$))|(?!"")(?<value>[^\r\n""}]+))", RegexOptions.Compiled, RegexTimeout);
     private static readonly Regex PrivacyTokenRegex = new(@"\A\[OC_(?:[0-9A-F]{32}|EMAIL|PHONE|PAYMENT_CARD|PERSONAL_DATA|SECRET|OTHER)\]\z", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
+    private static readonly TimeSpan DefaultTokenTtl = TimeSpan.FromMinutes(30);
+
     private readonly ITokenVault? _vault;
     private readonly IReadOnlyList<CustomDetectorRule> _customRules;
+    private readonly TimeSpan _tokenTtl;
 
     /// <summary>Initializes a new instance of <see cref="RulesSecurityDetector"/>.</summary>
     /// <param name="vault">Optional token vault to tokenize detected entities.</param>
     /// <param name="customRules">Optional custom regex rules.</param>
-    public RulesSecurityDetector(ITokenVault? vault = null, IReadOnlyList<CustomDetectorRule>? customRules = null)
+    /// <param name="tokenTtl">Lifetime of tokens stored in the vault. Defaults to 30 minutes, matching <see cref="PrivacyOptions.DefaultTokenTtl"/>.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="tokenTtl"/> is not positive.</exception>
+    public RulesSecurityDetector(ITokenVault? vault = null, IReadOnlyList<CustomDetectorRule>? customRules = null, TimeSpan? tokenTtl = null)
     {
+        var ttl = tokenTtl ?? DefaultTokenTtl;
+        if (ttl <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(tokenTtl), "Token TTL must be positive.");
+        _tokenTtl = ttl;
         _vault = vault;
         _customRules = customRules?.Select(rule =>
         {
@@ -253,7 +262,7 @@ public sealed class RulesSecurityDetector : ISecurityDetector
             string replacement;
             if (_vault is not null)
             {
-                replacement = await _vault.StoreAsync(entity.RawValue, entity.EntityType, scope, TimeSpan.FromMinutes(30), cancellationToken).ConfigureAwait(false);
+                replacement = await _vault.StoreAsync(entity.RawValue, entity.EntityType, scope, _tokenTtl, cancellationToken).ConfigureAwait(false);
             }
             else
             {
