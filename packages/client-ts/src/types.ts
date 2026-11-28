@@ -98,6 +98,12 @@ export interface SessionEvent {
   payload: Record<string, unknown>;
 }
 
+/** Server `registered` control frame sent once after a session event stream connects. */
+export interface SessionRegistration {
+  connectionId: string;
+  sessionId: string;
+}
+
 export interface ErrorBody {
   /** kebab-case machine-readable code. */
   code: OpenConnectErrorCode;

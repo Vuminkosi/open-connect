@@ -254,3 +254,117 @@ describe("subscribeEvents validation", () => {
     expect(openSocket).not.toHaveBeenCalled();
   });
 });
+
+describe("subscribeEvents frames", () => {
+  const validEvent = {
+    schemaVersion: "1.0",
+    eventId: "evt-1",
+    eventType: "task.completed",
+    sessionId: SESSION_ID,
+    sequence: 3,
+    occurredAt: "2025-01-01T00:00:00Z",
+    payload: {},
+  };
+
+  function subscribe(handlers: {
+    onRegistered?: (r: { connectionId: string; sessionId: string }) => void;
+    onEvent?: (e: SessionEvent) => void;
+    onError?: (e: OpenConnectError) => void;
+  }) {
+    let listener: (ev: unknown) => void = () => {};
+    const socket = {
+      addEventListener: (type: string, l: (ev: unknown) => void) => {
+        if (type === "message") listener = l;
+      },
+      close: () => {},
+    };
+    const client = new OpenConnectClient({
+      baseUrl: "https://api.example.test/openconnect/v1",
+      fetchImpl: vi.fn(),
+      websocketImpl: () => socket,
+    });
+    const onEvent = handlers.onEvent ?? vi.fn();
+    client.subscribeEvents(SESSION_ID, { ...handlers, onEvent });
+    return { send: (data: unknown) => listener({ data: typeof data === "string" ? data : JSON.stringify(data) }), onEvent };
+  }
+
+  it("delivers legacy EventRecord frames from ULID session routes to onEvent", () => {
+    const onError = vi.fn();
+    const { send, onEvent } = subscribe({ onError });
+    const legacy = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", sequence: 4, type: "task.completed", data: "{\"ok\":true}" };
+    send({ type: "registered", connectionId: "c", sessionId: legacy.sessionId });
+    send(legacy);
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith(legacy);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("routes the registered frame to onRegistered only", () => {
+    const onRegistered = vi.fn();
+    const onError = vi.fn();
+    const { send, onEvent } = subscribe({ onRegistered, onError });
+    send({ type: "registered", connectionId: "conn-1", sessionId: SESSION_ID });
+    expect(onRegistered).toHaveBeenCalledWith({ connectionId: "conn-1", sessionId: SESSION_ID });
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("silently consumes registered frames without an onRegistered handler", () => {
+    const onError = vi.fn();
+    const { send, onEvent } = subscribe({ onError });
+    send({ type: "registered", connectionId: "conn-1", sessionId: SESSION_ID });
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("reports a registered frame with missing ids via onError", () => {
+    const onRegistered = vi.fn();
+    const onError = vi.fn();
+    const { send, onEvent } = subscribe({ onRegistered, onError });
+    send({ type: "registered", connectionId: 5 });
+    expect(onRegistered).not.toHaveBeenCalled();
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({ code: "invalid_request" });
+  });
+
+  it("delivers valid session events to onEvent", () => {
+    const onRegistered = vi.fn();
+    const { send, onEvent } = subscribe({ onRegistered });
+    send(validEvent);
+    expect(onEvent).toHaveBeenCalledWith(validEvent);
+    expect(onRegistered).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["malformed JSON", "{not json"],
+    ["non-object", "42"],
+    ["null", "null"],
+    ["array", "[]"],
+    ["unknown control frame", { type: "other", secret: "s3cret" }],
+    ["missing eventId", { ...validEvent, eventId: undefined }],
+    ["fractional sequence", { ...validEvent, sequence: 1.5 }],
+    ["non-object payload", { ...validEvent, payload: "x" }],
+  ])("reports %s via onError without calling onEvent", (_name, frame) => {
+    const onError = vi.fn();
+    const { send, onEvent } = subscribe({ onError });
+    send(frame);
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    const error = onError.mock.calls[0]?.[0] as OpenConnectError;
+    expect(error.code).toBe("invalid_request");
+    expect(error.message).not.toContain("s3cret");
+  });
+
+  it("keeps reporting handler exceptions through onError", () => {
+    const onError = vi.fn();
+    const { send } = subscribe({
+      onEvent: () => {
+        throw new Error("boom");
+      },
+      onError,
+    });
+    send(validEvent);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+});

@@ -9,6 +9,7 @@ export type {
   OpenConnectErrorCode,
   OpenConnectSchemaVersion,
   SessionEvent,
+  SessionRegistration,
   TaskRecord,
   TaskState,
 } from "./types.js";
