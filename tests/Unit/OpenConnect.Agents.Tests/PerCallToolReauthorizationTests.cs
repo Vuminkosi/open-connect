@@ -163,6 +163,57 @@ public sealed class PerCallToolReauthorizationTests
         Assert.Equal(1, executions);
     }
 
+    [Fact]
+    public void Wrapper_PreservesInnerFunctionDeclaration()
+    {
+        var inner = AIFunctionFactory.Create(
+            (string query) => "saved",
+            new AIFunctionFactoryOptions { Name = "write_database", Description = "Writes a row." });
+        var guarded = WrapAllowAll(inner, WriteTool);
+
+        Assert.Equal("write_database", guarded.Name);
+        Assert.Equal("Writes a row.", guarded.Description);
+        Assert.Equal(inner.JsonSchema.GetRawText(), guarded.JsonSchema.GetRawText());
+        Assert.Equal(inner.ReturnJsonSchema?.GetRawText(), guarded.ReturnJsonSchema?.GetRawText());
+        Assert.Same(inner.AdditionalProperties, guarded.AdditionalProperties);
+        Assert.Same(inner.JsonSerializerOptions, guarded.JsonSerializerOptions);
+        Assert.Same(inner.UnderlyingMethod, guarded.UnderlyingMethod);
+        Assert.Contains("query", guarded.JsonSchema.GetRawText());
+    }
+
+    [Fact]
+    public async Task WrappedTools_RemainDistinct_AndInvokeByName()
+    {
+        var calls = new List<string>();
+        var readTool = new ToolId("read_database");
+        var granted = new HashSet<ToolId> { WriteTool };
+        var write = AIFunctionFactory.Create(() => { calls.Add("write"); return "w"; }, "write_database");
+        var read = AIFunctionFactory.Create(() => { calls.Add("read"); return "r"; }, "read_database");
+        var context = CreateContext(DateTimeOffset.UtcNow.AddMinutes(5));
+        AIFunction[] tools =
+        [
+            PerCallToolReauthorizer.Wrap(write, WriteTool, ToolImpact.Write, granted.Contains, (_, _) => ValueTask.FromResult(false), context),
+            PerCallToolReauthorizer.Wrap(read, readTool, ToolImpact.Write, granted.Contains, (_, _) => ValueTask.FromResult(false), context),
+        ];
+
+        Assert.Equal(["write_database", "read_database"], tools.Select(t => t.Name));
+
+        // Name lookup (as function invocation does) reaches each tool with its own ToolId.
+        await tools.Single(t => t.Name == "write_database").InvokeAsync();
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await tools.Single(t => t.Name == "read_database").InvokeAsync());
+        Assert.Equal(["write"], calls);
+    }
+
+    private static AIFunction WrapAllowAll(AIFunction inner, ToolId toolId) =>
+        PerCallToolReauthorizer.Wrap(
+            inner,
+            toolId,
+            ToolImpact.Write,
+            _ => true,
+            (_, _) => ValueTask.FromResult(false),
+            CreateContext(DateTimeOffset.UtcNow.AddMinutes(5)));
+
     private static AgentExecutionContext CreateContext(DateTimeOffset deadline)
     {
         return new AgentExecutionContext
