@@ -130,6 +130,24 @@ public interface ITokenVault
     ValueTask<string?> ResolveAsync(string token, PrivacyScope scope, CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// An <see cref="ITokenVault"/> that can report whether a token represents a secret-category entity.
+/// Restoration components (<c>TokenRestorationService</c> and <c>StreamingPlaceholderBuffer</c>) restore a token
+/// only when its vault implements this interface and reports the token as not secret. Vaults that do not
+/// implement it, including decorators around <see cref="Tokenization.TokenVault"/>, never have tokens restored.
+/// </summary>
+public interface ISecretAwareTokenVault : ITokenVault
+{
+    /// <summary>
+    /// Returns whether the token belongs to a secret-category entity type (see
+    /// <see cref="Worker.TextOverlapResolver.IsSecretCategory(string?)"/>) within the supplied scope.
+    /// </summary>
+    /// <param name="token">Token to classify.</param>
+    /// <param name="scope">Scope the token must belong to.</param>
+    /// <returns><see langword="true"/> when the token is secret or its category cannot be determined; otherwise <see langword="false"/>.</returns>
+    bool IsSecretToken(string token, PrivacyScope scope);
+}
+
 /// <summary>Configures privacy enforcement and token lifetime defaults.</summary>
 public sealed class PrivacyOptions
 {

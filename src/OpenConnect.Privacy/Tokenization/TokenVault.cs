@@ -5,7 +5,7 @@ using System.Text;
 namespace OpenConnect.Privacy.Tokenization;
 
 /// <summary>Encrypted, process-local token vault. Supply a stable protected key to preserve entries across instances.</summary>
-public sealed class TokenVault : ITokenVault, IDisposable
+public sealed class TokenVault : ISecretAwareTokenVault, IDisposable
 {
     private sealed record Entry(byte[] Nonce, byte[] Ciphertext, byte[] Tag, string EntityType, PrivacyScope Scope, DateTimeOffset ExpiresAt);
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);

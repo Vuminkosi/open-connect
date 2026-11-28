@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed secret restoration (#173): `StreamingPlaceholderBuffer` and `TokenRestorationService` now never restore secret-category tokens (`SECRET`, `CREDENTIAL`, `API_KEY`, `PRIVATE_KEY`, `ACCESS_TOKEN`, `PASSWORD`) and fail closed. Added `ISecretAwareTokenVault`, implemented by `TokenVault`. Custom or decorated `ITokenVault` implementations that do not implement it no longer have any token restored; implement `ISecretAwareTokenVault` to restore non-secret tokens again.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

@@ -83,8 +83,8 @@ public sealed class TokenRestorationService(ITokenVault vault) : ITokenRestorati
             }
 
             var token = match.Value;
-            // Secrets must never be restored through generic restoration policies.
-            if (_vault is TokenVault tokenVault && tokenVault.IsSecretToken(token, scope))
+            // Secrets must never be restored through generic restoration policies (fail closed).
+            if (!SecretRestorationGuard.IsRestorable(_vault, token, scope))
             {
                 sb.Append(token);
             }

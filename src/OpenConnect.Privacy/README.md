@@ -33,6 +33,23 @@ EgressDecision decision = await firewall.EvaluateAsync(
 scoped by `EgressContext` (`:64`). Deny-by-default: disabled detectors fail closed on
 external egress.
 
+## Token restoration and secrets
+
+Tokens of secret categories (`SECRET`, `CREDENTIAL`, `API_KEY`, `PRIVATE_KEY`,
+`ACCESS_TOKEN`, `PASSWORD`, see `TextOverlapResolver.IsSecretCategory`) are never
+restored to plaintext. `TokenRestorationService` (`FinalUserOutput` and
+`ToolArguments`) and `StreamingPlaceholderBuffer` apply the same rule and return
+identical output for the same text and scope.
+
+Restoration is fail closed. A token is resolved only when its vault implements
+`ISecretAwareTokenVault` and reports the token as not secret. A vault that only
+implements `ITokenVault` (including a decorator around `TokenVault`), or whose
+`IsSecretToken` check throws, never has tokens restored; the placeholder stays in
+the output. Custom or decorated vaults must implement `ISecretAwareTokenVault`
+and delegate `IsSecretToken` to report categories. The
+`StreamingPlaceholderBuffer(Func<string, ValueTask<string?>>)` constructor has no
+vault, so the delegate owns the decision and must not return secret plaintext.
+
 ## Host evidence reporting
 
 Host reporting is opt-in. Configure a dedicated client certificate and active
