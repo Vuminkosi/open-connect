@@ -7,8 +7,8 @@ primitives, transport helpers, and local model utilities.
 - No database, vault, network, or model-download I/O on import. The explicit
   startup initializer may fetch operator-approved model assets over HTTPS.
 - Non-root compatible: no privileged operations, no hard-coded absolute paths.
-- Logging is redacted by default: emails, bearer tokens, secrets, phone
-  numbers, and card numbers are scrubbed before they reach log output.
+- Opt-in logging redaction scrubs recognized email, bearer, secret assignment,
+  phone and card patterns from formatted messages and exception tracebacks.
 
 ## Layout
 
@@ -39,6 +39,23 @@ if not Identity.from_environment().verify(authorization_header):
 
 claim = TaskClaim.from_envelope(envelope, worker_id="worker-1")
 ```
+
+`get_redacted_logger` filters records created directly by that named logger.
+Python does not apply a parent logger's filters to records propagated by child
+loggers. To cover those records, attach the existing filter to **each**
+application-owned handler that should redact them:
+
+```python
+from openconnect_worker_common.security.redacted_logs import RedactingFilter
+
+handler.addFilter(RedactingFilter())  # handler configured and owned by the application
+```
+
+The filter sanitizes the record in place. It clears raw exception information
+after rendering to prevent logging formatters from rendering it again, while
+retaining sanitized traceback text. It does not configure global handlers,
+inspect arbitrary structured extras, or guarantee redaction of records sent
+to an unfiltered sink.
 
 Health (framework-free):
 
