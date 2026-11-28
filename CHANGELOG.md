@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed `NatsMessagingEventPublisher` deduplication (#172): the JetStream `Nats-Msg-Id` is now tenant-scoped (`{tenantId}:{eventId}`) so equal event ids from different tenants no longer suppress each other on a shared stream. A concurrent duplicate dispatch now waits for the in-flight publish and returns `false` only after it succeeded; if it failed, the duplicate publishes itself. Upgrade note: the broker dedup identity changed, so an event published by an older version within the stream duplicate window may be delivered once more if re-published after upgrade. Public signatures are unchanged.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.
