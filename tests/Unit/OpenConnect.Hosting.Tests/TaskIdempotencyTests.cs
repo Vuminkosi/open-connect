@@ -52,6 +52,49 @@ public sealed class TaskIdempotencyTests
         Assert.DoesNotContain("00000000000000000000000000", Encoding.UTF8.GetString(response.Body));
     }
 
+    [Fact]
+    public async Task Sdk_client_exposes_error_code_for_real_idempotency_conflict()
+    {
+        await using var host = await CreateAppAsync();
+        await PostTaskAsync(host.App, "first");
+        var conflict = await PostTaskAsync(host.App, "different");
+
+        var error = await ReadClientErrorAsync(conflict);
+
+        Assert.Equal("idempotency-conflict", error.ErrorCode);
+        Assert.DoesNotContain("idempotency key", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Sdk_client_exposes_error_code_for_session_presence_problem()
+    {
+        await using var host = await CreateAppAsync();
+        var session = host.App.Services.GetRequiredService<InMemorySessionStore>()
+            .Create(new TenantId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAV")), new PrincipalId(Ulid.Parse("01ARZ3NDEKTSV4RRFFQ69G5FAW")));
+        // No connection is registered for the session, so the real MiniComposer endpoint path rejects the claim.
+        var request = new TaskRequest("presence", "hello", session.Id.Value.ToString()) { ClientConnectionId = "missing-connection" };
+
+        var conflict = await PostTaskAsync(host.App, "presence", request: request, origin: HostTaskOrigin.MiniComposer);
+        var error = await ReadClientErrorAsync(conflict);
+
+        Assert.Equal(StatusCodes.Status409Conflict, conflict.StatusCode);
+        Assert.Equal("session-presence", error.ErrorCode);
+    }
+
+    private static async Task<OpenConnect.Client.OpenConnectClientException> ReadClientErrorAsync(Response response)
+    {
+        using var handler = new FixedResponseHandler(response);
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") };
+        return await Assert.ThrowsAsync<OpenConnect.Client.OpenConnectClientException>(() =>
+            new OpenConnect.Client.OpenConnectClient(http).GetTaskAsync(new TaskId(Ulid.NewUlid())));
+    }
+
+    private sealed class FixedResponseHandler(Response response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage((System.Net.HttpStatusCode)response.StatusCode) { Content = new ByteArrayContent(response.Body) });
+    }
+
     private static async Task<TestHost> CreateAppAsync()
     {
         var builder = WebApplication.CreateBuilder();
@@ -85,7 +128,7 @@ public sealed class TaskIdempotencyTests
         catch (Exception) { /* Preserve the startup exception. */ }
     }
 
-    private static async Task<Response> PostTaskAsync(WebApplication app, string clientTaskId, string? tenant = null)
+    private static async Task<Response> PostTaskAsync(WebApplication app, string clientTaskId, string? tenant = null, TaskRequest? request = null, HostTaskOrigin origin = HostTaskOrigin.NonInteractive)
     {
         var context = new DefaultHttpContext { RequestServices = app.Services };
         context.Request.Method = "POST";
@@ -99,7 +142,7 @@ public sealed class TaskIdempotencyTests
         ], "test"));
         var responseBody = new MemoryStream();
         context.Response.Body = responseBody;
-        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted);
+        var result = await OpenConnect.Hosting.AspNetCore.EndpointRouteBuilderExtensions.HandleCreateTaskAsync(context, request ?? new TaskRequest(clientTaskId), app.Services.GetRequiredService<InMemoryTaskStore>(), context.RequestAborted, origin);
         await result.ExecuteAsync(context);
         return new Response(context.Response.StatusCode, context.Response.Headers.Location.ToString(), context.Response.ContentType, responseBody.ToArray());
     }

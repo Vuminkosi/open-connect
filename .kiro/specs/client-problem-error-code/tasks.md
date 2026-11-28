@@ -1,0 +1,9 @@
+# Client problem error code tasks
+
+- [x] **CLIENT-ERR-TASK-001** Implement `CodeFromProblemType` in `OpenConnectClient` (REQ-001 to 005).
+- [x] **CLIENT-ERR-TASK-002** Unit tests in `OpenConnect.Client.Tests` (REQ-001 to 006).
+- [x] **CLIENT-ERR-TASK-003** Hosting tests in `TaskIdempotencyTests` through the SDK client.
+- [x] **CLIENT-ERR-TASK-004** CHANGELOG and client README.
+- [x] **CLIENT-ERR-TASK-005** `dotnet test` passed: Client.Tests 55/55, Hosting TaskIdempotencyTests 5/5.
+- [x] **CLIENT-ERR-TASK-006** Review follow-up: reject percent-escapes and `.`/`..` segments in the raw `type` path (System.Uri normalizes both); add negative cases for percent-encoding, non-string, null and missing `type`, host-only URIs, dot segments, tab, newline, U+00A0, U+2003 and non-ASCII segments; session-presence hosting test now runs the real MiniComposer path of `HandleCreateTaskAsync`; CHANGELOG notes the 409 `ErrorCode` behavior change.
+- [x] **CLIENT-ERR-TASK-007** Evidence (.NET SDK 10.0.404, `dotnet restore --locked-mode`, then `dotnet test --no-restore`): Client.Tests 72/72 passed. With the pre-follow-up client source and the new tests, 6 failed (both percent-escape and all four dot-segment cases), which shows the new cases detect the gap. Hosting.Tests 275 passed and 1 skipped in 3 of 4 full runs. One run had 1 failure in the unrelated `SessionWebSocketStreamingTests.WebSocket_disconnect_releases_its_pending_interaction`, which then passed when run in isolation (intermittent). `dotnet format --verify-no-changes` exited 0 on the changed files. `dotnet build src/OpenConnect.Client -c Release -warnaserror -p:EnableSourceLink=false` succeeded for net8.0, net9.0 and net10.0 with 0 warnings. Without that flag, the Release build fails only with SourceLink "Source control information is not available" errors, an environment limitation of this sandbox.
