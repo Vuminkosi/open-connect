@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `WorkerEventConsumer` now records a `(tenantId, eventId)` as processed only after the handler succeeds (#164). Handler failures and cancellation propagate and leave the event redeliverable, and concurrent duplicates of an in-flight event wait for the first attempt instead of returning `false` early. Deduplication remains process-local and bounded, so this change does not provide cross-restart or multi-replica deduplication; handlers must be idempotent.
+
 - The TypeScript task client now sends the host's `message` and optional `sessionId` fields and returns the host's `id`, tenant, principal, and lifecycle state. Callers must replace the former `input`/`agentId` request and `taskId` response shape; the old request shape is rejected rather than silently dropping the prompt.
 
 - Enabled Qdrant event indexing now requires a host-provided `IProjectionReader`; the default empty reader is rejected at startup. Skipped and failed deliveries have sanitized diagnostics, and skips have a separate metric outcome.

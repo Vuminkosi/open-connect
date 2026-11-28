@@ -311,6 +311,13 @@ public interface IMessagingWorkerClient
 /// <summary>Dispatches and deduplicates inbound messaging events from the worker or durable stream.</summary>
 public interface IMessagingEventDispatcher
 {
+    /// <summary>Dispatches an event envelope.</summary>
+    /// <returns>
+    /// <see langword="true"/> if the event was processed by this call; <see langword="false"/> if it was already
+    /// processed. Implementations should record an event as processed only after handling succeeds, and should
+    /// propagate failures and cancellation so the event remains redeliverable. Deduplication scope and
+    /// durability are implementation specific; handlers should be idempotent.
+    /// </returns>
     ValueTask<bool> DispatchAsync(
         MessagingEventEnvelope envelope,
         CancellationToken cancellationToken = default);

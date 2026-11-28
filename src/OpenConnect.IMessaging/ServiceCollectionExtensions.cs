@@ -12,6 +12,12 @@ public static class ServiceCollectionExtensions
     /// Registers the OpenConnect IMessaging worker client, capability registration, event consumer,
     /// cryptographic envelope service, and domain coordinators. Disabled by default until explicitly enabled.
     /// </summary>
+    /// <remarks>
+    /// The default <see cref="IMessagingEventDispatcher"/> is a <see cref="WorkerEventConsumer"/> without a handler,
+    /// which is a no-op that validates and deduplicates events but performs no work. To process events, register
+    /// your own <see cref="IMessagingEventDispatcher"/> (for example a <see cref="WorkerEventConsumer"/> constructed
+    /// with a handler) before calling this method. Its deduplication is process-local.
+    /// </remarks>
     public static IServiceCollection AddOpenConnectMessaging(
         this IServiceCollection services,
         Action<MessagingWorkerOptions>? configure = null)
