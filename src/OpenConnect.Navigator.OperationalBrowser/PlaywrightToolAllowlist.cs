@@ -4,7 +4,12 @@ using OpenConnect.Navigator;
 namespace OpenConnect.Navigator.Playwright;
 
 /// <summary>Maps Navigator's constrained actions to the reviewed Playwright MCP surface.</summary>
-/// <remarks>Reviewed against Playwright MCP 1.x tool names. Keep this list pinned to the integration's reviewed version.</remarks>
+/// <remarks>
+/// Reviewed against Playwright MCP 1.x tool names. Keep this list pinned to the integration's reviewed version.
+/// Fill is denied with <c>sensitive_input_denied</c> when its <c>target</c> descriptor names a credential-like
+/// field (password, secret, token, API key, one-time code, card number and similar). This is a fail-closed
+/// text heuristic over the descriptor, not a check of the resolved element's type.
+/// </remarks>
 public static class PlaywrightToolAllowlist
 {
     private static readonly IReadOnlyDictionary<NavigatorActionType, string> Tools =
@@ -66,11 +71,11 @@ public static class PlaywrightToolAllowlist
 
         if (action == NavigatorActionType.Fill)
         {
-            if (ContainsCredentialField(arguments))
-            { denialReason = "sensitive_input_denied"; return false; }
             if (!HasTarget(arguments) || !TryGetString(arguments, "value", out var fillValue))
             { denialReason = "explicit_target_required"; return false; }
             TryGetString(arguments, "target", out var fillTarget);
+            if (IsCredentialLikeTarget(fillTarget))
+            { denialReason = "sensitive_input_denied"; return false; }
             normalized["target"] = fillTarget.Trim();
             normalized["value"] = fillValue;
         }
@@ -116,19 +121,51 @@ public static class PlaywrightToolAllowlist
         string.Equals(requested.Scheme, approved.Scheme, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(requested.Host, approved.Host, StringComparison.OrdinalIgnoreCase) && requested.Port == approved.Port;
 
-    private static bool ContainsCredentialField(JsonElement value)
+    // Matched anywhere in the target after separators are removed, so "API key", "api_key" and "apiKey" match.
+    private static readonly string[] CredentialTerms =
+    [
+        "password", "passcode", "passwd", "secret", "token", "credential", "apikey", "privatekey",
+        "onetimecode", "onetimepassword", "cardnumber", "securitycode", "socialsecurity",
+        "passphrase", "verificationcode", "authcode", "authenticationcode", "recoverycode", "securityanswer",
+        "creditcard", "debitcard"
+    ];
+
+    // Short abbreviations are matched only as whole words to avoid hits inside ordinary words (e.g. "footprint").
+    private static readonly string[] CredentialWords = ["otp", "pin", "cvv", "cvc", "ssn", "pwd", "2fa", "mfa"];
+
+    /// <summary>
+    /// Heuristic: denies Fill when the target descriptor text names a credential-like field. This is a text
+    /// check on the caller-supplied descriptor only. It cannot see the resolved element, so it is not a
+    /// substitute for element-type checks (for example <c>input[type=password]</c>) and a neutral descriptor
+    /// can still address a sensitive field.
+    /// </summary>
+    private static bool IsCredentialLikeTarget(string target)
     {
-        foreach (var property in value.EnumerateObject())
+        var compact = new string(target.Where(char.IsLetterOrDigit).ToArray());
+        if (CredentialTerms.Any(term => compact.Contains(term, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        var words = SplitWords(target);
+        return words.Any(word => CredentialWords.Contains(word, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static List<string> SplitWords(string text)
+    {
+        var words = new List<string>();
+        var start = -1;
+        for (var i = 0; i < text.Length; i++)
         {
-            var name = property.Name;
-            if (name.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("credential", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("token", StringComparison.OrdinalIgnoreCase) ||
-                name.Contains("private", StringComparison.OrdinalIgnoreCase))
-                return true;
+            if (char.IsLetterOrDigit(text[i]))
+            {
+                if (start < 0) start = i;
+            }
+            else if (start >= 0)
+            {
+                words.Add(text[start..i]);
+                start = -1;
+            }
         }
-        return false;
+        if (start >= 0) words.Add(text[start..]);
+        return words;
     }
 }
 
