@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenConnect.Abstractions;
 using OpenConnect.Abstractions.Persistence;
-using OpenConnect.Transport.Nats;
 
 namespace OpenConnect.WorkerHosts.Outbox;
 
@@ -44,7 +43,9 @@ public sealed class OutboxDispatcherService(
             if (!acquired)
                 throw new InvalidOperationException("outbox_duplicate_supervisor: the dispatcher lease is already held; refusing to start a second dispatcher.");
             var current = await leases.GetAsync(OutboxWorkerOptions.SupervisorResourceKey, tenant, stoppingToken).ConfigureAwait(false);
-            fencing = current?.FencingVersion ?? 1;
+            if (current is null || current.Owner != _instanceId || current.ExpiresAt <= DateTimeOffset.UtcNow)
+                throw new OutboxSupervisorLeaseLostException();
+            fencing = current.FencingVersion;
         }
 
         logger.LogInformation("Outbox dispatcher started (instance {InstanceId}, fencing {FencingVersion}, subject {Subject}).", _instanceId, fencing, config.Subject);
@@ -53,17 +54,10 @@ public sealed class OutboxDispatcherService(
         {
             using var scope = scopes.CreateScope();
             var provider = scope.ServiceProvider;
-            var leases = provider.GetRequiredService<ILeaseStore>();
-            var renewed = await leases.RenewAsync(
-                OutboxWorkerOptions.SupervisorResourceKey, tenant, _instanceId, fencing,
-                DateTimeOffset.UtcNow + config.SupervisorLeaseDuration, stoppingToken).ConfigureAwait(false);
-            if (!renewed)
-                throw new InvalidOperationException("outbox_supervisor_lease_lost: dispatcher lease was taken over; stopping fail-closed.");
-
             try
             {
-                var relay = provider.GetRequiredService<OutboxRelay>();
-                var delivered = await relay.RelayOnceAsync(config.Subject, config.BatchSize, Guid.NewGuid(), stoppingToken).ConfigureAwait(false);
+                var relay = provider.GetRequiredService<OutboxBatchDispatcher>();
+                var delivered = await relay.DispatchUnderSupervisorAsync(_instanceId, fencing, stoppingToken).ConfigureAwait(false);
                 if (delivered > 0)
                     logger.LogInformation("Outbox relay delivered {Delivered} entries.", delivered);
             }
@@ -71,10 +65,14 @@ public sealed class OutboxDispatcherService(
             {
                 break;
             }
+            catch (OutboxSupervisorLeaseLostException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 // Entries stay pending and are redriven on the next poll; never crash the loop on a transient broker/store fault.
-                logger.LogError(ex, "Outbox relay batch failed; entries remain pending for redrive.");
+                logger.LogError("Outbox relay batch failed ({ErrorType}); unfinished entries remain pending for redrive.", ex.GetType().Name);
             }
 
             await Task.Delay(config.PollingInterval, stoppingToken).ConfigureAwait(false);
@@ -84,6 +82,15 @@ public sealed class OutboxDispatcherService(
     /// <inheritdoc />
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        // Cancel/await the active batch and its heartbeat before releasing authority.
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        // BackgroundService may stop waiting when the shutdown deadline expires.
+        // A cancellation-ignoring broker must not outlive released authority.
+        if (ExecuteTask is not { IsCompleted: true })
+        {
+            logger.LogWarning("Outbox dispatcher has not finished stopping; supervisor lease will expire without an early release.");
+            return;
+        }
         try
         {
             using var scope = scopes.CreateScope();
@@ -94,8 +101,7 @@ public sealed class OutboxDispatcherService(
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Outbox dispatcher lease release failed for instance {InstanceId}; the lease expires on its own.", _instanceId);
+            logger.LogWarning("Outbox dispatcher lease release failed ({ErrorType}) for instance {InstanceId}; the lease expires on its own.", ex.GetType().Name, _instanceId);
         }
-        await base.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 }
