@@ -7,6 +7,14 @@ namespace OpenConnect.Transport.Nats.Messaging;
 /// Publishes validated, ciphertext-only messaging event envelopes to NATS with bounded event-ID
 /// deduplication and fail-closed subject/payload inspection.
 /// </summary>
+/// <remarks>
+/// Deduplication is scoped to tenant and event id. The JetStream <c>Nats-Msg-Id</c> is
+/// <c>{tenantId}:{eventId}</c>, identical to the in-process key. A duplicate dispatch that overlaps an
+/// in-flight publish waits for it and returns <see langword="false"/> only if that publish succeeded;
+/// if it failed, the waiting caller performs its own publish attempt. Upgrading changes the broker
+/// dedup identity, so events published by an older version within the stream duplicate window are not
+/// recognised as duplicates of the same event.
+/// </remarks>
 public sealed class NatsMessagingEventPublisher : IMessagingEventDispatcher
 {
     private static readonly HashSet<string> ForbiddenPlaintextProperties = new(StringComparer.OrdinalIgnoreCase)
@@ -30,6 +38,7 @@ public sealed class NatsMessagingEventPublisher : IMessagingEventDispatcher
     private readonly object _dedupLock = new();
     private readonly HashSet<string> _seenEventIds = new(StringComparer.Ordinal);
     private readonly Queue<string> _seenOrder = new();
+    private readonly Dictionary<string, TaskCompletionSource<bool>> _inFlight = new(StringComparer.Ordinal);
 
     public NatsMessagingEventPublisher(
         IJetStreamPublisher publisher,
@@ -99,47 +108,83 @@ public sealed class NatsMessagingEventPublisher : IMessagingEventDispatcher
         if (bytes.Length > _maxEventBytes)
             throw new ArgumentOutOfRangeException(nameof(envelope), $"Serialized event exceeds maximum size of {_maxEventBytes} bytes.");
 
-        var dedupKey = $"{envelope.TenantId.Value}:{envelope.EventId}";
-        if (!TryMarkSeen(dedupKey))
-            return false;
+        var messageId = BuildMessageId(envelope);
 
-        try
+        while (true)
         {
-            await _publisher.PublishAsync(subject, bytes, envelope.EventId, cancellationToken).ConfigureAwait(false);
-            return true;
-        }
-        catch
-        {
-            UnmarkSeen(dedupKey);
-            throw;
-        }
-    }
+            Task<bool>? inFlight = null;
+            TaskCompletionSource<bool>? owned = null;
 
-    private bool TryMarkSeen(string dedupKey)
-    {
-        lock (_dedupLock)
-        {
-            if (!_seenEventIds.Add(dedupKey))
-                return false;
-
-            _seenOrder.Enqueue(dedupKey);
-            while (_seenOrder.Count > _dedupCapacity)
+            lock (_dedupLock)
             {
-                var oldest = _seenOrder.Dequeue();
-                _seenEventIds.Remove(oldest);
+                if (_seenEventIds.Contains(messageId))
+                    return false;
+
+                if (_inFlight.TryGetValue(messageId, out var existing))
+                {
+                    inFlight = existing.Task;
+                }
+                else
+                {
+                    owned = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _inFlight[messageId] = owned;
+                }
             }
 
+            if (owned is null)
+            {
+                // A concurrent duplicate waits for the first attempt. It reports "already published"
+                // only after that attempt succeeded; otherwise it retries the publish itself.
+                if (await inFlight!.WaitAsync(cancellationToken).ConfigureAwait(false))
+                    return false;
+                continue;
+            }
+
+            try
+            {
+                await _publisher.PublishAsync(subject, bytes, messageId, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                CompleteInFlight(messageId, owned, published: false);
+                throw;
+            }
+
+            CompleteInFlight(messageId, owned, published: true);
             return true;
         }
     }
 
-    private void UnmarkSeen(string dedupKey)
+    private void CompleteInFlight(string messageId, TaskCompletionSource<bool> attempt, bool published)
     {
         lock (_dedupLock)
         {
-            _seenEventIds.Remove(dedupKey);
+            _inFlight.Remove(messageId);
+
+            if (published && _seenEventIds.Add(messageId))
+            {
+                _seenOrder.Enqueue(messageId);
+                while (_seenOrder.Count > _dedupCapacity)
+                {
+                    var oldest = _seenOrder.Dequeue();
+                    _seenEventIds.Remove(oldest);
+                }
+            }
         }
+
+        attempt.TrySetResult(published);
     }
+
+    /// <summary>
+    /// Builds the tenant-scoped JetStream <c>Nats-Msg-Id</c> and in-process deduplication key:
+    /// <c>{tenantId}:{eventId}</c>. JetStream deduplicates per stream on this header regardless of
+    /// subject, so the tenant prefix prevents one tenant's event from suppressing another tenant's event
+    /// that reuses the same <see cref="MessagingEventEnvelope.EventId"/>. The value is deterministic,
+    /// so retries of the same tenant event reuse the same id. It contains only ASCII letters, digits,
+    /// '-', '_' and ':' and is bounded by the tenant id length plus <see cref="MessagingNatsSubjects.MaxTokenLength"/>.
+    /// </summary>
+    private static string BuildMessageId(MessagingEventEnvelope envelope)
+        => $"{envelope.TenantId.Value}:{envelope.EventId}";
 
     private static void ValidateEnvelope(MessagingEventEnvelope envelope)
     {

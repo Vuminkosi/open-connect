@@ -67,7 +67,7 @@ public sealed class MessagingNatsRoutingTests
         Assert.False(await publisher.DispatchAsync(env1)); // duplicate suppressed
         Assert.Single(broker.Published);
         Assert.Equal($"oc.v1.messaging.durable.{Tenant.Value}.{Conversation.Value}", broker.Published[0].Subject);
-        Assert.Equal("evt-001", broker.Published[0].MessageId);
+        Assert.Equal($"{Tenant.Value}:evt-001", broker.Published[0].MessageId);
 
         // Fill bounded dedup capacity (2) and evict evt-001
         Assert.True(await publisher.DispatchAsync(MakeEnvelope("evt-002", Conversation)));
@@ -93,6 +93,118 @@ public sealed class MessagingNatsRoutingTests
 
         Assert.True(await publisher.DispatchAsync(env));
         Assert.Single(broker.Published);
+    }
+
+    [Fact]
+    public async Task Message_id_is_tenant_scoped_for_equal_event_ids()
+    {
+        var broker = new RecordingBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var otherTenant = new TenantId(Ulid.NewUlid());
+
+        var first = MakeEnvelope("evt-shared", Conversation);
+        var second = first with { TenantId = otherTenant };
+
+        Assert.True(await publisher.DispatchAsync(first));
+        Assert.True(await publisher.DispatchAsync(second));
+
+        Assert.Equal(2, broker.Published.Count);
+        Assert.NotEqual(broker.Published[0].MessageId, broker.Published[1].MessageId);
+    }
+
+    [Fact]
+    public async Task Message_id_is_stable_when_same_tenant_event_is_republished_after_failure()
+    {
+        var broker = new RecordingBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var env = MakeEnvelope("evt-stable", Conversation);
+
+        broker.FailNext = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => publisher.DispatchAsync(env).AsTask());
+        broker.FailNext = false;
+        Assert.True(await publisher.DispatchAsync(env));
+
+        var again = new NatsMessagingEventPublisher(broker);
+        Assert.True(await again.DispatchAsync(env));
+
+        Assert.Equal(2, broker.Published.Count);
+        Assert.Equal(broker.Published[0].MessageId, broker.Published[1].MessageId);
+    }
+
+    [Fact]
+    public async Task Message_id_satisfies_nats_header_and_length_constraints()
+    {
+        var broker = new RecordingBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var longEventId = new string('e', MessagingNatsSubjects.MaxTokenLength);
+
+        Assert.True(await publisher.DispatchAsync(MakeEnvelope(longEventId, Conversation)));
+
+        var id = broker.Published[0].MessageId;
+        Assert.InRange(id.Length, 1, Tenant.Value.ToString().Length + 1 + MessagingNatsSubjects.MaxTokenLength);
+        Assert.All(id, ch => Assert.True(
+            ch is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '-' or '_' or ':',
+            $"Unexpected character '{ch}' in message id."));
+    }
+
+    [Fact]
+    public async Task Concurrent_duplicate_waits_for_in_flight_publish_and_retries_when_it_fails()
+    {
+        var broker = new GatedBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var env = MakeEnvelope("evt-race", Conversation);
+
+        var first = publisher.DispatchAsync(env).AsTask();
+        await broker.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var duplicate = publisher.DispatchAsync(env).AsTask();
+        await Task.Delay(100);
+        Assert.False(duplicate.IsCompleted); // must not report "already published" while in flight
+
+        broker.FailFirst.SetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+
+        Assert.True(await duplicate.WaitAsync(TimeSpan.FromSeconds(5))); // waiter republished itself
+        Assert.Equal(2, broker.Calls);
+        Assert.Single(broker.Published);
+    }
+
+    [Fact]
+    public async Task Concurrent_duplicate_returns_false_after_in_flight_publish_succeeds()
+    {
+        var broker = new GatedBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var env = MakeEnvelope("evt-race-ok", Conversation);
+
+        var first = publisher.DispatchAsync(env).AsTask();
+        await broker.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var duplicate = publisher.DispatchAsync(env).AsTask();
+        await Task.Delay(100);
+        Assert.False(duplicate.IsCompleted);
+
+        broker.SucceedFirst.SetResult();
+        Assert.True(await first);
+        Assert.False(await duplicate.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(1, broker.Calls);
+    }
+
+    [Fact]
+    public async Task Waiting_duplicate_honours_cancellation()
+    {
+        var broker = new GatedBroker();
+        var publisher = new NatsMessagingEventPublisher(broker);
+        var env = MakeEnvelope("evt-race-cancel", Conversation);
+
+        var first = publisher.DispatchAsync(env).AsTask();
+        await broker.FirstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        using var cts = new CancellationTokenSource();
+        var duplicate = publisher.DispatchAsync(env, cts.Token).AsTask();
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => duplicate);
+
+        broker.SucceedFirst.SetResult();
+        Assert.True(await first);
     }
 
     [Theory]
@@ -145,6 +257,30 @@ public sealed class MessagingNatsRoutingTests
             Cursor: "cur-1",
             OccurredAt: DateTimeOffset.UtcNow,
             PayloadJson: payloadJson);
+
+    private sealed class GatedBroker : IJetStreamPublisher
+    {
+        private int _calls;
+        public TaskCompletionSource FirstStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource FailFirst { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource SucceedFirst { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int Calls => Volatile.Read(ref _calls);
+        public List<string> Published { get; } = [];
+
+        public async ValueTask PublishAsync(string subject, ReadOnlyMemory<byte> payload, string messageId, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _calls) == 1)
+            {
+                FirstStarted.SetResult();
+                var failed = await Task.WhenAny(FailFirst.Task, SucceedFirst.Task) == FailFirst.Task;
+                if (failed)
+                    throw new InvalidOperationException("Simulated NATS outage.");
+            }
+
+            lock (Published)
+                Published.Add(messageId);
+        }
+    }
 
     private sealed class RecordingBroker : IJetStreamPublisher
     {
