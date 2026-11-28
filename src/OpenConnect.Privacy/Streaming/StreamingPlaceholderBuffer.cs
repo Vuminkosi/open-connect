@@ -58,9 +58,17 @@ public sealed class StreamingPlaceholderBuffer
                 // Check if buffer can still be a token
                 if (!IsPrefixOfToken(bufStr))
                 {
-                    // Not a token prefix - flush buffer
-                    output.Append(bufStr);
                     _buffer.Clear();
+                    if (bufStr.EndsWith('['))
+                    {
+                        // The last bracket ends this candidate but can start the next one.
+                        output.Append(bufStr, 0, bufStr.Length - 1);
+                        _buffer.Append('[');
+                    }
+                    else
+                    {
+                        output.Append(bufStr);
+                    }
                     continue;
                 }
 
