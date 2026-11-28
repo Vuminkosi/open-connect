@@ -2,7 +2,12 @@ using OpenConnect.Abstractions;
 
 namespace OpenConnect.Core.Capabilities;
 
-/// <summary>Canonical registry for the 11 OpenConnect worker capability descriptors.</summary>
+/// <summary>
+/// Canonical registry for the 11 OpenConnect worker capability descriptors.
+/// Descriptors whose <see cref="WorkerCapabilityDescriptor.ExpiresAt"/> is <see cref="DateTimeOffset.MaxValue"/>
+/// never expire. Finite expiries are enforced on every read, and the mirrored
+/// <see cref="ICapabilityRegistry"/> entry is marked stale when its descriptor lapses.
+/// </summary>
 public sealed class WorkerCapabilityRegistry : IWorkerCapabilityRegistry
 {
     private static readonly IReadOnlyDictionary<OpenConnectWorkerKind, string> CanonicalImages =
@@ -125,10 +130,19 @@ public sealed class WorkerCapabilityRegistry : IWorkerCapabilityRegistry
                 _ => DetectorState.Failed
             };
             var idValue = $"worker.{descriptor.Kind.ToString().ToLowerInvariant()}";
-            _capabilityRegistry.Register(new CapabilityDescriptor(new CapabilityId(idValue), mappedKind, mappedState));
+            var mirror = new CapabilityDescriptor(new CapabilityId(idValue), mappedKind, mappedState);
+            // The worker registry owns the lifetime, so the mirror must not lapse on its own shorter lease.
+            if (_capabilityRegistry is CapabilityRegistry owned)
+                owned.RegisterUntil(mirror, descriptor.ExpiresAt);
+            else
+                _capabilityRegistry.Register(mirror);
         }
     }
 
+    /// <summary>
+    /// Updates readiness and model metadata. A non-expiring descriptor stays non-expiring; a finite expiry is
+    /// extended to at least ten minutes from now and is never shortened.
+    /// </summary>
     public void UpdateReadiness(OpenConnectWorkerKind kind, WorkerReadiness readiness, string? modelId = null, string? modelRevision = null)
     {
         if (!Enum.IsDefined(readiness))
@@ -144,7 +158,7 @@ public sealed class WorkerCapabilityRegistry : IWorkerCapabilityRegistry
                     Readiness = readiness,
                     ModelId = modelId ?? existing.ModelId,
                     ModelRevision = modelRevision ?? existing.ModelRevision,
-                    ExpiresAt = _timeProvider.GetUtcNow().AddMinutes(10)
+                    ExpiresAt = ExtendExpiry(existing.ExpiresAt)
                 };
                 _descriptors[kind] = updated;
             }
@@ -154,10 +168,21 @@ public sealed class WorkerCapabilityRegistry : IWorkerCapabilityRegistry
             Register(updated);
     }
 
+    private DateTimeOffset ExtendExpiry(DateTimeOffset current)
+    {
+        if (current == DateTimeOffset.MaxValue)
+            return current;
+        var extended = _timeProvider.GetUtcNow().AddMinutes(10);
+        return extended > current ? extended : current;
+    }
+
     private void RemoveExpired()
     {
         var now = _timeProvider.GetUtcNow();
         foreach (var kind in _descriptors.Where(pair => pair.Value.ExpiresAt <= now).Select(pair => pair.Key).ToArray())
+        {
             _descriptors.Remove(kind);
+            _capabilityRegistry?.MarkStale(new CapabilityId($"worker.{kind.ToString().ToLowerInvariant()}"));
+        }
     }
 }

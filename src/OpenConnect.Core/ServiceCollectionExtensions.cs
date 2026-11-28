@@ -13,6 +13,9 @@ public static class ServiceCollectionExtensions
 {
     private const string DefaultContractVersion = "openconnect.worker.v1";
 
+    /// <summary>Expiry for worker descriptors registered at startup. They stay discoverable until removed or replaced.</summary>
+    private static readonly DateTimeOffset NonExpiringWorkerRegistration = DateTimeOffset.MaxValue;
+
     public static IServiceCollection AddOpenConnect(this IServiceCollection services, Action<OpenConnectOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -20,8 +23,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(OptionsConflictGuard.Capture(Materialize(configure)));
         services.AddSingleton<IValidateOptions<OpenConnectOptions>, OpenConnectOptionsValidator>();
         services.AddOptions<OpenConnectOptions>().Configure(options => configure?.Invoke(options)).ValidateOnStart();
-        services.TryAddSingleton<ICapabilityRegistry>(_ => new CapabilityRegistry());
-        services.TryAddSingleton<WorkerCapabilityRegistry>(sp => new WorkerCapabilityRegistry(TimeProvider.System, sp.GetService<ICapabilityRegistry>()));
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<ICapabilityRegistry>(sp => new CapabilityRegistry(timeProvider: sp.GetService<TimeProvider>()));
+        services.TryAddSingleton<WorkerCapabilityRegistry>(sp => new WorkerCapabilityRegistry(sp.GetService<TimeProvider>() ?? TimeProvider.System, sp.GetService<ICapabilityRegistry>()));
         services.TryAddSingleton<IWorkerCapabilityRegistry>(sp => sp.GetRequiredService<WorkerCapabilityRegistry>());
         services.TryAddSingleton<IAgentDefinitionRegistry>(provider =>
         {
@@ -237,7 +241,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en"], StringComparer.OrdinalIgnoreCase),
                 options.Rules.Enabled && capabilities.Count == 1 ? "rules-only" : "multi-detector",
                 "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectClassificationWorker(this IServiceCollection services, Action<ClassificationWorkerOptions>? configure = null)
@@ -260,7 +264,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en"], StringComparer.OrdinalIgnoreCase),
                 options.ModelId ?? "classification-default",
                 options.ModelRevision ?? "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectTranslationWorker(this IServiceCollection services, Action<TranslationWorkerOptions>? configure = null)
@@ -289,7 +293,7 @@ public static class ServiceCollectionExtensions
                 languages,
                 options.ModelId ?? "facebook/nllb-200-distilled-600M",
                 options.ModelRevision ?? "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectInferenceWorker(this IServiceCollection services, Action<InferenceWorkerOptions>? configure = null)
@@ -312,7 +316,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en"], StringComparer.OrdinalIgnoreCase),
                 options.ModelId ?? "local-inference",
                 options.ModelRevision ?? "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectTranscriptionWorker(this IServiceCollection services, Action<TranscriptionWorkerOptions>? configure = null)
@@ -335,7 +339,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en"], StringComparer.OrdinalIgnoreCase),
                 options.ModelId ?? "whisper-local",
                 options.ModelRevision ?? "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectRealtimeVoiceWorker(this IServiceCollection services, Action<RealtimeVoiceWorkerOptions>? configure = null)
@@ -358,7 +362,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en"], StringComparer.OrdinalIgnoreCase),
                 options.ModelId,
                 options.ModelRevision,
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectKokoroWorker(this IServiceCollection services, Action<KokoroWorkerOptions>? configure = null)
@@ -381,7 +385,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(["en-US"], StringComparer.OrdinalIgnoreCase),
                 options.DefaultModel,
                 options.ModelRevision ?? options.DefaultVoice,
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectMmsTtsWorker(this IServiceCollection services, Action<MmsTtsWorkerOptions>? configure = null)
@@ -410,7 +414,7 @@ public static class ServiceCollectionExtensions
                 languages,
                 options.ModelId ?? "facebook/mms-tts",
                 options.ModelRevision ?? "v1",
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectPlaywrightWorker(this IServiceCollection services, Action<PlaywrightWorkerOptions>? configure = null)
@@ -437,7 +441,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 null,
                 null,
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectOperationalAgents(this IServiceCollection services, Action<OperationalAgentsWorkerOptions>? configure = null)
@@ -467,7 +471,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 null,
                 null,
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     public static IServiceCollection AddOpenConnectOutbox(this IServiceCollection services, Action<OpenConnectOutboxOptions>? configure = null)
@@ -497,7 +501,7 @@ public static class ServiceCollectionExtensions
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 null,
                 null,
-                DateTimeOffset.UtcNow.AddHours(1)));
+                NonExpiringWorkerRegistration));
     }
 
     private static IServiceCollection RegisterWorkerCapability(IServiceCollection services, WorkerCapabilityDescriptor descriptor)
@@ -509,22 +513,39 @@ public static class ServiceCollectionExtensions
 
     private static WorkerCapabilityRegistry GetOrAddWorkerRegistry(IServiceCollection services)
     {
-        var existing = services.FirstOrDefault(d => d.ServiceType == typeof(WorkerCapabilityRegistry))?.ImplementationInstance as WorkerCapabilityRegistry;
-        if (existing is not null)
-            return existing;
+        var holder = services.FirstOrDefault(d => d.ServiceType == typeof(WorkerRegistryHolder))?.ImplementationInstance as WorkerRegistryHolder;
+        if (holder is not null)
+            return holder.Registry;
 
+        // Registrations happen before the provider exists, so the clock is bound to the DI TimeProvider on first resolution.
+        var clock = new DeferredTimeProvider();
+        services.TryAddSingleton(TimeProvider.System);
         var capDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ICapabilityRegistry));
         CapabilityRegistry? capInstance = capDescriptor?.ImplementationInstance as CapabilityRegistry;
         if (capInstance is null)
         {
-            capInstance = new CapabilityRegistry();
+            capInstance = new CapabilityRegistry(timeProvider: clock);
             services.Replace(ServiceDescriptor.Singleton<ICapabilityRegistry>(capInstance));
         }
 
-        var instance = new WorkerCapabilityRegistry(TimeProvider.System, capInstance);
-        services.Replace(ServiceDescriptor.Singleton(instance));
-        services.Replace(ServiceDescriptor.Singleton<IWorkerCapabilityRegistry>(instance));
+        var instance = new WorkerCapabilityRegistry(clock, capInstance);
+        services.AddSingleton(new WorkerRegistryHolder(instance));
+        services.Replace(ServiceDescriptor.Singleton<WorkerCapabilityRegistry>(sp => { clock.Bind(sp.GetService<TimeProvider>()); return instance; }));
+        services.Replace(ServiceDescriptor.Singleton<IWorkerCapabilityRegistry>(sp => sp.GetRequiredService<WorkerCapabilityRegistry>()));
         return instance;
+    }
+
+    private sealed record WorkerRegistryHolder(WorkerCapabilityRegistry Registry);
+
+    private sealed class DeferredTimeProvider : TimeProvider
+    {
+        private volatile TimeProvider _inner = System;
+
+        public void Bind(TimeProvider? provider) => _inner = provider ?? System;
+        public override DateTimeOffset GetUtcNow() => _inner.GetUtcNow();
+        public override long GetTimestamp() => _inner.GetTimestamp();
+        public override long TimestampFrequency => _inner.TimestampFrequency;
+        public override TimeZoneInfo LocalTimeZone => _inner.LocalTimeZone;
     }
 
     private static CoreToolRegistry GetOrAddCoreToolRegistry(IServiceCollection services)

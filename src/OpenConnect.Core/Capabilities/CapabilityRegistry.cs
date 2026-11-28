@@ -44,6 +44,17 @@ public sealed class CapabilityRegistry : ICapabilityRegistry
 
     public void Register(CapabilityDescriptor descriptor)
     {
+        RegisterCore(descriptor, null);
+    }
+
+    /// <summary>
+    /// Registers a descriptor whose lifetime is owned by another registry. The entry lapses at
+    /// <paramref name="expiresAt"/> instead of after the registry's default lease.
+    /// </summary>
+    internal void RegisterUntil(CapabilityDescriptor descriptor, DateTimeOffset expiresAt) => RegisterCore(descriptor, expiresAt);
+
+    private void RegisterCore(CapabilityDescriptor descriptor, DateTimeOffset? expiresAt)
+    {
         ArgumentNullException.ThrowIfNull(descriptor);
         if (string.IsNullOrWhiteSpace(descriptor.Id.Value))
             throw new ArgumentException("Capability id must not be empty.", nameof(descriptor));
@@ -53,7 +64,7 @@ public sealed class CapabilityRegistry : ICapabilityRegistry
             throw new ArgumentException("Capability health state is invalid.", nameof(descriptor));
 
         lock (_gate)
-            _registrations[descriptor.Id] = new Registration(descriptor, _timeProvider.GetUtcNow() + _ttl);
+            _registrations[descriptor.Id] = new Registration(descriptor, expiresAt ?? _timeProvider.GetUtcNow() + _ttl);
     }
 
     public void MarkStale(CapabilityId capabilityId)
